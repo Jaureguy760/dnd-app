@@ -1,0 +1,517 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Dungeon Maker</title>
+  <style>
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font-family: system-ui, sans-serif;
+      background: #111;
+      color: #eee;
+    }
+    header {
+      padding: 0.75rem 1rem;
+      background: #222;
+      border-bottom: 1px solid #333;
+      display: flex;
+      align-items: baseline;
+      justify-content: space-between;
+    }
+    header h1 {
+      margin: 0;
+      font-size: 1.1rem;
+      letter-spacing: 0.03em;
+    }
+    header small {
+      color: #aaa;
+      font-size: 0.75rem;
+    }
+    main.layout {
+      display: grid;
+      grid-template-columns: 2fr 1fr;
+      height: calc(100vh - 48px);
+    }
+    .left, .right {
+      padding: 0.75rem;
+      overflow: hidden;
+      display: flex;
+      flex-direction: column;
+      gap: 0.5rem;
+    }
+    .left {
+      border-right: 1px solid #333;
+    }
+    canvas {
+      background: #000;
+      border: 1px solid #444;
+      border-radius: 4px;
+      max-width: 100%;
+    }
+    .toolbar, .options {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.5rem;
+      align-items: center;
+      font-size: 0.85rem;
+    }
+    button, select, input[type="range"], label.file-label {
+      font-size: 0.85rem;
+      background: #2a2a2a;
+      color: #eee;
+      border: 1px solid #444;
+      border-radius: 4px;
+      padding: 0.25rem 0.5rem;
+      cursor: pointer;
+    }
+    button:hover, label.file-label:hover {
+      background: #3a3a3a;
+    }
+    button.primary {
+      background: #345;
+      border-color: #567;
+    }
+    button.primary:hover {
+      background: #456;
+    }
+    input[type="file"] {
+      display: none;
+    }
+    .right h2 {
+      margin: 0 0 0.25rem;
+      font-size: 1rem;
+    }
+    .right small {
+      color: #aaa;
+      font-size: 0.75rem;
+    }
+    #roomList {
+      list-style: decimal;
+      padding-left: 1.2rem;
+      margin: 0.5rem 0 0;
+      overflow-y: auto;
+      flex: 1;
+      border: 1px solid #333;
+      border-radius: 4px;
+      padding: 0.5rem;
+      background: #181818;
+    }
+    #roomList li {
+      margin-bottom: 0.5rem;
+      padding: 0.25rem;
+      border-radius: 4px;
+      cursor: pointer;
+    }
+    #roomList li.selected {
+      background: #273445;
+      border: 1px solid #4b7abf;
+    }
+    #roomList textarea {
+      width: 100%;
+      min-height: 3rem;
+      margin-top: 0.25rem;
+      background: #111;
+      color: #eee;
+      border-radius: 4px;
+      border: 1px solid #444;
+      resize: vertical;
+      font-size: 0.8rem;
+      font-family: inherit;
+      padding: 0.25rem 0.35rem;
+    }
+    .hint {
+      font-size: 0.75rem;
+      color: #aaa;
+    }
+  </style>
+</head>
+<body>
+<header>
+  <div>
+    <h1>Dungeon Maker</h1>
+    <small>Random D&D dungeons + editable numbered locations</small>
+  </div>
+</header>
+
+<main class="layout">
+  <!-- LEFT: MAP -->
+  <section class="left">
+    <canvas id="mapCanvas" width="800" height="600"></canvas>
+
+    <div class="toolbar">
+      <button id="newDungeonBtn" class="primary">New Random Dungeon</button>
+
+      <label class="file-label">
+        Load Map Image
+        <input type="file" id="mapFileInput" accept="image/*">
+      </label>
+
+      <button id="placeMarkerBtn">Add Numbered Location</button>
+      <button id="exportPngBtn">Export Map PNG</button>
+      <button id="exportJsonBtn">Export JSON</button>
+    </div>
+
+    <div class="options">
+      <span>Size:</span>
+      <select id="sizeSelect">
+        <option value="small">Small</option>
+        <option value="medium" selected>Medium</option>
+        <option value="large">Large</option>
+      </select>
+
+      <span>Density:</span>
+      <input id="densityRange" type="range" min="1" max="10" value="5">
+
+      <span>Theme:</span>
+      <select id="themeSelect">
+        <option value="classic">Classic Dungeon</option>
+        <option value="undead">Undead Crypt</option>
+        <option value="cavern">Caverns</option>
+        <option value="arcane">Arcane Ruin</option>
+      </select>
+    </div>
+
+    <div class="hint">
+      Tip: Load a custom map image, then use "Add Numbered Location" and click on the map to drop markers.
+    </div>
+  </section>
+
+  <!-- RIGHT: ROOM LIST -->
+  <section class="right">
+    <h2>Numbered Locations</h2>
+    <small>Click a room on the map or in the list to edit its text.</small>
+    <ol id="roomList"></ol>
+  </section>
+</main>
+
+<script>
+  // --- GLOBAL STATE ---
+  const canvas = document.getElementById('mapCanvas');
+  const ctx = canvas.getContext('2d');
+
+  const roomListEl = document.getElementById('roomList');
+  const newDungeonBtn = document.getElementById('newDungeonBtn');
+  const mapFileInput = document.getElementById('mapFileInput');
+  const placeMarkerBtn = document.getElementById('placeMarkerBtn');
+  const exportPngBtn = document.getElementById('exportPngBtn');
+  const exportJsonBtn = document.getElementById('exportJsonBtn');
+  const sizeSelect = document.getElementById('sizeSelect');
+  const densityRange = document.getElementById('densityRange');
+  const themeSelect = document.getElementById('themeSelect');
+
+  const GRID_SIZE = 20;
+  const GRID_COLS = canvas.width / GRID_SIZE;
+  const GRID_ROWS = canvas.height / GRID_SIZE;
+
+  let rooms = [];
+  let selectedRoomId = null;
+  let placingMarker = false;
+  let backgroundImg = null;
+
+  // --- UTILS ---
+  function randInt(min, max) {
+    return Math.floor(Math.random() * (max - min + 1)) + min;
+  }
+
+  function getThemePrompt(theme) {
+    switch (theme) {
+      case 'undead': return 'Undead crypt: bones, sarcophagi, necromantic energies.';
+      case 'cavern': return 'Natural caverns: stalactites, underground lakes, strange fungi.';
+      case 'arcane': return 'Arcane ruin: magical traps, glyphs, summoning circles.';
+      default: return 'Classic dungeon: stone corridors, doors, traps, treasure.';
+    }
+  }
+
+  // --- DUNGEON GENERATION ---
+  function generateDungeon() {
+    const size = sizeSelect.value;
+    const density = parseInt(densityRange.value, 10);
+
+    let roomCount;
+    let minSize, maxSize;
+
+    if (size === 'small') {
+      roomCount = 5 + density;
+      minSize = 3; maxSize = 6;
+    } else if (size === 'large') {
+      roomCount = 12 + density;
+      minSize = 4; maxSize = 8;
+    } else {
+      roomCount = 8 + density;
+      minSize = 3; maxSize = 7;
+    }
+
+    const newRooms = [];
+    let id = 1;
+
+    while (newRooms.length < roomCount && id < roomCount + 20) {
+      const w = randInt(minSize, maxSize);
+      const h = randInt(minSize, maxSize);
+      const x = randInt(1, GRID_COLS - w - 1);
+      const y = randInt(1, GRID_ROWS - h - 1);
+
+      // basic overlap check to keep it clean-ish
+      let overlaps = false;
+      for (const r of newRooms) {
+        if (x < r.x + r.w + 1 && x + w + 1 > r.x &&
+            y < r.y + r.h + 1 && y + h + 1 > r.y) {
+          overlaps = true;
+          break;
+        }
+      }
+      if (overlaps) continue;
+
+      newRooms.push({
+        id: id,
+        x, y, w, h,
+        description: '',
+      });
+      id++;
+    }
+
+    rooms = newRooms;
+    selectedRoomId = rooms[0]?.id ?? null;
+    autoFillDescriptions();
+    render();
+    rebuildRoomList();
+  }
+
+  function autoFillDescriptions() {
+    const themeText = getThemePrompt(themeSelect.value);
+    rooms.forEach((room, idx) => {
+      if (!room.description) {
+        room.description =
+          `Area ${room.id}. ${themeText} This room has a notable feature or encounter tailored by the DM.`;
+        if (idx === 0) {
+          room.description =
+            `Entrance (${room.id}). Players arrive here. Describe how they enter the dungeon and any immediate threats.`;
+        }
+      }
+    });
+  }
+
+  // --- RENDERING ---
+  function drawGrid() {
+    ctx.strokeStyle = '#222';
+    ctx.lineWidth = 1;
+    for (let x = 0; x <= canvas.width; x += GRID_SIZE) {
+      ctx.beginPath();
+      ctx.moveTo(x, 0);
+      ctx.lineTo(x, canvas.height);
+      ctx.stroke();
+    }
+    for (let y = 0; y <= canvas.height; y += GRID_SIZE) {
+      ctx.beginPath();
+      ctx.moveTo(0, y);
+      ctx.lineTo(canvas.width, y);
+      ctx.stroke();
+    }
+  }
+
+  function drawRooms() {
+    // corridors between room centers
+    ctx.strokeStyle = '#555';
+    ctx.lineWidth = 2;
+    for (let i = 1; i < rooms.length; i++) {
+      const r1 = rooms[i - 1];
+      const r2 = rooms[i];
+      const x1 = (r1.x + r1.w / 2) * GRID_SIZE;
+      const y1 = (r1.y + r1.h / 2) * GRID_SIZE;
+      const x2 = (r2.x + r2.w / 2) * GRID_SIZE;
+      const y2 = (r2.y + r2.h / 2) * GRID_SIZE;
+      ctx.beginPath();
+      ctx.moveTo(x1, y1);
+      ctx.lineTo(x2, y2);
+      ctx.stroke();
+    }
+
+    rooms.forEach(room => {
+      const isSelected = room.id === selectedRoomId;
+
+      // room rectangle
+      ctx.lineWidth = isSelected ? 3 : 2;
+      ctx.strokeStyle = isSelected ? '#4b7abf' : '#aaa';
+      ctx.fillStyle = '#222';
+
+      const x = room.x * GRID_SIZE;
+      const y = room.y * GRID_SIZE;
+      const w = room.w * GRID_SIZE;
+      const h = room.h * GRID_SIZE;
+
+      ctx.fillRect(x, y, w, h);
+      ctx.strokeRect(x, y, w, h);
+
+      // room number
+      ctx.fillStyle = '#fff';
+      ctx.font = '16px system-ui';
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      const cx = x + w / 2;
+      const cy = y + h / 2;
+      ctx.fillText(String(room.id), cx, cy);
+    });
+  }
+
+  function render() {
+    ctx.fillStyle = '#000';
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+    if (backgroundImg) {
+      const scale = Math.min(
+        canvas.width / backgroundImg.width,
+        canvas.height / backgroundImg.height
+      );
+      const imgW = backgroundImg.width * scale;
+      const imgH = backgroundImg.height * scale;
+      const offsetX = (canvas.width - imgW) / 2;
+      const offsetY = (canvas.height - imgH) / 2;
+      ctx.drawImage(backgroundImg, offsetX, offsetY, imgW, imgH);
+    }
+
+    drawGrid();
+    drawRooms();
+  }
+
+  // --- ROOM LIST UI ---
+  function rebuildRoomList() {
+    roomListEl.innerHTML = '';
+    rooms
+      .slice()
+      .sort((a, b) => a.id - b.id)
+      .forEach(room => {
+        const li = document.createElement('li');
+        li.dataset.id = room.id;
+        if (room.id === selectedRoomId) li.classList.add('selected');
+
+        const title = document.createElement('div');
+        title.textContent = `Location ${room.id}`;
+        li.appendChild(title);
+
+        const textarea = document.createElement('textarea');
+        textarea.value = room.description || '';
+        textarea.addEventListener('input', (e) => {
+          room.description = e.target.value;
+        });
+        li.appendChild(textarea);
+
+        li.addEventListener('click', () => {
+          selectedRoomId = room.id;
+          render();
+          rebuildRoomList();
+        });
+
+        roomListEl.appendChild(li);
+      });
+  }
+
+  // --- HIT TEST / INTERACTION ---
+  function roomAtCanvasPosition(px, py) {
+    const gx = px / GRID_SIZE;
+    const gy = py / GRID_SIZE;
+    for (const room of rooms) {
+      if (
+        gx >= room.x &&
+        gx <= room.x + room.w &&
+        gy >= room.y &&
+        gy <= room.y + room.h
+      ) return room;
+    }
+    return null;
+  }
+
+  canvas.addEventListener('click', (event) => {
+    const rect = canvas.getBoundingClientRect();
+    const x = event.clientX - rect.left;
+    const y = event.clientY - rect.top;
+
+    if (placingMarker) {
+      const id = rooms.length ? Math.max(...rooms.map(r => r.id)) + 1 : 1;
+      const gx = Math.floor(x / GRID_SIZE);
+      const gy = Math.floor(y / GRID_SIZE);
+      const newRoom = {
+        id,
+        x: gx - 1,
+        y: gy - 1,
+        w: 3,
+        h: 3,
+        description: `Location ${id}. Describe what is here.`
+      };
+      rooms.push(newRoom);
+      selectedRoomId = id;
+      placingMarker = false;
+      placeMarkerBtn.textContent = 'Add Numbered Location';
+      render();
+      rebuildRoomList();
+      return;
+    }
+
+    const room = roomAtCanvasPosition(x, y);
+    if (room) {
+      selectedRoomId = room.id;
+      render();
+      rebuildRoomList();
+    }
+  });
+
+  // --- BUTTON HANDLERS ---
+  newDungeonBtn.addEventListener('click', () => {
+    backgroundImg = null; // clear custom map
+    generateDungeon();
+  });
+
+  placeMarkerBtn.addEventListener('click', () => {
+    placingMarker = !placingMarker;
+    placeMarkerBtn.textContent = placingMarker
+      ? 'Click on Map to Place'
+      : 'Add Numbered Location';
+  });
+
+  mapFileInput.addEventListener('change', (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = function(ev) {
+      const img = new Image();
+      img.onload = function() {
+        backgroundImg = img;
+        render();
+      };
+      img.src = ev.target.result;
+    };
+    reader.readAsDataURL(file);
+  });
+
+  exportPngBtn.addEventListener('click', () => {
+    const dataUrl = canvas.toDataURL('image/png');
+    const a = document.createElement('a');
+    a.href = dataUrl;
+    a.download = 'dungeon_map.png';
+    a.click();
+  });
+
+  exportJsonBtn.addEventListener('click', () => {
+    const data = {
+      size: sizeSelect.value,
+      density: densityRange.value,
+      theme: themeSelect.value,
+      rooms: rooms.map(r => ({
+        id: r.id,
+        gridRect: { x: r.x, y: r.y, w: r.w, h: r.h },
+        description: r.description
+      }))
+    };
+    const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'dungeon_data.json';
+    a.click();
+    URL.revokeObjectURL(url);
+  });
+
+  // initial dungeon
+  generateDungeon();
+</script>
+</body>
+</html>
