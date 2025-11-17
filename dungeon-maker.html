@@ -43,11 +43,20 @@
     .left {
       border-right: 1px solid #333;
     }
-    canvas {
+    .canvas-container {
+      position: relative;
+      overflow: auto;
+      flex: 1;
       background: #000;
       border: 1px solid #444;
       border-radius: 4px;
-      max-width: 100%;
+    }
+    canvas {
+      display: block;
+      cursor: crosshair;
+    }
+    canvas.dragging {
+      cursor: move;
     }
     .toolbar, .options {
       display: flex;
@@ -74,6 +83,10 @@
     }
     button.primary:hover {
       background: #456;
+    }
+    button:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
     }
     input[type="file"] {
       display: none;
@@ -125,9 +138,24 @@
       font-family: inherit;
       padding: 0.25rem 0.35rem;
     }
-    .room-type-selector {
+    .room-controls {
+      display: flex;
+      gap: 0.25rem;
       margin-top: 0.25rem;
+      align-items: center;
+    }
+    .room-type-selector {
+      flex: 1;
       font-size: 0.75rem;
+    }
+    .delete-room-btn {
+      font-size: 0.7rem;
+      padding: 0.15rem 0.4rem;
+      background: #5a2a2a;
+      border-color: #844;
+    }
+    .delete-room-btn:hover {
+      background: #6a3a3a;
     }
     .hint {
       font-size: 0.75rem;
@@ -138,13 +166,24 @@
       color: #888;
       font-style: italic;
     }
+    .density-value {
+      font-weight: bold;
+      color: #4a9eff;
+      min-width: 1.5rem;
+      text-align: center;
+    }
+    .zoom-controls {
+      display: flex;
+      gap: 0.25rem;
+      align-items: center;
+    }
   </style>
 </head>
 <body>
 <header>
   <div>
     <h1>Dungeon Maker</h1>
-    <small>Random D&D dungeons + editable numbered locations</small>
+    <small>Random D&D dungeons + editable numbered locations | Drag rooms to move | Delete key to remove</small>
   </div>
   <div class="status" id="statusText">Auto-saved</div>
 </header>
@@ -152,7 +191,9 @@
 <main class="layout">
   <!-- LEFT: MAP -->
   <section class="left">
-    <canvas id="mapCanvas" width="800" height="600"></canvas>
+    <div class="canvas-container" id="canvasContainer">
+      <canvas id="mapCanvas" width="800" height="600"></canvas>
+    </div>
 
     <div class="toolbar">
       <button id="newDungeonBtn" class="primary">New Random Dungeon</button>
@@ -171,6 +212,17 @@
 
       <button id="exportPngBtn">Export Map PNG</button>
       <button id="exportJsonBtn">Export JSON</button>
+
+      <div class="zoom-controls">
+        <button id="zoomOutBtn">-</button>
+        <span id="zoomLabel">100%</span>
+        <button id="zoomInBtn">+</button>
+        <button id="zoomResetBtn">Reset</button>
+      </div>
+
+      <button id="undoBtn" disabled>↶ Undo</button>
+      <button id="redoBtn" disabled>↷ Redo</button>
+      <button id="renumberBtn">Renumber Rooms</button>
     </div>
 
     <div class="options">
@@ -190,6 +242,7 @@
 
       <span>Density:</span>
       <input id="densityRange" type="range" min="1" max="10" value="5">
+      <span class="density-value" id="densityValue">5</span>
 
       <span>Theme:</span>
       <select id="themeSelect">
@@ -215,7 +268,7 @@
     </div>
 
     <div class="hint">
-      Tip: Load a custom map image, then use "Add Numbered Location" and click on the map to drop markers. Your work auto-saves!
+      Tip: Drag rooms to reposition. Select and press Delete to remove. Load custom maps or use templates. Your work auto-saves!
     </div>
   </section>
 
@@ -231,6 +284,7 @@
   // --- GLOBAL STATE ---
   const canvas = document.getElementById('mapCanvas');
   const ctx = canvas.getContext('2d');
+  const canvasContainer = document.getElementById('canvasContainer');
 
   const roomListEl = document.getElementById('roomList');
   const newDungeonBtn = document.getElementById('newDungeonBtn');
@@ -241,12 +295,20 @@
   const exportJsonBtn = document.getElementById('exportJsonBtn');
   const sizeSelect = document.getElementById('sizeSelect');
   const densityRange = document.getElementById('densityRange');
+  const densityValue = document.getElementById('densityValue');
   const themeSelect = document.getElementById('themeSelect');
   const algorithmSelect = document.getElementById('algorithmSelect');
   const templateSelect = document.getElementById('templateSelect');
   const loadTemplateBtn = document.getElementById('loadTemplateBtn');
   const clearStorageBtn = document.getElementById('clearStorageBtn');
   const statusText = document.getElementById('statusText');
+  const zoomInBtn = document.getElementById('zoomInBtn');
+  const zoomOutBtn = document.getElementById('zoomOutBtn');
+  const zoomResetBtn = document.getElementById('zoomResetBtn');
+  const zoomLabel = document.getElementById('zoomLabel');
+  const undoBtn = document.getElementById('undoBtn');
+  const redoBtn = document.getElementById('redoBtn');
+  const renumberBtn = document.getElementById('renumberBtn');
 
   const GRID_SIZE = 20;
   const GRID_COLS = canvas.width / GRID_SIZE;
@@ -256,6 +318,14 @@
   let selectedRoomId = null;
   let placingMarker = false;
   let backgroundImg = null;
+  let zoomLevel = 1.0;
+  let draggingRoom = null;
+  let dragOffset = { x: 0, y: 0 };
+
+  // Undo/Redo system
+  let undoStack = [];
+  let redoStack = [];
+  const MAX_UNDO = 50;
 
   // --- TEMPLATES ---
   const TEMPLATES = {
@@ -320,6 +390,55 @@
     }
   };
 
+  // --- UNDO/REDO SYSTEM ---
+  function saveState() {
+    const state = {
+      rooms: JSON.parse(JSON.stringify(rooms)),
+      selectedRoomId: selectedRoomId
+    };
+    undoStack.push(state);
+    if (undoStack.length > MAX_UNDO) undoStack.shift();
+    redoStack = []; // Clear redo stack on new action
+    updateUndoRedoButtons();
+  }
+
+  function undo() {
+    if (undoStack.length === 0) return;
+    const currentState = {
+      rooms: JSON.parse(JSON.stringify(rooms)),
+      selectedRoomId: selectedRoomId
+    };
+    redoStack.push(currentState);
+    const prevState = undoStack.pop();
+    rooms = prevState.rooms;
+    selectedRoomId = prevState.selectedRoomId;
+    render();
+    rebuildRoomList();
+    updateUndoRedoButtons();
+    saveToLocalStorage();
+  }
+
+  function redo() {
+    if (redoStack.length === 0) return;
+    const currentState = {
+      rooms: JSON.parse(JSON.stringify(rooms)),
+      selectedRoomId: selectedRoomId
+    };
+    undoStack.push(currentState);
+    const nextState = redoStack.pop();
+    rooms = nextState.rooms;
+    selectedRoomId = nextState.selectedRoomId;
+    render();
+    rebuildRoomList();
+    updateUndoRedoButtons();
+    saveToLocalStorage();
+  }
+
+  function updateUndoRedoButtons() {
+    undoBtn.disabled = undoStack.length === 0;
+    redoBtn.disabled = redoStack.length === 0;
+  }
+
   // --- UTILS ---
   function randInt(min, max) {
     return Math.floor(Math.random() * (max - min + 1)) + min;
@@ -342,6 +461,30 @@
       case 'trap': return '#ff8800';
       default: return '#aaa';
     }
+  }
+
+  function checkRoomOverlap(newRoom, existingRooms, excludeId = null) {
+    for (const r of existingRooms) {
+      if (excludeId !== null && r.id === excludeId) continue;
+      if (newRoom.x < r.x + r.w && newRoom.x + newRoom.w > r.x &&
+          newRoom.y < r.y + r.h && newRoom.y + newRoom.h > r.y) {
+        return r;
+      }
+    }
+    return null;
+  }
+
+  function renumberRooms() {
+    saveState();
+    rooms.forEach((room, idx) => {
+      room.id = idx + 1;
+    });
+    selectedRoomId = rooms[0]?.id ?? null;
+    render();
+    rebuildRoomList();
+    saveToLocalStorage();
+    statusText.textContent = 'Rooms renumbered';
+    setTimeout(() => { statusText.textContent = ''; }, 2000);
   }
 
   // --- DUNGEON GENERATION ALGORITHMS ---
@@ -606,6 +749,7 @@
   }
 
   function generateDungeon() {
+    saveState();
     const algorithm = algorithmSelect.value;
 
     switch(algorithm) {
@@ -643,7 +787,46 @@
     });
   }
 
-  // --- CORRIDOR GENERATION (L-SHAPED) ---
+  // --- SMARTER CORRIDOR GENERATION ---
+  function getClosestRooms() {
+    // Use minimum spanning tree approach for better corridors
+    const connections = [];
+    const connected = new Set([rooms[0].id]);
+    const unconnected = new Set(rooms.slice(1).map(r => r.id));
+
+    while (unconnected.size > 0) {
+      let minDist = Infinity;
+      let bestPair = null;
+
+      for (const connId of connected) {
+        const connRoom = rooms.find(r => r.id === connId);
+        for (const unconId of unconnected) {
+          const unconRoom = rooms.find(r => r.id === unconId);
+          const cx1 = connRoom.x + connRoom.w / 2;
+          const cy1 = connRoom.y + connRoom.h / 2;
+          const cx2 = unconRoom.x + unconRoom.w / 2;
+          const cy2 = unconRoom.y + unconRoom.h / 2;
+          const dist = Math.sqrt((cx2 - cx1) ** 2 + (cy2 - cy1) ** 2);
+
+          if (dist < minDist) {
+            minDist = dist;
+            bestPair = [connRoom, unconRoom];
+          }
+        }
+      }
+
+      if (bestPair) {
+        connections.push(bestPair);
+        connected.add(bestPair[1].id);
+        unconnected.delete(bestPair[1].id);
+      } else {
+        break;
+      }
+    }
+
+    return connections;
+  }
+
   function createLCorridor(x1, y1, x2, y2) {
     const paths = [];
 
@@ -679,12 +862,12 @@
   }
 
   function drawRooms() {
-    // Draw L-shaped corridors between room centers
+    // Draw L-shaped corridors using smart routing
     ctx.strokeStyle = '#555';
     ctx.lineWidth = 2;
-    for (let i = 1; i < rooms.length; i++) {
-      const r1 = rooms[i - 1];
-      const r2 = rooms[i];
+
+    const connections = getClosestRooms();
+    connections.forEach(([r1, r2]) => {
       const x1 = (r1.x + r1.w / 2) * GRID_SIZE;
       const y1 = (r1.y + r1.h / 2) * GRID_SIZE;
       const x2 = (r2.x + r2.w / 2) * GRID_SIZE;
@@ -697,7 +880,7 @@
         ctx.lineTo(c.x2, c.y2);
         ctx.stroke();
       });
-    }
+    });
 
     // Draw rooms
     rooms.forEach(room => {
@@ -734,6 +917,7 @@
   }
 
   function render() {
+    ctx.save();
     ctx.fillStyle = '#000';
     ctx.fillRect(0, 0, canvas.width, canvas.height);
 
@@ -751,6 +935,7 @@
 
     drawGrid();
     drawRooms();
+    ctx.restore();
   }
 
   // --- ROOM LIST UI ---
@@ -769,7 +954,10 @@
         title.textContent = `Location ${room.id}`;
         li.appendChild(title);
 
-        // Room type selector
+        // Room controls (type selector + delete button)
+        const controls = document.createElement('div');
+        controls.className = 'room-controls';
+
         const typeSelector = document.createElement('select');
         typeSelector.className = 'room-type-selector';
         ['normal', 'entrance', 'treasure', 'boss', 'trap'].forEach(type => {
@@ -780,12 +968,24 @@
           typeSelector.appendChild(opt);
         });
         typeSelector.addEventListener('change', (e) => {
+          saveState();
           room.type = e.target.value;
           render();
           rebuildRoomList();
           saveToLocalStorage();
         });
-        li.appendChild(typeSelector);
+        controls.appendChild(typeSelector);
+
+        const deleteBtn = document.createElement('button');
+        deleteBtn.textContent = '✕ Delete';
+        deleteBtn.className = 'delete-room-btn';
+        deleteBtn.addEventListener('click', (e) => {
+          e.stopPropagation();
+          deleteRoom(room.id);
+        });
+        controls.appendChild(deleteBtn);
+
+        li.appendChild(controls);
 
         const textarea = document.createElement('textarea');
         textarea.value = room.description || '';
@@ -796,7 +996,7 @@
         li.appendChild(textarea);
 
         li.addEventListener('click', (e) => {
-          if (e.target === textarea || e.target === typeSelector) return;
+          if (e.target === textarea || e.target === typeSelector || e.target === deleteBtn) return;
           selectedRoomId = room.id;
           render();
           rebuildRoomList();
@@ -804,6 +1004,20 @@
 
         roomListEl.appendChild(li);
       });
+  }
+
+  function deleteRoom(roomId) {
+    if (!confirm(`Delete Location ${roomId}? This cannot be undone.`)) return;
+    saveState();
+    rooms = rooms.filter(r => r.id !== roomId);
+    if (selectedRoomId === roomId) {
+      selectedRoomId = rooms[0]?.id ?? null;
+    }
+    render();
+    rebuildRoomList();
+    saveToLocalStorage();
+    statusText.textContent = `Location ${roomId} deleted`;
+    setTimeout(() => { statusText.textContent = ''; }, 2000);
   }
 
   // --- HIT TEST / INTERACTION ---
@@ -821,24 +1035,105 @@
     return null;
   }
 
-  canvas.addEventListener('click', (event) => {
+  // --- MOUSE INTERACTION (Drag + Click) ---
+  let mouseDownPos = null;
+  let hasDragged = false;
+
+  canvas.addEventListener('mousedown', (event) => {
     const rect = canvas.getBoundingClientRect();
     const x = event.clientX - rect.left;
     const y = event.clientY - rect.top;
 
+    mouseDownPos = { x, y };
+    hasDragged = false;
+
+    const room = roomAtCanvasPosition(x, y);
+    if (room && !placingMarker) {
+      draggingRoom = room;
+      dragOffset.x = room.x - (x / GRID_SIZE);
+      dragOffset.y = room.y - (y / GRID_SIZE);
+      canvas.style.cursor = 'move';
+      canvas.classList.add('dragging');
+    }
+  });
+
+  canvas.addEventListener('mousemove', (event) => {
+    if (!draggingRoom) return;
+
+    const rect = canvas.getBoundingClientRect();
+    const x = event.clientX - rect.left;
+    const y = event.clientY - rect.top;
+
+    // Check if actually dragged (not just a tiny move)
+    if (mouseDownPos && Math.abs(x - mouseDownPos.x) + Math.abs(y - mouseDownPos.y) > 5) {
+      hasDragged = true;
+    }
+
+    const newX = Math.floor(x / GRID_SIZE + dragOffset.x);
+    const newY = Math.floor(y / GRID_SIZE + dragOffset.y);
+
+    // Bounds check
+    if (newX >= 0 && newX + draggingRoom.w <= GRID_COLS &&
+        newY >= 0 && newY + draggingRoom.h <= GRID_ROWS) {
+      draggingRoom.x = newX;
+      draggingRoom.y = newY;
+      render();
+    }
+  });
+
+  canvas.addEventListener('mouseup', (event) => {
+    if (draggingRoom && hasDragged) {
+      // Check for overlap after drag
+      const overlap = checkRoomOverlap(draggingRoom, rooms, draggingRoom.id);
+      if (overlap) {
+        statusText.textContent = `Warning: Overlaps with Location ${overlap.id}`;
+        setTimeout(() => { statusText.textContent = ''; }, 3000);
+      }
+      saveState();
+      saveToLocalStorage();
+    }
+
+    if (draggingRoom && !hasDragged) {
+      // It was a click, not a drag
+      const rect = canvas.getBoundingClientRect();
+      const x = event.clientX - rect.left;
+      const y = event.clientY - rect.top;
+      handleCanvasClick(x, y);
+    } else if (!draggingRoom) {
+      const rect = canvas.getBoundingClientRect();
+      const x = event.clientX - rect.left;
+      const y = event.clientY - rect.top;
+      handleCanvasClick(x, y);
+    }
+
+    draggingRoom = null;
+    canvas.style.cursor = 'crosshair';
+    canvas.classList.remove('dragging');
+  });
+
+  function handleCanvasClick(x, y) {
     if (placingMarker) {
+      saveState();
       const id = rooms.length ? Math.max(...rooms.map(r => r.id)) + 1 : 1;
       const gx = Math.floor(x / GRID_SIZE);
       const gy = Math.floor(y / GRID_SIZE);
       const newRoom = {
         id,
-        x: gx - 1,
-        y: gy - 1,
+        x: Math.max(0, Math.min(gx - 1, GRID_COLS - 4)),
+        y: Math.max(0, Math.min(gy - 1, GRID_ROWS - 4)),
         w: 3,
         h: 3,
         type: 'normal',
         description: `Location ${id}. Describe what is here.`
       };
+
+      // Check for overlap
+      const overlap = checkRoomOverlap(newRoom, rooms);
+      if (overlap) {
+        statusText.textContent = `Warning: New location overlaps with Location ${overlap.id}`;
+        setTimeout(() => { statusText.textContent = ''; }, 3000);
+      }
+
       rooms.push(newRoom);
       selectedRoomId = id;
       placingMarker = false;
@@ -855,7 +1150,42 @@
       render();
       rebuildRoomList();
     }
+  }
+
+  // --- KEYBOARD SHORTCUTS ---
+  document.addEventListener('keydown', (event) => {
+    // Delete key to remove selected room
+    if ((event.key === 'Delete' || event.key === 'Backspace') && selectedRoomId !== null) {
+      // Don't trigger if typing in a text field
+      if (event.target.tagName === 'TEXTAREA' || event.target.tagName === 'INPUT') return;
+      event.preventDefault();
+      deleteRoom(selectedRoomId);
+    }
+
+    // Ctrl+Z for undo
+    if (event.ctrlKey && event.key === 'z' && !event.shiftKey) {
+      event.preventDefault();
+      undo();
+    }
+
+    // Ctrl+Shift+Z or Ctrl+Y for redo
+    if ((event.ctrlKey && event.shiftKey && event.key === 'z') || (event.ctrlKey && event.key === 'y')) {
+      event.preventDefault();
+      redo();
+    }
   });
+
+  // --- ZOOM CONTROLS ---
+  function setZoom(newZoom) {
+    zoomLevel = Math.max(0.5, Math.min(2.0, newZoom));
+    canvas.style.transform = `scale(${zoomLevel})`;
+    canvas.style.transformOrigin = 'top left';
+    zoomLabel.textContent = `${Math.round(zoomLevel * 100)}%`;
+  }
+
+  zoomInBtn.addEventListener('click', () => setZoom(zoomLevel + 0.1));
+  zoomOutBtn.addEventListener('click', () => setZoom(zoomLevel - 0.1));
+  zoomResetBtn.addEventListener('click', () => setZoom(1.0));
 
   // --- LOCAL STORAGE ---
   function saveToLocalStorage() {
@@ -879,6 +1209,7 @@
         const data = JSON.parse(saved);
         sizeSelect.value = data.size || 'medium';
         densityRange.value = data.density || 5;
+        densityValue.textContent = data.density || 5;
         themeSelect.value = data.theme || 'classic';
         algorithmSelect.value = data.algorithm || 'rooms';
         rooms = data.rooms || [];
@@ -923,7 +1254,7 @@
     reader.readAsDataURL(file);
   });
 
-  // JSON Import
+  // JSON Import - FIXED to handle both formats
   jsonFileInput.addEventListener('change', (e) => {
     const file = e.target.files[0];
     if (!file) return;
@@ -933,10 +1264,39 @@
         const data = JSON.parse(ev.target.result);
         sizeSelect.value = data.size || 'medium';
         densityRange.value = data.density || 5;
+        densityValue.textContent = data.density || 5;
         themeSelect.value = data.theme || 'classic';
         algorithmSelect.value = data.algorithm || 'rooms';
-        rooms = data.rooms || [];
+
+        // Handle both export formats (gridRect vs flat x,y,w,h)
+        rooms = (data.rooms || []).map(r => {
+          if (r.gridRect) {
+            // Old export format
+            return {
+              id: r.id,
+              x: r.gridRect.x,
+              y: r.gridRect.y,
+              w: r.gridRect.w,
+              h: r.gridRect.h,
+              type: r.type || 'normal',
+              description: r.description || ''
+            };
+          } else {
+            // New flat format
+            return {
+              id: r.id,
+              x: r.x,
+              y: r.y,
+              w: r.w,
+              h: r.h,
+              type: r.type || 'normal',
+              description: r.description || ''
+            };
+          }
+        });
+
         selectedRoomId = rooms[0]?.id ?? null;
+        saveState();
         render();
         rebuildRoomList();
         saveToLocalStorage();
@@ -958,6 +1318,13 @@
   });
 
   exportJsonBtn.addEventListener('click', () => {
+    // Warn if background image is loaded
+    if (backgroundImg) {
+      if (!confirm('Warning: Custom background images are not saved in JSON export. Only room data will be exported. Continue?')) {
+        return;
+      }
+    }
+
     const data = {
       size: sizeSelect.value,
       density: densityRange.value,
@@ -965,7 +1332,10 @@
       algorithm: algorithmSelect.value,
       rooms: rooms.map(r => ({
         id: r.id,
-        gridRect: { x: r.x, y: r.y, w: r.w, h: r.h },
+        x: r.x,
+        y: r.y,
+        w: r.w,
+        h: r.h,
         type: r.type,
         description: r.description
       }))
@@ -987,6 +1357,7 @@
       return;
     }
 
+    saveState();
     const template = TEMPLATES[templateName];
     rooms = JSON.parse(JSON.stringify(template.rooms)); // Deep clone
     selectedRoomId = rooms[0]?.id ?? null;
@@ -1001,9 +1372,21 @@
   clearStorageBtn.addEventListener('click', () => {
     if (confirm('Clear auto-saved data? This cannot be undone.')) {
       localStorage.removeItem('dungeonMaker_autoSave');
+      undoStack = [];
+      redoStack = [];
+      updateUndoRedoButtons();
       statusText.textContent = 'Auto-save cleared';
       setTimeout(() => { statusText.textContent = ''; }, 3000);
     }
+  });
+
+  undoBtn.addEventListener('click', undo);
+  redoBtn.addEventListener('click', redo);
+  renumberBtn.addEventListener('click', renumberRooms);
+
+  // Density slider update
+  densityRange.addEventListener('input', (e) => {
+    densityValue.textContent = e.target.value;
   });
 
   // --- INITIALIZATION ---
