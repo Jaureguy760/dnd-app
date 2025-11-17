@@ -110,9 +110,9 @@ export function renumberRooms() {
 export function setZoom(newZoom) {
   const newLevel = Math.max(0.5, Math.min(2.0, newZoom));
   setZoomLevel(newLevel);
-  canvas.style.transform = `scale(${{newLevel})`;
+  canvas.style.transform = `scale(${newLevel})`;
   canvas.style.transformOrigin = 'top left';
-  zoomLabel.textContent = `${{Math.round(newLevel * 100)}%`;
+  zoomLabel.textContent = `${Math.round(newLevel * 100)}%`;
 }
 
 // --- LOCAL STORAGE ---

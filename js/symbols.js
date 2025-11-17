@@ -280,7 +280,7 @@ export function renderSymbols() {
   });
 }
 
-export function isCorridorAt(gx, gy) {
+function isCorridorAt(gx, gy) {
   if (gx < 0 || gx >= GRID_COLS || gy < 0 || gy >= GRID_ROWS) return false;
 
   const wallGrid = getWallRegions();
@@ -292,7 +292,7 @@ export function isCorridorAt(gx, gy) {
   return !isWall && !isRoom;
 }
 
-export function doorExistsAt(x, y) {
+function doorExistsAt(x, y) {
   return symbols.some(s =>
     (s.type === 'door' || s.type === 'secret_door' ||
      s.type === 'locked_door' || s.type === 'portcullis') &&
@@ -300,7 +300,7 @@ export function doorExistsAt(x, y) {
   );
 }
 
-export function autoDetectDoors() {
+function autoDetectDoors() {
   const newDoors = [];
 
   rooms.forEach(room => {
@@ -383,11 +383,11 @@ export function autoDetectDoors() {
   return newDoors.length;
 }
 
-export function findSymbolAt(gx, gy) {
+function findSymbolAt(gx, gy) {
   return symbols.find(s => s.x === gx && s.y === gy);
 }
 
-export function deleteSymbol(symbolId) {
+function deleteSymbol(symbolId) {
   setSymbols(symbols.filter(s => s.id !== symbolId));
   if (selectedSymbol && selectedSymbol.id === symbolId) {
     setSelectedSymbol(null);
