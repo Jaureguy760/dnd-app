@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <title>Dungeon Maker</title>
+  <title>Dungeon Maker - Dyson Style</title>
   <style>
     * { box-sizing: border-box; }
     body {
@@ -177,13 +177,18 @@
       gap: 0.25rem;
       align-items: center;
     }
+    .style-preview {
+      font-size: 0.7rem;
+      color: #888;
+      font-style: italic;
+    }
   </style>
 </head>
 <body>
 <header>
   <div>
-    <h1>Dungeon Maker</h1>
-    <small>Random D&D dungeons + editable numbered locations | Drag rooms to move | Delete key to remove</small>
+    <h1>Dungeon Maker - Dyson Style</h1>
+    <small>Hand-drawn D&D maps | Drag rooms | Delete key to remove | Ctrl+Z to undo</small>
   </div>
   <div class="status" id="statusText">Auto-saved</div>
 </header>
@@ -226,6 +231,14 @@
     </div>
 
     <div class="options">
+      <span>Render Style:</span>
+      <select id="renderStyleSelect">
+        <option value="modern">Modern Clean</option>
+        <option value="dyson" selected>Hand-Drawn (Dyson)</option>
+        <option value="vintage">TSR Vintage</option>
+      </select>
+      <span class="style-preview" id="stylePreview">✨ Sketchy lines + cross-hatching</span>
+
       <span>Algorithm:</span>
       <select id="algorithmSelect">
         <option value="rooms">Classic Rooms</option>
@@ -268,7 +281,7 @@
     </div>
 
     <div class="hint">
-      Tip: Drag rooms to reposition. Select and press Delete to remove. Load custom maps or use templates. Your work auto-saves!
+      🎨 Dyson Mode: Hand-drawn lines + cross-hatched walls + organic shapes. Switch to Modern for clean digital look.
     </div>
   </section>
 
@@ -309,6 +322,8 @@
   const undoBtn = document.getElementById('undoBtn');
   const redoBtn = document.getElementById('redoBtn');
   const renumberBtn = document.getElementById('renumberBtn');
+  const renderStyleSelect = document.getElementById('renderStyleSelect');
+  const stylePreview = document.getElementById('stylePreview');
 
   const GRID_SIZE = 20;
   const GRID_COLS = canvas.width / GRID_SIZE;
@@ -321,6 +336,7 @@
   let zoomLevel = 1.0;
   let draggingRoom = null;
   let dragOffset = { x: 0, y: 0 };
+  let renderStyle = 'dyson'; // 'modern', 'dyson', 'vintage'
 
   // Undo/Redo system
   let undoStack = [];
@@ -398,7 +414,7 @@
     };
     undoStack.push(state);
     if (undoStack.length > MAX_UNDO) undoStack.shift();
-    redoStack = []; // Clear redo stack on new action
+    redoStack = [];
     updateUndoRedoButtons();
   }
 
@@ -485,6 +501,126 @@
     saveToLocalStorage();
     statusText.textContent = 'Rooms renumbered';
     setTimeout(() => { statusText.textContent = ''; }, 2000);
+  }
+
+  // --- HAND-DRAWN LINE RENDERING (DYSON STYLE) ---
+
+  function drawHandDrawnLine(x1, y1, x2, y2, roughness = 1.5) {
+    // Create organic, wobbly line using bezier curves
+    const dx = x2 - x1;
+    const dy = y2 - y1;
+    const length = Math.sqrt(dx * dx + dy * dy);
+    const segments = Math.max(3, Math.floor(length / 15));
+
+    ctx.beginPath();
+    ctx.moveTo(x1, y1);
+
+    for (let i = 1; i <= segments; i++) {
+      const t = i / segments;
+      const x = x1 + dx * t;
+      const y = y1 + dy * t;
+
+      // Add perpendicular wobble
+      const wobbleX = (Math.random() - 0.5) * roughness;
+      const wobbleY = (Math.random() - 0.5) * roughness;
+
+      // Control points for bezier curve
+      const cpx = x + wobbleX;
+      const cpy = y + wobbleY;
+
+      if (i === segments) {
+        ctx.lineTo(x2, y2);
+      } else {
+        ctx.quadraticCurveTo(cpx, cpy, x, y);
+      }
+    }
+
+    ctx.stroke();
+  }
+
+  function drawHandDrawnRect(x, y, w, h, roughness = 1.5) {
+    // Draw each side with slight wobble
+    drawHandDrawnLine(x, y, x + w, y, roughness);
+    drawHandDrawnLine(x + w, y, x + w, y + h, roughness);
+    drawHandDrawnLine(x + w, y + h, x, y + h, roughness);
+    drawHandDrawnLine(x, y + h, x, y, roughness);
+  }
+
+  function fillCrossHatch(x, y, w, h, angle = 45, spacing = 8) {
+    // Fill area with diagonal hatching lines
+    ctx.save();
+    ctx.beginPath();
+    ctx.rect(x, y, w, h);
+    ctx.clip();
+
+    const angleRad = angle * Math.PI / 180;
+    const maxDim = Math.max(w, h) * 2;
+
+    ctx.strokeStyle = '#000';
+    ctx.lineWidth = 0.5;
+
+    for (let i = -maxDim; i < maxDim; i += spacing) {
+      const x1 = x + i;
+      const y1 = y;
+      const x2 = x + i + maxDim * Math.cos(angleRad);
+      const y2 = y + maxDim * Math.sin(angleRad);
+
+      ctx.beginPath();
+      ctx.moveTo(x1, y1);
+      ctx.lineTo(x2, y2);
+      ctx.stroke();
+    }
+
+    ctx.restore();
+  }
+
+  function getWallRegions() {
+    // Create grid to mark rooms and corridors
+    const grid = Array(GRID_ROWS).fill(0).map(() => Array(GRID_COLS).fill(true));
+
+    // Mark rooms as non-wall
+    rooms.forEach(room => {
+      for (let gy = room.y; gy < room.y + room.h; gy++) {
+        for (let gx = room.x; gx < room.x + room.w; gx++) {
+          if (gy >= 0 && gy < GRID_ROWS && gx >= 0 && gx < GRID_COLS) {
+            grid[gy][gx] = false;
+          }
+        }
+      }
+    });
+
+    // Mark corridor paths as non-wall (simple flood along connections)
+    const connections = getClosestRooms();
+    connections.forEach(([r1, r2]) => {
+      const x1 = Math.floor(r1.x + r1.w / 2);
+      const y1 = Math.floor(r1.y + r1.h / 2);
+      const x2 = Math.floor(r2.x + r2.w / 2);
+      const y2 = Math.floor(r2.y + r2.h / 2);
+
+      // Carve horizontal then vertical corridor
+      const minX = Math.min(x1, x2);
+      const maxX = Math.max(x1, x2);
+      const minY = Math.min(y1, y2);
+      const maxY = Math.max(y1, y2);
+
+      // Horizontal corridor (width 1-2 cells)
+      for (let gx = minX; gx <= maxX; gx++) {
+        if (y1 >= 0 && y1 < GRID_ROWS && gx >= 0 && gx < GRID_COLS) {
+          grid[y1][gx] = false;
+          if (y1 + 1 < GRID_ROWS) grid[y1 + 1][gx] = false;
+        }
+      }
+
+      // Vertical corridor
+      for (let gy = minY; gy <= maxY; gy++) {
+        if (gy >= 0 && gy < GRID_ROWS && x2 >= 0 && x2 < GRID_COLS) {
+          grid[gy][x2] = false;
+          if (x2 + 1 < GRID_COLS) grid[gy][x2 + 1] = false;
+        }
+      }
+    });
+
+    return grid;
   }
 
   // --- DUNGEON GENERATION ALGORITHMS ---
@@ -789,6 +925,8 @@
 
   // --- SMARTER CORRIDOR GENERATION ---
   function getClosestRooms() {
+    if (rooms.length === 0) return [];
+
     // Use minimum spanning tree approach for better corridors
     const connections = [];
     const connected = new Set([rooms[0].id]);
@@ -845,8 +983,20 @@
 
   // --- RENDERING ---
   function drawGrid() {
-    ctx.strokeStyle = '#222';
-    ctx.lineWidth = 1;
+    if (renderStyle === 'vintage') {
+      // TSR blue grid style
+      ctx.strokeStyle = '#6495ED';
+      ctx.lineWidth = 0.5;
+    } else if (renderStyle === 'dyson') {
+      // Very subtle grid for Dyson style
+      ctx.strokeStyle = '#1a1a1a';
+      ctx.lineWidth = 0.3;
+    } else {
+      // Modern clean grid
+      ctx.strokeStyle = '#222';
+      ctx.lineWidth = 1;
+    }
+
     for (let x = 0; x <= canvas.width; x += GRID_SIZE) {
       ctx.beginPath();
       ctx.moveTo(x, 0);
@@ -861,8 +1011,8 @@
     }
   }
 
-  function drawRooms() {
-    // Draw L-shaped corridors using smart routing
+  function drawRoomsModern() {
+    // Original clean digital style
     ctx.strokeStyle = '#555';
     ctx.lineWidth = 2;
 
@@ -882,7 +1032,6 @@
       });
     });
 
-    // Draw rooms
     rooms.forEach(room => {
       const isSelected = room.id === selectedRoomId;
 
@@ -916,9 +1065,98 @@
     });
   }
 
+  function drawRoomsDyson() {
+    // Hand-drawn Dyson Logos style
+
+    // First: Draw cross-hatching on wall regions
+    const wallGrid = getWallRegions();
+
+    // Find contiguous wall regions and hatch them
+    ctx.strokeStyle = '#000';
+    ctx.lineWidth = 0.5;
+
+    for (let gy = 0; gy < GRID_ROWS; gy++) {
+      for (let gx = 0; gx < GRID_COLS; gx++) {
+        if (wallGrid[gy][gx]) {
+          const x = gx * GRID_SIZE;
+          const y = gy * GRID_SIZE;
+          fillCrossHatch(x, y, GRID_SIZE, GRID_SIZE, 45, 6);
+        }
+      }
+    }
+
+    // Second: Draw corridors with hand-drawn lines
+    ctx.strokeStyle = '#000';
+    ctx.lineWidth = 1.5;
+
+    const connections = getClosestRooms();
+    connections.forEach(([r1, r2]) => {
+      const x1 = (r1.x + r1.w / 2) * GRID_SIZE;
+      const y1 = (r1.y + r1.h / 2) * GRID_SIZE;
+      const x2 = (r2.x + r2.w / 2) * GRID_SIZE;
+      const y2 = (r2.y + r2.h / 2) * GRID_SIZE;
+
+      const corridors = createLCorridor(x1, y1, x2, y2);
+      corridors.forEach(c => {
+        drawHandDrawnLine(c.x1, c.y1, c.x2, c.y2, 2);
+      });
+    });
+
+    // Third: Draw rooms with hand-drawn organic shapes
+    rooms.forEach(room => {
+      const isSelected = room.id === selectedRoomId;
+
+      ctx.strokeStyle = isSelected ? '#4b7abf' : '#000';
+      ctx.lineWidth = isSelected ? 2.5 : 1.5;
+      ctx.fillStyle = renderStyle === 'vintage' ? '#fff' : '#f5f5dc'; // White or parchment
+
+      const x = room.x * GRID_SIZE;
+      const y = room.y * GRID_SIZE;
+      const w = room.w * GRID_SIZE;
+      const h = room.h * GRID_SIZE;
+
+      // Add slight organic distortion to corners
+      const wobble = 3;
+      const x1 = x + (Math.random() - 0.5) * wobble;
+      const y1 = y + (Math.random() - 0.5) * wobble;
+      const x2 = x + w + (Math.random() - 0.5) * wobble;
+      const y2 = y + h + (Math.random() - 0.5) * wobble;
+
+      // Fill room
+      ctx.fillRect(x, y, w, h);
+
+      // Draw hand-drawn outline
+      drawHandDrawnRect(x, y, w, h, 2);
+
+      // Room number
+      ctx.fillStyle = '#000';
+      ctx.font = 'bold 16px serif';
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      const cx = x + w / 2;
+      const cy = y + h / 2;
+      ctx.fillText(String(room.id), cx, cy);
+
+      // Room type indicator (small text below number)
+      if (room.type !== 'normal') {
+        ctx.font = '9px serif';
+        ctx.fillStyle = '#444';
+        ctx.fillText(room.type.toUpperCase(), cx, cy + 12);
+      }
+    });
+  }
+
   function render() {
     ctx.save();
-    ctx.fillStyle = '#000';
+
+    // Background color based on style
+    if (renderStyle === 'vintage') {
+      ctx.fillStyle = '#e8f0ff'; // Light blue for TSR vintage
+    } else if (renderStyle === 'dyson') {
+      ctx.fillStyle = '#faf8f0'; // Parchment for Dyson
+    } else {
+      ctx.fillStyle = '#000'; // Black for modern
+    }
     ctx.fillRect(0, 0, canvas.width, canvas.height);
 
     if (backgroundImg) {
@@ -934,7 +1172,14 @@
     }
 
     drawGrid();
-    drawRooms();
+
+    // Choose rendering style
+    if (renderStyle === 'dyson' || renderStyle === 'vintage') {
+      drawRoomsDyson();
+    } else {
+      drawRoomsModern();
+    }
+
     ctx.restore();
   }
 
@@ -1187,6 +1432,27 @@
   zoomOutBtn.addEventListener('click', () => setZoom(zoomLevel - 0.1));
   zoomResetBtn.addEventListener('click', () => setZoom(1.0));
 
+  // --- RENDER STYLE SELECTION ---
+  renderStyleSelect.addEventListener('change', (e) => {
+    renderStyle = e.target.value;
+
+    // Update style preview text
+    switch(renderStyle) {
+      case 'dyson':
+        stylePreview.textContent = '✨ Sketchy lines + cross-hatching';
+        break;
+      case 'vintage':
+        stylePreview.textContent = '📘 TSR blue grid + hand-drawn';
+        break;
+      case 'modern':
+        stylePreview.textContent = '💻 Clean digital lines';
+        break;
+    }
+
+    render();
+    saveToLocalStorage();
+  });
+
   // --- LOCAL STORAGE ---
   function saveToLocalStorage() {
     const data = {
@@ -1194,6 +1460,7 @@
       density: densityRange.value,
       theme: themeSelect.value,
       algorithm: algorithmSelect.value,
+      renderStyle: renderStyle,
       rooms: rooms,
       timestamp: Date.now()
     };
@@ -1212,6 +1479,8 @@
         densityValue.textContent = data.density || 5;
         themeSelect.value = data.theme || 'classic';
         algorithmSelect.value = data.algorithm || 'rooms';
+        renderStyle = data.renderStyle || 'dyson';
+        renderStyleSelect.value = renderStyle;
         rooms = data.rooms || [];
         selectedRoomId = rooms[0]?.id ?? null;
         render();
@@ -1267,6 +1536,8 @@
         densityValue.textContent = data.density || 5;
         themeSelect.value = data.theme || 'classic';
         algorithmSelect.value = data.algorithm || 'rooms';
+        renderStyle = data.renderStyle || 'dyson';
+        renderStyleSelect.value = renderStyle;
 
         // Handle both export formats (gridRect vs flat x,y,w,h)
         rooms = (data.rooms || []).map(r => {
@@ -1330,6 +1601,7 @@
       density: densityRange.value,
       theme: themeSelect.value,
       algorithm: algorithmSelect.value,
+      renderStyle: renderStyle,
       rooms: rooms.map(r => ({
         id: r.id,
         x: r.x,
