@@ -1,0 +1,298 @@
+/* Toolbar & Options */
+.toolbar, .options {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  align-items: center;
+  font-size: 0.85rem;
+}
+
+/* Buttons & Inputs */
+button, select, input[type="range"], label.file-label {
+  font-size: 0.85rem;
+  background: #2a2a2a;
+  color: #eee;
+  border: 1px solid #444;
+  border-radius: 4px;
+  padding: 0.25rem 0.5rem;
+  cursor: pointer;
+}
+
+button:hover, label.file-label:hover {
+  background: #3a3a3a;
+}
+
+button.primary {
+  background: #345;
+  border-color: #567;
+}
+
+button.primary:hover {
+  background: #456;
+}
+
+button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+input[type="file"] {
+  display: none;
+}
+
+/* Right Panel */
+.right h2 {
+  margin: 0 0 0.25rem;
+  font-size: 1rem;
+}
+
+.right small {
+  color: #aaa;
+  font-size: 0.75rem;
+}
+
+/* Room List */
+#roomList {
+  list-style: decimal;
+  padding-left: 1.2rem;
+  margin: 0.5rem 0 0;
+  overflow-y: auto;
+  flex: 1;
+  border: 1px solid #333;
+  border-radius: 4px;
+  padding: 0.5rem;
+  background: #181818;
+}
+
+#roomList li {
+  margin-bottom: 0.5rem;
+  padding: 0.25rem;
+  border-radius: 4px;
+  cursor: pointer;
+  border: 1px solid transparent;
+}
+
+#roomList li.selected {
+  background: #273445;
+  border: 1px solid #4b7abf;
+}
+
+#roomList li.room-entrance { border-left: 3px solid #4a9eff; }
+#roomList li.room-treasure { border-left: 3px solid #ffd700; }
+#roomList li.room-boss { border-left: 3px solid #ff4444; }
+#roomList li.room-trap { border-left: 3px solid #ff8800; }
+
+#roomList textarea {
+  width: 100%;
+  min-height: 3rem;
+  margin-top: 0.25rem;
+  background: #111;
+  color: #eee;
+  border-radius: 4px;
+  border: 1px solid #444;
+  resize: vertical;
+  font-size: 0.8rem;
+  font-family: inherit;
+  padding: 0.25rem 0.35rem;
+}
+
+/* Room Controls */
+.room-controls {
+  display: flex;
+  gap: 0.25rem;
+  margin-top: 0.25rem;
+  align-items: center;
+}
+
+.room-type-selector {
+  flex: 1;
+  font-size: 0.75rem;
+}
+
+.delete-room-btn {
+  font-size: 0.7rem;
+  padding: 0.15rem 0.4rem;
+  background: #5a2a2a;
+  border-color: #844;
+}
+
+.delete-room-btn:hover {
+  background: #6a3a3a;
+}
+
+/* Utility Classes */
+.hint {
+  font-size: 0.75rem;
+  color: #aaa;
+}
+
+.status {
+  font-size: 0.7rem;
+  color: #888;
+  font-style: italic;
+}
+
+.density-value {
+  font-weight: bold;
+  color: #4a9eff;
+  min-width: 1.5rem;
+  text-align: center;
+}
+
+/* Zoom Controls */
+.zoom-controls {
+  display: flex;
+  gap: 0.25rem;
+  align-items: center;
+}
+
+.style-preview {
+  font-size: 0.7rem;
+  color: #888;
+  font-style: italic;
+}
+
+/* Symbol Buttons */
+.symbol-btn {
+  font-size: 0.75rem;
+  padding: 0.2rem 0.4rem;
+}
+
+.symbol-btn.active {
+  background: #456;
+  border-color: #89a;
+  box-shadow: 0 0 5px #89a;
+}
+
+/* Level Navigation */
+.level-navigation {
+  background: #1a1a1a;
+  padding: 0.75rem;
+  margin-bottom: 1rem;
+  border-bottom: 2px solid #4a9eff;
+}
+
+.level-tabs {
+  display: flex;
+  gap: 0.5rem;
+  margin-bottom: 0.5rem;
+  overflow-x: auto;
+}
+
+.level-tab {
+  padding: 0.5rem 1rem;
+  border: 1px solid #444;
+  background: #2a2a2a;
+  color: #aaa;
+  cursor: pointer;
+  border-radius: 4px 4px 0 0;
+  min-width: 120px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  transition: all 0.2s;
+}
+
+.level-tab:hover {
+  background: #333;
+  border-color: #4a9eff;
+}
+
+.level-tab.active {
+  background: #4a9eff;
+  color: #fff;
+  border-color: #4a9eff;
+  border-bottom: 2px solid transparent;
+}
+
+.level-depth {
+  font-size: 0.7rem;
+  opacity: 0.8;
+  margin-top: 0.2rem;
+}
+
+.level-tab-add {
+  padding: 0.5rem 1rem;
+  border: 2px dashed #444;
+  background: transparent;
+  color: #4a9eff;
+  cursor: pointer;
+  border-radius: 4px;
+  min-width: 100px;
+  transition: all 0.2s;
+}
+
+.level-tab-add:hover {
+  background: rgba(74, 158, 255, 0.1);
+  border-color: #4a9eff;
+}
+
+.level-info {
+  display: flex;
+  gap: 0.5rem;
+  align-items: center;
+}
+
+.level-info input {
+  flex: 1;
+  padding: 0.4rem;
+  background: #2a2a2a;
+  border: 1px solid #444;
+  color: #fff;
+  border-radius: 4px;
+}
+
+.btn-small {
+  padding: 0.4rem 0.8rem;
+  font-size: 0.85rem;
+}
+
+/* Treasure Modal Styles */
+#treasureModal .modal-content {
+  background: #1a1a1a;
+  color: #fff;
+}
+
+#treasureOutput {
+  background: #2a2a2a;
+  border: 1px solid #444;
+  border-radius: 4px;
+  padding: 1rem;
+  min-height: 200px;
+  max-height: 400px;
+  overflow-y: auto;
+  font-family: 'Courier New', monospace;
+  font-size: 0.9rem;
+  line-height: 1.5;
+  white-space: pre-wrap;
+  color: #fff;
+}
+
+#treasureModal button {
+  padding: 0.75rem 1.5rem;
+  margin: 0.25rem;
+  background: #4a9eff;
+  color: #fff;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 1rem;
+}
+
+#treasureModal button:hover {
+  background: #3a8eef;
+}
+
+#btnRerollTreasure {
+  background: #ff9500 !important;
+}
+
+#btnRerollTreasure:hover {
+  background: #ef8500 !important;
+}
+
+#btnCopyTreasure,
+#btnAddTreasureToDmNotes {
+  font-size: 0.9rem;
+  padding: 0.5rem 1rem;
+}
