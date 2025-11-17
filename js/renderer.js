@@ -1,4 +1,4 @@
-import { canvas, ctx, GRID_SIZE, GRID_COLS, GRID_ROWS, rooms, selectedRoomId, backgroundImg, renderStyle, annotations, rulerMode, rulerStart, rulerEnd, traps, encounters, dmNotes, showDmNotes } from './state.js';
+import { getRooms, getAnnotations, getTraps, getEncounters, getDmNotes, getTerrainLayers, canvas, ctx, GRID_SIZE, GRID_COLS, GRID_ROWS, selectedRoomId, backgroundImg, renderStyle, rulerMode, rulerStart, rulerEnd, showDmNotes } from './state.js';
 import { renderSymbols } from './symbols.js';
 import { renderCoffeeStains, drawTitleBlock, getCompassPosition, drawCompassRose, drawAgeSpots } from './effects.js';
 import { getRoomColor } from './main.js';
@@ -79,7 +79,7 @@ export function getWallRegions() {
   const grid = Array(GRID_ROWS).fill(0).map(() => Array(GRID_COLS).fill(true));
 
   // Mark rooms as non-wall
-  rooms.forEach(room => {
+  getRooms().forEach(room => {
     for (let gy = room.y; gy < room.y + room.h; gy++) {
       for (let gx = room.x; gx < room.x + room.w; gx++) {
         if (gy >= 0 && gy < GRID_ROWS && gx >= 0 && gx < GRID_COLS) {
@@ -124,6 +124,7 @@ export function getWallRegions() {
 }
 
 export function getClosestRooms() {
+  const rooms = getRooms();
   if (rooms.length === 0) return [];
 
   // Use minimum spanning tree approach for better corridors
@@ -231,7 +232,7 @@ export function drawRoomsModern() {
     });
   });
 
-  rooms.forEach(room => {
+  getRooms().forEach(room => {
     const isSelected = room.id === selectedRoomId;
 
     ctx.lineWidth = isSelected ? 3 : 2;
@@ -302,7 +303,7 @@ export function drawRoomsDyson() {
   });
 
   // Third: Draw rooms with hand-drawn organic shapes
-  rooms.forEach(room => {
+  getRooms().forEach(room => {
     const isSelected = room.id === selectedRoomId;
 
     ctx.strokeStyle = isSelected ? '#4b7abf' : '#000';
@@ -382,6 +383,9 @@ export function render() {
     drawRoomsModern();
   }
 
+  // Phase 6: Terrain layers (before symbols)
+  drawTerrainLayers();
+
   // Render symbols (Phase 2)
   renderSymbols();
 
@@ -449,6 +453,7 @@ export function drawRuler() {
 }
 
 export function drawAnnotations() {
+  const annotations = getAnnotations();
   if (!annotations || annotations.length === 0) return;
 
   ctx.save();
@@ -477,6 +482,7 @@ export function drawAnnotations() {
 }
 
 export function drawTraps() {
+  const traps = getTraps();
   if (!traps || traps.length === 0) return;
 
   ctx.save();
@@ -542,6 +548,7 @@ export function drawTraps() {
 }
 
 export function drawEncounters() {
+  const encounters = getEncounters();
   if (!encounters || encounters.length === 0) return;
 
   ctx.save();
@@ -575,6 +582,7 @@ export function drawEncounters() {
 }
 
 export function drawDmNotes() {
+  const dmNotes = getDmNotes();
   if (!dmNotes || dmNotes.length === 0 || !showDmNotes) return;
 
   ctx.save();
@@ -603,4 +611,111 @@ export function drawDmNotes() {
     ctx.fillText(note.text, x, y - fontSize);
   });
   ctx.restore();
+}
+
+export function drawTerrainLayers() {
+  const terrainLayers = getTerrainLayers();
+  if (!terrainLayers || terrainLayers.length === 0) return;
+
+  terrainLayers.forEach(terrain => {
+    const x = terrain.x * GRID_SIZE;
+    const y = terrain.y * GRID_SIZE;
+    const w = terrain.width * GRID_SIZE;
+    const h = terrain.height * GRID_SIZE;
+
+    ctx.save();
+
+    switch(terrain.type) {
+      case 'water':
+        ctx.fillStyle = 'rgba(100, 150, 255, 0.4)';
+        ctx.fillRect(x, y, w, h);
+        // Add wave pattern
+        ctx.strokeStyle = 'rgba(100, 150, 255, 0.6)';
+        ctx.lineWidth = 2;
+        for (let i = 0; i < w; i += 10) {
+          ctx.beginPath();
+          ctx.moveTo(x + i, y);
+          ctx.quadraticCurveTo(x + i + 5, y + 5, x + i + 10, y);
+          ctx.stroke();
+        }
+        break;
+
+      case 'lava':
+        ctx.fillStyle = 'rgba(255, 100, 0, 0.6)';
+        ctx.fillRect(x, y, w, h);
+        // Add glow effect
+        const gradient = ctx.createRadialGradient(x + w/2, y + h/2, 0, x + w/2, y + h/2, w/2);
+        gradient.addColorStop(0, 'rgba(255, 200, 0, 0.8)');
+        gradient.addColorStop(1, 'rgba(255, 100, 0, 0.4)');
+        ctx.fillStyle = gradient;
+        ctx.fillRect(x, y, w, h);
+        break;
+
+      case 'pit':
+        ctx.fillStyle = 'rgba(0, 0, 0, 0.8)';
+        ctx.fillRect(x, y, w, h);
+        // Add depth lines
+        ctx.strokeStyle = 'rgba(100, 100, 100, 0.5)';
+        ctx.lineWidth = 1;
+        for (let i = 0; i < 5; i++) {
+          const offset = i * (w / 6);
+          ctx.strokeRect(x + offset, y + offset, w - offset*2, h - offset*2);
+        }
+        break;
+
+      case 'difficult':
+        ctx.fillStyle = 'rgba(100, 150, 50, 0.3)';
+        ctx.fillRect(x, y, w, h);
+        // Add vegetation marks
+        ctx.strokeStyle = 'rgba(50, 100, 30, 0.6)';
+        ctx.lineWidth = 2;
+        for (let i = 0; i < w; i += 15) {
+          for (let j = 0; j < h; j += 15) {
+            ctx.beginPath();
+            ctx.moveTo(x + i, y + j + 5);
+            ctx.lineTo(x + i, y + j - 5);
+            ctx.stroke();
+          }
+        }
+        break;
+
+      case 'darkness':
+        ctx.fillStyle = 'rgba(30, 0, 60, 0.7)';
+        ctx.fillRect(x, y, w, h);
+        // Add fog effect
+        ctx.fillStyle = 'rgba(50, 0, 80, 0.4)';
+        ctx.beginPath();
+        ctx.arc(x + w/2, y + h/2, w/2, 0, Math.PI * 2);
+        ctx.fill();
+        break;
+
+      case 'ice':
+        ctx.fillStyle = 'rgba(200, 230, 255, 0.5)';
+        ctx.fillRect(x, y, w, h);
+        // Add crystalline pattern
+        ctx.strokeStyle = 'rgba(150, 200, 255, 0.8)';
+        ctx.lineWidth = 1;
+        ctx.beginPath();
+        ctx.moveTo(x, y);
+        ctx.lineTo(x + w, y + h);
+        ctx.moveTo(x + w, y);
+        ctx.lineTo(x, y + h);
+        ctx.stroke();
+        break;
+
+      case 'poison':
+        ctx.fillStyle = 'rgba(150, 255, 0, 0.3)';
+        ctx.fillRect(x, y, w, h);
+        // Add poison cloud effect
+        for (let i = 0; i < 3; i++) {
+          ctx.fillStyle = `rgba(100, 200, 50, ${0.2 - i*0.05})`;
+          ctx.beginPath();
+          ctx.arc(x + w/2 + (i-1)*10, y + h/2, w/3 + i*5, 0, Math.PI * 2);
+          ctx.fill();
+        }
+        break;
+    }
+
+    ctx.restore();
+  });
 }

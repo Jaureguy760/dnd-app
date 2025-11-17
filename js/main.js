@@ -1,11 +1,13 @@
 import {
-  rooms, selectedRoomId, undoStack, redoStack, MAX_UNDO, statusText, undoBtn, redoBtn,
+  getRooms, getSymbols, getEffectsEnabled, getCoffeeStains, getTitleBlockData,
+  getDmNotes, getAnnotations, getEncounters, getTraps,
+  selectedRoomId, undoStack, redoStack, MAX_UNDO, statusText, undoBtn, redoBtn,
   sizeSelect, densityRange, densityValue, themeSelect, algorithmSelect, renderStyle,
-  symbols, effectsEnabled, coffeeStains, titleBlockData, canvas, zoomLevel, zoomLabel,
-  dmNotes, showDmNotes, annotations, encounters, traps,
+  canvas, zoomLevel, zoomLabel, showDmNotes, levels,
   setRooms, setSelectedRoomId, setUndoStack, setRedoStack, setRenderStyle, setSymbols,
   setEffectsEnabled, setCoffeeStains, setTitleBlockData, setZoomLevel, renderStyleSelect,
-  setDmNotes, setShowDmNotes, setAnnotations, setEncounters, setTraps
+  setDmNotes, setShowDmNotes, setAnnotations, setEncounters, setTraps,
+  setLevels, getCurrentLevel, setCurrentLevel
 } from './state.js';
 import { render } from './renderer.js';
 import { rebuildRoomList, setupEventHandlers } from './ui.js';
@@ -14,7 +16,7 @@ import { generateDungeon } from './generator.js';
 // --- UNDO/REDO SYSTEM ---
 export function saveState() {
   const state = {
-    rooms: JSON.parse(JSON.stringify(rooms)),
+    rooms: JSON.parse(JSON.stringify(getRooms())),
     selectedRoomId: selectedRoomId
   };
   undoStack.push(state);
@@ -26,7 +28,7 @@ export function saveState() {
 export function undo() {
   if (undoStack.length === 0) return;
   const currentState = {
-    rooms: JSON.parse(JSON.stringify(rooms)),
+    rooms: JSON.parse(JSON.stringify(getRooms())),
     selectedRoomId: selectedRoomId
   };
   redoStack.push(currentState);
@@ -42,7 +44,7 @@ export function undo() {
 export function redo() {
   if (redoStack.length === 0) return;
   const currentState = {
-    rooms: JSON.parse(JSON.stringify(rooms)),
+    rooms: JSON.parse(JSON.stringify(getRooms())),
     selectedRoomId: selectedRoomId
   };
   undoStack.push(currentState);
@@ -97,10 +99,10 @@ export function checkRoomOverlap(newRoom, existingRooms, excludeId = null) {
 
 export function renumberRooms() {
   saveState();
-  rooms.forEach((room, idx) => {
+  getRooms().forEach((room, idx) => {
     room.id = idx + 1;
   });
-  setSelectedRoomId(rooms[0]?.id ?? null);
+  setSelectedRoomId(getRooms()[0]?.id ?? null);
   render();
   rebuildRoomList();
   saveToLocalStorage();
@@ -120,74 +122,131 @@ export function setZoom(newZoom) {
 // --- LOCAL STORAGE ---
 export function saveToLocalStorage() {
   const data = {
+    // NEW: Save entire levels array
+    levels: levels,
+    currentLevel: getCurrentLevel(),
+
+    // OLD format (for backward compat, remove later):
     size: sizeSelect.value,
     density: densityRange.value,
     theme: themeSelect.value,
     algorithm: algorithmSelect.value,
     renderStyle: renderStyle,
-    rooms: rooms,
-    symbols: symbols,
-    effectsEnabled: effectsEnabled,
-    coffeeStains: coffeeStains,
-    titleBlockData: titleBlockData,
-    dmNotes: dmNotes,
-    showDmNotes: showDmNotes,
-    annotations: annotations,
-    encounters: encounters,
-    traps: traps,
     timestamp: Date.now()
   };
   localStorage.setItem('dungeonMaker_autoSave', JSON.stringify(data));
+  console.log('Multi-level dungeon saved to localStorage');
   statusText.textContent = 'Auto-saved';
   setTimeout(() => { statusText.textContent = ''; }, 2000);
 }
 
 export function loadFromLocalStorage() {
   const saved = localStorage.getItem('dungeonMaker_autoSave');
-  if (saved) {
-    try {
-      const data = JSON.parse(saved);
-      sizeSelect.value = data.size || 'medium';
-      densityRange.value = data.density || 5;
-      densityValue.textContent = data.density || 5;
-      themeSelect.value = data.theme || 'classic';
-      algorithmSelect.value = data.algorithm || 'rooms';
-      setRenderStyle(data.renderStyle || 'dyson');
-      renderStyleSelect.value = renderStyle;
-      setRooms(data.rooms || []);
-      setSymbols(data.symbols || []);
+  if (!saved) return false;
 
-      if (data.effectsEnabled) {
-        setEffectsEnabled(data.effectsEnabled);
-        document.getElementById('chkTitleBlock').checked = effectsEnabled.titleBlock;
-        document.getElementById('chkCompass').checked = effectsEnabled.compass;
-        document.getElementById('chkCoffeeStains').checked = effectsEnabled.coffeeStains;
-        document.getElementById('chkAgeSpots').checked = effectsEnabled.ageSpots;
+  try {
+    const data = JSON.parse(saved);
+
+    // Check if this is NEW multi-level format
+    if (data.levels && Array.isArray(data.levels)) {
+      // Load multi-level dungeon
+      setLevels(data.levels);
+      setCurrentLevel(data.currentLevel || 0);
+
+      // Update UI dropdowns from saved data
+      if (data.size) sizeSelect.value = data.size;
+      if (data.density) {
+        densityRange.value = data.density;
+        densityValue.textContent = data.density;
       }
-      setCoffeeStains(data.coffeeStains || []);
-      if (data.titleBlockData) {
-        setTitleBlockData(data.titleBlockData);
-        document.getElementById('dungeonNameInput').value = titleBlockData.dungeonName;
-        document.getElementById('dmNameInput').value = titleBlockData.dmName;
+      if (data.theme) themeSelect.value = data.theme;
+      if (data.algorithm) algorithmSelect.value = data.algorithm;
+      if (data.renderStyle) {
+        setRenderStyle(data.renderStyle);
+        renderStyleSelect.value = data.renderStyle;
       }
 
-      if (data.dmNotes) setDmNotes(data.dmNotes);
-      if (typeof data.showDmNotes !== 'undefined') setShowDmNotes(data.showDmNotes);
-      if (data.annotations) setAnnotations(data.annotations);
-      if (data.traps) setTraps(data.traps);
-      if (data.encounters) setEncounters(data.encounters);
+      console.log(`Loaded multi-level dungeon: ${data.levels.length} levels`);
 
-      setSelectedRoomId(rooms[0]?.id ?? null);
-      render();
-      rebuildRoomList();
-      statusText.textContent = 'Loaded from auto-save';
-      setTimeout(() => { statusText.textContent = ''; }, 3000);
-      return true;
-    } catch(e) {
-      console.error('Failed to load from localStorage', e);
+    } else {
+      // MIGRATE OLD single-level format to new format
+      console.log('Migrating old save format to multi-level...');
+
+      const migratedLevel = {
+        id: 0,
+        name: 'Level 1',
+        depth: 0,
+        rooms: data.rooms || [],
+        symbols: data.symbols || [],
+        annotations: data.annotations || [],
+        traps: data.traps || [],
+        encounters: data.encounters || [],
+        dmNotes: data.dmNotes || [],
+        coffeeStains: data.coffeeStains || [],
+        effectsEnabled: data.effectsEnabled || {
+          parchmentTexture: false,
+          coffeeStains: false,
+          ageSpots: false,
+          titleBlock: false,
+          compass: false
+        },
+        titleBlockData: data.titleBlockData || {
+          dungeonName: 'Untitled Dungeon',
+          dmName: '',
+          date: new Date().toLocaleDateString()
+        },
+        terrainLayers: []
+      };
+
+      setLevels([migratedLevel]);
+      setCurrentLevel(0);
+
+      // Load UI state
+      if (data.size) sizeSelect.value = data.size;
+      if (data.density) {
+        densityRange.value = data.density;
+        densityValue.textContent = data.density;
+      }
+      if (data.theme) themeSelect.value = data.theme;
+      if (data.algorithm) algorithmSelect.value = data.algorithm;
+      if (data.renderStyle) {
+        setRenderStyle(data.renderStyle);
+        renderStyleSelect.value = data.renderStyle;
+      }
+
+      // Save migrated data
+      saveToLocalStorage();
+
+      console.log('Migration complete!');
     }
+
+    // Update UI from current level
+    if (getEffectsEnabled()) {
+      document.getElementById('chkTitleBlock').checked = getEffectsEnabled().titleBlock;
+      document.getElementById('chkCompass').checked = getEffectsEnabled().compass;
+      document.getElementById('chkCoffeeStains').checked = getEffectsEnabled().coffeeStains;
+      document.getElementById('chkAgeSpots').checked = getEffectsEnabled().ageSpots;
+    }
+    if (getTitleBlockData()) {
+      document.getElementById('dungeonNameInput').value = getTitleBlockData().dungeonName;
+      document.getElementById('dmNameInput').value = getTitleBlockData().dmName;
+    }
+    if (typeof showDmNotes !== 'undefined') {
+      const chkShowDmNotes = document.getElementById('chkShowDmNotes');
+      if (chkShowDmNotes) chkShowDmNotes.checked = showDmNotes;
+    }
+
+    setSelectedRoomId(getRooms()[0]?.id ?? null);
+    render();
+    rebuildRoomList();
+    statusText.textContent = 'Loaded from auto-save';
+    setTimeout(() => { statusText.textContent = ''; }, 3000);
+    return true;
+
+  } catch(e) {
+    console.error('Failed to load from localStorage', e);
+    return false;
   }
-  return false;
 }
 
 // --- INITIALIZATION ---

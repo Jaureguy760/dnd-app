@@ -1,4 +1,4 @@
-import { ctx, GRID_SIZE, GRID_COLS, GRID_ROWS, rooms, symbols, selectedSymbol, setSymbols, setSelectedSymbol, statusText } from './state.js';
+import { getRooms, getSymbols, ctx, GRID_SIZE, GRID_COLS, GRID_ROWS, selectedSymbol, setSymbols, setSelectedSymbol, statusText } from './state.js';
 import { getWallRegions } from './renderer.js';
 import { render } from './renderer.js';
 import { saveState } from './main.js';
@@ -248,8 +248,604 @@ export function drawFurniture(symbol) {
   }
 }
 
+// --- NEW TERRAIN FEATURE SYMBOLS (PHASE 6) ---
+
+export function drawFountain(symbol) {
+  const px = symbol.x * GRID_SIZE + GRID_SIZE/2;
+  const py = symbol.y * GRID_SIZE + GRID_SIZE/2;
+  const subtype = symbol.subtype || 'ornate';
+
+  ctx.save();
+
+  if (subtype === 'magical') {
+    // Magical fountain - glowing gradient
+    const gradient = ctx.createRadialGradient(px, py, GRID_SIZE/4, px, py, GRID_SIZE/2);
+    gradient.addColorStop(0, '#44aaff');
+    gradient.addColorStop(1, '#0088ff');
+    ctx.fillStyle = gradient;
+    ctx.beginPath();
+    ctx.arc(px, py, GRID_SIZE/2, 0, Math.PI * 2);
+    ctx.fill();
+  }
+
+  // Basin
+  ctx.strokeStyle = subtype === 'dried' ? '#888' : '#44aaff';
+  ctx.lineWidth = 2;
+  ctx.beginPath();
+  ctx.arc(px, py, GRID_SIZE/2, 0, Math.PI * 2);
+  ctx.stroke();
+
+  // Water ripples (if not dried)
+  if (subtype !== 'dried') {
+    ctx.strokeStyle = 'rgba(100, 150, 255, 0.5)';
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    ctx.arc(px, py, GRID_SIZE/3, 0, Math.PI * 2);
+    ctx.stroke();
+    ctx.beginPath();
+    ctx.arc(px, py, GRID_SIZE/4, 0, Math.PI * 2);
+    ctx.stroke();
+  }
+
+  // Center spout
+  ctx.fillStyle = '#666';
+  ctx.fillRect(px - GRID_SIZE/8, py - GRID_SIZE/8, GRID_SIZE/4, GRID_SIZE/4);
+
+  ctx.restore();
+}
+
+export function drawStatue2(symbol) {
+  const px = symbol.x * GRID_SIZE + GRID_SIZE/2;
+  const py = symbol.y * GRID_SIZE + GRID_SIZE/2;
+  const subtype = symbol.subtype || 'humanoid';
+
+  ctx.save();
+  ctx.fillStyle = '#999';
+  ctx.strokeStyle = '#555';
+  ctx.lineWidth = 2;
+
+  // Pedestal
+  ctx.fillRect(px - GRID_SIZE/4, py + GRID_SIZE/8, GRID_SIZE/2, GRID_SIZE/4);
+
+  // Figure
+  if (subtype === 'dragon') {
+    // Dragon head
+    ctx.beginPath();
+    ctx.moveTo(px - GRID_SIZE/3, py);
+    ctx.lineTo(px, py - GRID_SIZE/3);
+    ctx.lineTo(px + GRID_SIZE/3, py);
+    ctx.closePath();
+    ctx.fill();
+    ctx.stroke();
+  } else {
+    // Humanoid/angel/demon figure
+    ctx.beginPath();
+    ctx.arc(px, py - GRID_SIZE/4, GRID_SIZE/6, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.fillRect(px - GRID_SIZE/8, py - GRID_SIZE/8, GRID_SIZE/4, GRID_SIZE/3);
+  }
+
+  ctx.restore();
+}
+
+export function drawAltar2(symbol) {
+  const px = symbol.x * GRID_SIZE + GRID_SIZE/2;
+  const py = symbol.y * GRID_SIZE + GRID_SIZE/2;
+  const subtype = symbol.subtype || 'stone';
+
+  ctx.save();
+
+  const color = subtype === 'blood' ? '#800' :
+                subtype === 'holy' ? '#ff8' :
+                subtype === 'cursed' ? '#508' : '#888';
+
+  ctx.fillStyle = color;
+  ctx.strokeStyle = '#333';
+  ctx.lineWidth = 2;
+
+  // Altar table
+  ctx.fillRect(px - GRID_SIZE/2, py - GRID_SIZE/4, GRID_SIZE, GRID_SIZE/2);
+  ctx.strokeRect(px - GRID_SIZE/2, py - GRID_SIZE/4, GRID_SIZE, GRID_SIZE/2);
+
+  // Symbol on top
+  ctx.strokeStyle = subtype === 'holy' ? '#fff' : subtype === 'cursed' ? '#f0f' : '#555';
+  ctx.lineWidth = 2;
+  ctx.beginPath();
+  if (subtype === 'holy') {
+    // Cross
+    ctx.moveTo(px, py - GRID_SIZE/6);
+    ctx.lineTo(px, py + GRID_SIZE/6);
+    ctx.moveTo(px - GRID_SIZE/8, py);
+    ctx.lineTo(px + GRID_SIZE/8, py);
+  } else if (subtype === 'cursed') {
+    // Pentagram
+    ctx.arc(px, py, GRID_SIZE/8, 0, Math.PI * 2);
+  }
+  ctx.stroke();
+
+  ctx.restore();
+}
+
+// --- INTERACTIVE OBJECTS ---
+
+export function drawLever(symbol) {
+  const px = symbol.x * GRID_SIZE + GRID_SIZE/2;
+  const py = symbol.y * GRID_SIZE + GRID_SIZE/2;
+  const subtype = symbol.subtype || 'wall';
+
+  ctx.save();
+
+  // Base
+  ctx.fillStyle = '#666';
+  ctx.fillRect(px - GRID_SIZE/6, py - GRID_SIZE/8, GRID_SIZE/3, GRID_SIZE/4);
+
+  // Lever handle
+  ctx.strokeStyle = '#aaa';
+  ctx.lineWidth = 3;
+  ctx.beginPath();
+  if (subtype === 'up') {
+    ctx.moveTo(px, py);
+    ctx.lineTo(px, py - GRID_SIZE/3);
+  } else if (subtype === 'down') {
+    ctx.moveTo(px, py);
+    ctx.lineTo(px, py + GRID_SIZE/3);
+  } else {
+    ctx.moveTo(px, py);
+    ctx.lineTo(px + GRID_SIZE/3, py - GRID_SIZE/6);
+  }
+  ctx.stroke();
+
+  // Handle ball
+  ctx.fillStyle = '#f44';
+  ctx.beginPath();
+  const ballY = subtype === 'up' ? py - GRID_SIZE/3 : subtype === 'down' ? py + GRID_SIZE/3 : py - GRID_SIZE/6;
+  const ballX = subtype === 'wall' ? px + GRID_SIZE/3 : px;
+  ctx.arc(ballX, ballY, GRID_SIZE/8, 0, Math.PI * 2);
+  ctx.fill();
+
+  ctx.restore();
+}
+
+export function drawBrazier(symbol) {
+  const px = symbol.x * GRID_SIZE + GRID_SIZE/2;
+  const py = symbol.y * GRID_SIZE + GRID_SIZE/2;
+  const subtype = symbol.subtype || 'lit';
+
+  ctx.save();
+
+  // Bowl
+  ctx.fillStyle = '#666';
+  ctx.strokeStyle = '#333';
+  ctx.lineWidth = 2;
+  ctx.beginPath();
+  ctx.arc(px, py, GRID_SIZE/3, 0, Math.PI);
+  ctx.closePath();
+  ctx.fill();
+  ctx.stroke();
+
+  // Stand
+  ctx.fillStyle = '#444';
+  ctx.fillRect(px - GRID_SIZE/12, py, GRID_SIZE/6, GRID_SIZE/4);
+
+  // Fire/effect
+  if (subtype === 'lit') {
+    const gradient = ctx.createRadialGradient(px, py - GRID_SIZE/4, 0, px, py - GRID_SIZE/4, GRID_SIZE/3);
+    gradient.addColorStop(0, '#ff0');
+    gradient.addColorStop(0.5, '#f80');
+    gradient.addColorStop(1, '#f00');
+    ctx.fillStyle = gradient;
+    ctx.beginPath();
+    ctx.moveTo(px, py);
+    ctx.lineTo(px - GRID_SIZE/6, py - GRID_SIZE/3);
+    ctx.lineTo(px, py - GRID_SIZE/2);
+    ctx.lineTo(px + GRID_SIZE/6, py - GRID_SIZE/3);
+    ctx.closePath();
+    ctx.fill();
+  } else if (subtype === 'magical') {
+    ctx.fillStyle = '#44aaff';
+    ctx.beginPath();
+    ctx.arc(px, py - GRID_SIZE/4, GRID_SIZE/6, 0, Math.PI * 2);
+    ctx.fill();
+  } else if (subtype === 'cold') {
+    ctx.fillStyle = '#88eeff';
+    ctx.beginPath();
+    ctx.moveTo(px, py - GRID_SIZE/3);
+    ctx.lineTo(px - GRID_SIZE/8, py);
+    ctx.lineTo(px + GRID_SIZE/8, py);
+    ctx.closePath();
+    ctx.fill();
+  }
+
+  ctx.restore();
+}
+
+export function drawChain(symbol) {
+  const px = symbol.x * GRID_SIZE + GRID_SIZE/2;
+  const py = symbol.y * GRID_SIZE + GRID_SIZE/2;
+  const subtype = symbol.subtype || 'vertical';
+
+  ctx.save();
+  ctx.strokeStyle = '#888';
+  ctx.lineWidth = 3;
+
+  if (subtype === 'vertical' || subtype === 'hanging') {
+    // Draw chain links vertically
+    for (let i = 0; i < 4; i++) {
+      ctx.beginPath();
+      ctx.arc(px, py - GRID_SIZE/2 + i * GRID_SIZE/4, GRID_SIZE/12, 0, Math.PI * 2);
+      ctx.stroke();
+    }
+  } else {
+    // Draw chain links horizontally
+    for (let i = 0; i < 4; i++) {
+      ctx.beginPath();
+      ctx.arc(px - GRID_SIZE/2 + i * GRID_SIZE/4, py, GRID_SIZE/12, 0, Math.PI * 2);
+      ctx.stroke();
+    }
+  }
+
+  ctx.restore();
+}
+
+// --- CONTAINERS ---
+
+export function drawBarrel(symbol) {
+  const px = symbol.x * GRID_SIZE + GRID_SIZE/2;
+  const py = symbol.y * GRID_SIZE + GRID_SIZE/2;
+  const subtype = symbol.subtype || 'intact';
+
+  ctx.save();
+  ctx.fillStyle = '#864';
+  ctx.strokeStyle = '#543';
+  ctx.lineWidth = 2;
+
+  if (subtype === 'broken') {
+    // Broken barrel pieces
+    ctx.fillRect(px - GRID_SIZE/4, py - GRID_SIZE/6, GRID_SIZE/2, GRID_SIZE/3);
+    ctx.strokeStyle = '#333';
+    ctx.beginPath();
+    ctx.moveTo(px - GRID_SIZE/4, py - GRID_SIZE/6);
+    ctx.lineTo(px + GRID_SIZE/4, py + GRID_SIZE/6);
+    ctx.moveTo(px + GRID_SIZE/4, py - GRID_SIZE/6);
+    ctx.lineTo(px - GRID_SIZE/4, py + GRID_SIZE/6);
+    ctx.stroke();
+  } else {
+    // Intact barrel
+    ctx.beginPath();
+    ctx.ellipse(px, py, GRID_SIZE/3, GRID_SIZE/4, 0, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.stroke();
+
+    // Bands
+    ctx.strokeStyle = '#333';
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.moveTo(px - GRID_SIZE/3, py - GRID_SIZE/8);
+    ctx.lineTo(px + GRID_SIZE/3, py - GRID_SIZE/8);
+    ctx.moveTo(px - GRID_SIZE/3, py + GRID_SIZE/8);
+    ctx.lineTo(px + GRID_SIZE/3, py + GRID_SIZE/8);
+    ctx.stroke();
+  }
+
+  ctx.restore();
+}
+
+export function drawCrate(symbol) {
+  const px = symbol.x * GRID_SIZE + GRID_SIZE/2;
+  const py = symbol.y * GRID_SIZE + GRID_SIZE/2;
+  const subtype = symbol.subtype || 'closed';
+
+  ctx.save();
+  ctx.fillStyle = '#a86';
+  ctx.strokeStyle = '#654';
+  ctx.lineWidth = 2;
+
+  // Main box
+  ctx.fillRect(px - GRID_SIZE/3, py - GRID_SIZE/3, GRID_SIZE*0.66, GRID_SIZE*0.66);
+  ctx.strokeRect(px - GRID_SIZE/3, py - GRID_SIZE/3, GRID_SIZE*0.66, GRID_SIZE*0.66);
+
+  // Wood grain
+  ctx.strokeStyle = '#765';
+  ctx.lineWidth = 1;
+  for (let i = -2; i <= 2; i++) {
+    ctx.beginPath();
+    ctx.moveTo(px - GRID_SIZE/3, py + i * GRID_SIZE/8);
+    ctx.lineTo(px + GRID_SIZE/3, py + i * GRID_SIZE/8);
+    ctx.stroke();
+  }
+
+  if (subtype === 'open') {
+    // Open lid
+    ctx.fillStyle = '#987';
+    ctx.fillRect(px - GRID_SIZE/3, py - GRID_SIZE/2, GRID_SIZE*0.66, GRID_SIZE/8);
+  }
+
+  ctx.restore();
+}
+
+export function drawSack(symbol) {
+  const px = symbol.x * GRID_SIZE + GRID_SIZE/2;
+  const py = symbol.y * GRID_SIZE + GRID_SIZE/2;
+  const subtype = symbol.subtype || 'full';
+
+  ctx.save();
+  ctx.fillStyle = subtype === 'coins' ? '#da6' : '#987';
+  ctx.strokeStyle = '#654';
+  ctx.lineWidth = 2;
+
+  // Sack body
+  ctx.beginPath();
+  ctx.moveTo(px, py - GRID_SIZE/4);
+  ctx.quadraticCurveTo(px - GRID_SIZE/3, py, px - GRID_SIZE/4, py + GRID_SIZE/4);
+  ctx.lineTo(px + GRID_SIZE/4, py + GRID_SIZE/4);
+  ctx.quadraticCurveTo(px + GRID_SIZE/3, py, px, py - GRID_SIZE/4);
+  ctx.closePath();
+  ctx.fill();
+  ctx.stroke();
+
+  // Tie rope
+  ctx.strokeStyle = '#543';
+  ctx.lineWidth = 3;
+  ctx.beginPath();
+  ctx.moveTo(px - GRID_SIZE/6, py - GRID_SIZE/8);
+  ctx.lineTo(px + GRID_SIZE/6, py - GRID_SIZE/8);
+  ctx.stroke();
+
+  if (subtype === 'coins') {
+    // Gold shimmer
+    ctx.fillStyle = '#fd8';
+    ctx.beginPath();
+    ctx.arc(px, py, GRID_SIZE/8, 0, Math.PI * 2);
+    ctx.fill();
+  }
+
+  ctx.restore();
+}
+
+// --- ROOM DRESSING ---
+
+export function drawBones(symbol) {
+  const px = symbol.x * GRID_SIZE + GRID_SIZE/2;
+  const py = symbol.y * GRID_SIZE + GRID_SIZE/2;
+  const subtype = symbol.subtype || 'pile';
+
+  ctx.save();
+  ctx.strokeStyle = '#ddd';
+  ctx.fillStyle = '#eee';
+  ctx.lineWidth = 2;
+
+  if (subtype === 'skull') {
+    // Skull
+    ctx.beginPath();
+    ctx.arc(px, py - GRID_SIZE/6, GRID_SIZE/4, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.stroke();
+
+    // Eye sockets
+    ctx.fillStyle = '#000';
+    ctx.beginPath();
+    ctx.arc(px - GRID_SIZE/8, py - GRID_SIZE/6, GRID_SIZE/12, 0, Math.PI * 2);
+    ctx.arc(px + GRID_SIZE/8, py - GRID_SIZE/6, GRID_SIZE/12, 0, Math.PI * 2);
+    ctx.fill();
+  } else {
+    // Bone pile
+    for (let i = 0; i < 5; i++) {
+      const angle = (i / 5) * Math.PI * 2;
+      const bx = px + Math.cos(angle) * GRID_SIZE/4;
+      const by = py + Math.sin(angle) * GRID_SIZE/4;
+      ctx.strokeRect(bx - GRID_SIZE/12, by - GRID_SIZE/24, GRID_SIZE/6, GRID_SIZE/12);
+    }
+  }
+
+  ctx.restore();
+}
+
+export function drawWeb(symbol) {
+  const px = symbol.x * GRID_SIZE + GRID_SIZE/2;
+  const py = symbol.y * GRID_SIZE + GRID_SIZE/2;
+
+  ctx.save();
+  ctx.strokeStyle = 'rgba(200, 200, 200, 0.6)';
+  ctx.lineWidth = 1;
+
+  // Radial web pattern
+  for (let i = 0; i < 8; i++) {
+    const angle = (i / 8) * Math.PI * 2;
+    ctx.beginPath();
+    ctx.moveTo(px, py);
+    ctx.lineTo(px + Math.cos(angle) * GRID_SIZE/2, py + Math.sin(angle) * GRID_SIZE/2);
+    ctx.stroke();
+  }
+
+  // Circular strands
+  for (let r = 1; r <= 3; r++) {
+    ctx.beginPath();
+    ctx.arc(px, py, (r / 3) * GRID_SIZE/2, 0, Math.PI * 2);
+    ctx.stroke();
+  }
+
+  ctx.restore();
+}
+
+export function drawRubble(symbol) {
+  const px = symbol.x * GRID_SIZE + GRID_SIZE/2;
+  const py = symbol.y * GRID_SIZE + GRID_SIZE/2;
+  const subtype = symbol.subtype || 'light';
+
+  ctx.save();
+  ctx.fillStyle = subtype === 'magical' ? '#84f' : '#888';
+  ctx.strokeStyle = '#555';
+  ctx.lineWidth = 1;
+
+  // Random debris chunks
+  const count = subtype === 'heavy' ? 8 : 5;
+  for (let i = 0; i < count; i++) {
+    const angle = (i / count) * Math.PI * 2;
+    const dist = (i % 3) * GRID_SIZE/8;
+    const rx = px + Math.cos(angle) * dist;
+    const ry = py + Math.sin(angle) * dist;
+    const size = GRID_SIZE/8 + (i % 2) * GRID_SIZE/12;
+
+    ctx.fillRect(rx - size/2, ry - size/2, size, size);
+    ctx.strokeRect(rx - size/2, ry - size/2, size, size);
+  }
+
+  ctx.restore();
+}
+
+// --- NATURAL ELEMENTS ---
+
+export function drawMushroom(symbol) {
+  const px = symbol.x * GRID_SIZE + GRID_SIZE/2;
+  const py = symbol.y * GRID_SIZE + GRID_SIZE/2;
+  const subtype = symbol.subtype || 'small';
+
+  ctx.save();
+
+  const isGlowing = subtype === 'glowing';
+  const isLarge = subtype === 'large';
+  const isCluster = subtype === 'cluster';
+
+  const drawSingleMushroom = (mx, my, size) => {
+    // Stem
+    ctx.fillStyle = '#ddd';
+    ctx.fillRect(mx - size/8, my - size/4, size/4, size/2);
+
+    // Cap
+    ctx.fillStyle = isGlowing ? '#4f8' : '#f44';
+    ctx.beginPath();
+    ctx.arc(mx, my - size/4, size/2, 0, Math.PI, true);
+    ctx.closePath();
+    ctx.fill();
+
+    // Spots
+    ctx.fillStyle = '#fff';
+    for (let i = 0; i < 3; i++) {
+      const sx = mx + (i - 1) * size/4;
+      ctx.beginPath();
+      ctx.arc(sx, my - size/4, size/12, 0, Math.PI * 2);
+      ctx.fill();
+    }
+  };
+
+  if (isCluster) {
+    drawSingleMushroom(px - GRID_SIZE/4, py, GRID_SIZE/3);
+    drawSingleMushroom(px + GRID_SIZE/4, py, GRID_SIZE/4);
+    drawSingleMushroom(px, py + GRID_SIZE/4, GRID_SIZE/5);
+  } else {
+    const size = isLarge ? GRID_SIZE/2 : GRID_SIZE/3;
+    drawSingleMushroom(px, py, size);
+  }
+
+  ctx.restore();
+}
+
+export function drawPlant(symbol) {
+  const px = symbol.x * GRID_SIZE + GRID_SIZE/2;
+  const py = symbol.y * GRID_SIZE + GRID_SIZE/2;
+  const subtype = symbol.subtype || 'fern';
+
+  ctx.save();
+  ctx.strokeStyle = subtype === 'thorns' ? '#6a4' : '#4a6';
+  ctx.lineWidth = 2;
+
+  if (subtype === 'vine') {
+    // Curvy vine
+    ctx.beginPath();
+    ctx.moveTo(px - GRID_SIZE/2, py - GRID_SIZE/2);
+    ctx.quadraticCurveTo(px, py, px + GRID_SIZE/2, py - GRID_SIZE/2);
+    ctx.stroke();
+
+    // Leaves
+    ctx.fillStyle = '#4a6';
+    for (let i = 0; i < 3; i++) {
+      const lx = px + (i - 1) * GRID_SIZE/3;
+      ctx.beginPath();
+      ctx.arc(lx, py - GRID_SIZE/6, GRID_SIZE/8, 0, Math.PI * 2);
+      ctx.fill();
+    }
+  } else {
+    // Fern/thorns - radial leaves
+    for (let i = 0; i < 6; i++) {
+      const angle = (i / 6) * Math.PI * 2;
+      ctx.beginPath();
+      ctx.moveTo(px, py);
+      ctx.lineTo(px + Math.cos(angle) * GRID_SIZE/3, py + Math.sin(angle) * GRID_SIZE/3);
+      ctx.stroke();
+    }
+  }
+
+  ctx.restore();
+}
+
+export function drawCrystal(symbol) {
+  const px = symbol.x * GRID_SIZE + GRID_SIZE/2;
+  const py = symbol.y * GRID_SIZE + GRID_SIZE/2;
+  const subtype = symbol.subtype || 'blue';
+
+  ctx.save();
+
+  const colors = {
+    blue: '#44aaff',
+    red: '#f44',
+    purple: '#a4f',
+    cluster: '#8f8'
+  };
+
+  ctx.fillStyle = colors[subtype] || '#44aaff';
+  ctx.strokeStyle = '#fff';
+  ctx.lineWidth = 2;
+
+  // Crystal point
+  ctx.beginPath();
+  ctx.moveTo(px, py - GRID_SIZE/2);
+  ctx.lineTo(px - GRID_SIZE/4, py + GRID_SIZE/4);
+  ctx.lineTo(px + GRID_SIZE/4, py + GRID_SIZE/4);
+  ctx.closePath();
+  ctx.fill();
+  ctx.stroke();
+
+  ctx.restore();
+}
+
+export function drawPool(symbol) {
+  const px = symbol.x * GRID_SIZE + GRID_SIZE/2;
+  const py = symbol.y * GRID_SIZE + GRID_SIZE/2;
+  const subtype = symbol.subtype || 'water';
+
+  ctx.save();
+
+  const colors = {
+    water: 'rgba(100, 150, 255, 0.6)',
+    blood: 'rgba(139, 0, 0, 0.7)',
+    acid: 'rgba(150, 255, 0, 0.6)',
+    magical: 'rgba(200, 0, 255, 0.6)'
+  };
+
+  ctx.fillStyle = colors[subtype];
+  ctx.strokeStyle = 'rgba(0, 0, 0, 0.4)';
+  ctx.lineWidth = 2;
+
+  // Pool shape
+  ctx.beginPath();
+  ctx.ellipse(px, py, GRID_SIZE/2, GRID_SIZE/3, 0, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.stroke();
+
+  // Ripples
+  ctx.strokeStyle = 'rgba(255, 255, 255, 0.3)';
+  ctx.lineWidth = 1;
+  for (let i = 1; i <= 2; i++) {
+    ctx.beginPath();
+    ctx.ellipse(px, py, (i/3) * GRID_SIZE/2, (i/3) * GRID_SIZE/3, 0, 0, Math.PI * 2);
+    ctx.stroke();
+  }
+
+  ctx.restore();
+}
+
 export function renderSymbols() {
-  symbols.forEach(symbol => {
+  getSymbols().forEach(symbol => {
     ctx.save();
 
     // Render based on symbol type
@@ -264,6 +860,48 @@ export function renderSymbols() {
     } else if (symbol.type === 'chest' || symbol.type === 'table' ||
                symbol.type === 'altar' || symbol.type === 'statue') {
       drawFurniture(symbol);
+    }
+    // NEW TERRAIN FEATURES (Phase 6)
+    else if (symbol.type === 'fountain') {
+      drawFountain(symbol);
+    } else if (symbol.type === 'statue2') {
+      drawStatue2(symbol);
+    } else if (symbol.type === 'altar2') {
+      drawAltar2(symbol);
+    }
+    // INTERACTIVE OBJECTS
+    else if (symbol.type === 'lever') {
+      drawLever(symbol);
+    } else if (symbol.type === 'brazier') {
+      drawBrazier(symbol);
+    } else if (symbol.type === 'chain') {
+      drawChain(symbol);
+    }
+    // CONTAINERS
+    else if (symbol.type === 'barrel') {
+      drawBarrel(symbol);
+    } else if (symbol.type === 'crate') {
+      drawCrate(symbol);
+    } else if (symbol.type === 'sack') {
+      drawSack(symbol);
+    }
+    // ROOM DRESSING
+    else if (symbol.type === 'bones') {
+      drawBones(symbol);
+    } else if (symbol.type === 'web') {
+      drawWeb(symbol);
+    } else if (symbol.type === 'rubble') {
+      drawRubble(symbol);
+    }
+    // NATURAL ELEMENTS
+    else if (symbol.type === 'mushroom') {
+      drawMushroom(symbol);
+    } else if (symbol.type === 'plant') {
+      drawPlant(symbol);
+    } else if (symbol.type === 'crystal') {
+      drawCrystal(symbol);
+    } else if (symbol.type === 'pool') {
+      drawPool(symbol);
     }
 
     // Highlight if selected
@@ -285,7 +923,7 @@ function isCorridorAt(gx, gy) {
 
   const wallGrid = getWallRegions();
   const isWall = wallGrid[gy][gx];
-  const isRoom = rooms.some(r =>
+  const isRoom = getRooms().some(r =>
     gx >= r.x && gx < r.x + r.w && gy >= r.y && gy < r.y + r.h
   );
 
@@ -293,7 +931,7 @@ function isCorridorAt(gx, gy) {
 }
 
 function doorExistsAt(x, y) {
-  return symbols.some(s =>
+  return getSymbols().some(s =>
     (s.type === 'door' || s.type === 'secret_door' ||
      s.type === 'locked_door' || s.type === 'portcullis') &&
     s.x === x && s.y === y
@@ -303,7 +941,7 @@ function doorExistsAt(x, y) {
 function autoDetectDoors() {
   const newDoors = [];
 
-  rooms.forEach(room => {
+  getRooms().forEach(room => {
     // Check north wall
     for (let x = room.x; x < room.x + room.w; x++) {
       if (room.y > 0 && isCorridorAt(x, room.y - 1)) {
@@ -373,7 +1011,9 @@ function autoDetectDoors() {
     }
   });
 
-  symbols.push(...newDoors);
+  const currentSymbols = getSymbols();
+  currentSymbols.push(...newDoors);
+  setSymbols(currentSymbols);
   saveState();
   render();
 
@@ -384,11 +1024,11 @@ function autoDetectDoors() {
 }
 
 function findSymbolAt(gx, gy) {
-  return symbols.find(s => s.x === gx && s.y === gy);
+  return getSymbols().find(s => s.x === gx && s.y === gy);
 }
 
 function deleteSymbol(symbolId) {
-  setSymbols(symbols.filter(s => s.id !== symbolId));
+  setSymbols(getSymbols().filter(s => s.id !== symbolId));
   if (selectedSymbol && selectedSymbol.id === symbolId) {
     setSelectedSymbol(null);
   }

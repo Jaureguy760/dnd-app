@@ -35,8 +35,39 @@ export const GRID_SIZE = 20;
 export const GRID_COLS = canvas.width / GRID_SIZE;
 export const GRID_ROWS = canvas.height / GRID_SIZE;
 
-// State Variables
-export let rooms = [];
+// --- PHASE 6: MULTI-LEVEL DUNGEON STATE ---
+// Core multi-level structure
+export let levels = [
+  {
+    id: 0,
+    name: 'Level 1',
+    depth: 0, // 0=ground, -1=basement 1, +1=tower 1
+    rooms: [],
+    symbols: [],
+    annotations: [],
+    traps: [],
+    encounters: [],
+    dmNotes: [],
+    coffeeStains: [],
+    effectsEnabled: {
+      parchmentTexture: false,
+      coffeeStains: false,
+      ageSpots: false,
+      titleBlock: true,
+      compass: true
+    },
+    titleBlockData: {
+      dungeonName: 'The Lost Crypt',
+      dmName: 'DM',
+      date: new Date().toLocaleDateString(),
+      level: 'Level 1'
+    },
+    terrainLayers: [] // NEW: Environmental hazards for Phase 6
+  }
+];
+export let currentLevel = 0; // Active level index
+
+// Global UI State (shared across all levels)
 export let selectedRoomId = null;
 export let placingMarker = false;
 export let backgroundImg = null;
@@ -45,49 +76,191 @@ export let draggingRoom = null;
 export let dragOffset = { x: 0, y: 0 };
 export let renderStyle = 'dyson'; // 'modern', 'dyson', 'vintage'
 
-// Symbol system (Phase 2)
-export let symbols = []; // {id, type, subtype, x, y, direction, roomId, properties}
+// Symbol placement UI state (global)
 export let selectedSymbol = null;
 export let placingSymbolType = null;
 
-// Effects system (Phase 3)
-export let effectsEnabled = {
-  parchmentTexture: false,
-  coffeeStains: false,
-  ageSpots: false,
-  titleBlock: true,
-  compass: true
-};
-export let coffeeStains = [];
-export let titleBlockData = {
-  dungeonName: 'The Lost Crypt',
-  dmName: 'DM',
-  date: new Date().toLocaleDateString(),
-  level: 'Level 1'
-};
+// Parchment texture cache (global, shared across levels)
 export let parchmentTextureCache = null;
 
-// Undo/Redo system
+// Undo/Redo system (global for now, may be per-level in future)
 export let undoStack = [];
 export let redoStack = [];
 export const MAX_UNDO = 50;
 
-// Mouse interaction state
+// Mouse interaction state (global)
 export let mouseDownPos = null;
 export let hasDragged = false;
 
-// --- PHASE 5: DM ESSENTIALS ---
-export let annotations = [];          // Text notes on map
+// Ruler and DM UI state (global)
 export let rulerMode = false;          // Measurement tool active
 export let rulerStart = null;          // {x, y} grid coords
 export let rulerEnd = null;            // {x, y} grid coords
-export let traps = [];                 // {id, x, y, trapType, detectionDC, disarmDC, damage, description}
-export let encounters = [];            // {id, x, y, monsterType, count, ac, hp, behavior, notes, difficulty}
-export let dmNotes = [];               // {id, x, y, text, noteType}
 export let showDmNotes = true;         // Toggle DM notes visibility
 
-// State setters (to allow modification from other modules)
-export function setRooms(newRooms) { rooms = newRooms; }
+// --- MULTI-LEVEL HELPER FUNCTIONS ---
+// Get the currently active level's data
+export function getCurrentLevelData() {
+  return levels[currentLevel];
+}
+
+// Get the current level index
+export function getCurrentLevel() {
+  return currentLevel;
+}
+
+// Set the active level
+export function setCurrentLevel(index) {
+  if (index >= 0 && index < levels.length) {
+    currentLevel = index;
+    return true;
+  }
+  return false;
+}
+
+// Add a new level to the dungeon
+export function addLevel(name, depth) {
+  const newLevel = {
+    id: levels.length,
+    name: name || `Level ${levels.length + 1}`,
+    depth: depth !== undefined ? depth : levels.length,
+    rooms: [],
+    symbols: [],
+    annotations: [],
+    traps: [],
+    encounters: [],
+    dmNotes: [],
+    coffeeStains: [],
+    effectsEnabled: {
+      parchmentTexture: false,
+      coffeeStains: false,
+      ageSpots: false,
+      titleBlock: false,
+      compass: false
+    },
+    titleBlockData: {
+      dungeonName: 'Untitled Dungeon',
+      dmName: '',
+      date: new Date().toLocaleDateString(),
+      level: name || `Level ${levels.length + 1}`
+    },
+    terrainLayers: []
+  };
+  levels.push(newLevel);
+  return newLevel;
+}
+
+// Remove a level from the dungeon
+export function removeLevel(index) {
+  if (levels.length > 1 && index >= 0 && index < levels.length) {
+    levels.splice(index, 1);
+    // Update IDs
+    levels.forEach((level, idx) => {
+      level.id = idx;
+    });
+    // Adjust currentLevel if needed
+    if (currentLevel >= levels.length) {
+      currentLevel = levels.length - 1;
+    }
+    return true;
+  }
+  return false;
+}
+
+// Set all levels (for import/load operations)
+export function setLevels(newLevels) {
+  levels = newLevels;
+}
+
+// --- BACKWARD COMPATIBILITY GETTERS ---
+// These functions allow existing code to work without modification
+export function getRooms() {
+  return getCurrentLevelData().rooms;
+}
+
+export function getSymbols() {
+  return getCurrentLevelData().symbols;
+}
+
+export function getAnnotations() {
+  return getCurrentLevelData().annotations;
+}
+
+export function getTraps() {
+  return getCurrentLevelData().traps;
+}
+
+export function getEncounters() {
+  return getCurrentLevelData().encounters;
+}
+
+export function getDmNotes() {
+  return getCurrentLevelData().dmNotes;
+}
+
+export function getCoffeeStains() {
+  return getCurrentLevelData().coffeeStains;
+}
+
+export function getEffectsEnabled() {
+  return getCurrentLevelData().effectsEnabled;
+}
+
+export function getTitleBlockData() {
+  return getCurrentLevelData().titleBlockData;
+}
+
+export function getTerrainLayers() {
+  return getCurrentLevelData().terrainLayers;
+}
+
+// --- STATE SETTERS ---
+// Per-level state setters (modify current level)
+export function setRooms(newRooms) {
+  getCurrentLevelData().rooms = newRooms;
+}
+
+export function setSymbols(newSymbols) {
+  getCurrentLevelData().symbols = newSymbols;
+}
+
+export function setAnnotations(val) {
+  getCurrentLevelData().annotations = val;
+}
+
+export function setTraps(val) {
+  getCurrentLevelData().traps = val;
+}
+
+export function setEncounters(val) {
+  getCurrentLevelData().encounters = val;
+}
+
+export function setDmNotes(val) {
+  getCurrentLevelData().dmNotes = val;
+}
+
+export function setCoffeeStains(stains) {
+  getCurrentLevelData().coffeeStains = stains;
+}
+
+export function setEffectsEnabled(effects) {
+  getCurrentLevelData().effectsEnabled = effects;
+}
+
+export function setTitleBlockData(data) {
+  getCurrentLevelData().titleBlockData = data;
+}
+
+export function setTerrainLayers(layers) {
+  getCurrentLevelData().terrainLayers = layers;
+}
+
+export function addTerrainLayer(terrain) {
+  getCurrentLevelData().terrainLayers.push(terrain);
+}
+
+// Global state setters (shared across all levels)
 export function setSelectedRoomId(id) { selectedRoomId = id; }
 export function setPlacingMarker(value) { placingMarker = value; }
 export function setBackgroundImg(img) { backgroundImg = img; }
@@ -95,23 +268,15 @@ export function setZoomLevel(level) { zoomLevel = level; }
 export function setDraggingRoom(room) { draggingRoom = room; }
 export function setDragOffset(offset) { dragOffset = offset; }
 export function setRenderStyle(style) { renderStyle = style; }
-export function setSymbols(newSymbols) { symbols = newSymbols; }
 export function setSelectedSymbol(symbol) { selectedSymbol = symbol; }
 export function setPlacingSymbolType(type) { placingSymbolType = type; }
-export function setEffectsEnabled(effects) { effectsEnabled = effects; }
-export function setCoffeeStains(stains) { coffeeStains = stains; }
-export function setTitleBlockData(data) { titleBlockData = data; }
 export function setUndoStack(stack) { undoStack = stack; }
 export function setRedoStack(stack) { redoStack = stack; }
 export function setMouseDownPos(pos) { mouseDownPos = pos; }
 export function setHasDragged(value) { hasDragged = value; }
-export function setAnnotations(val) { annotations = val; }
 export function setRulerMode(val) { rulerMode = val; }
 export function setRulerStart(val) { rulerStart = val; }
 export function setRulerEnd(val) { rulerEnd = val; }
-export function setTraps(val) { traps = val; }
-export function setEncounters(val) { encounters = val; }
-export function setDmNotes(val) { dmNotes = val; }
 export function setShowDmNotes(val) { showDmNotes = val; }
 
 // --- TEMPLATES ---

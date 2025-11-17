@@ -1,4 +1,4 @@
-import { GRID_COLS, GRID_ROWS, rooms, sizeSelect, densityRange, themeSelect, algorithmSelect, setRooms, setSelectedRoomId } from './state.js';
+import { getRooms, GRID_COLS, GRID_ROWS, sizeSelect, densityRange, themeSelect, algorithmSelect, setRooms, setSelectedRoomId } from './state.js';
 import { randInt, getThemePrompt } from './main.js';
 import { render } from './renderer.js';
 
@@ -66,7 +66,7 @@ export function generateRoomsDungeon() {
   }
 
   setRooms(newRooms);
-  setSelectedRoomId(rooms[0]?.id ?? null);
+  setSelectedRoomId(getRooms()[0]?.id ?? null);
   autoFillDescriptions();
 }
 
@@ -159,7 +159,7 @@ export function generateBSPDungeon() {
   }
 
   setRooms(newRooms);
-  setSelectedRoomId(rooms[0]?.id ?? null);
+  setSelectedRoomId(getRooms()[0]?.id ?? null);
   autoFillDescriptions();
 }
 
@@ -261,7 +261,7 @@ export function generateCavesDungeon() {
   }
 
   setRooms(newRooms);
-  setSelectedRoomId(rooms[0]?.id ?? null);
+  setSelectedRoomId(getRooms()[0]?.id ?? null);
   autoFillDescriptions();
 }
 
@@ -284,7 +284,7 @@ export function generateDungeon() {
 
 export function autoFillDescriptions() {
   const themeText = getThemePrompt(themeSelect.value);
-  rooms.forEach((room, idx) => {
+  getRooms().forEach((room, idx) => {
     if (!room.description) {
       if (room.type === 'entrance') {
         room.description = `Entrance (${room.id}). Players arrive here. Describe how they enter the dungeon and any immediate threats.`;

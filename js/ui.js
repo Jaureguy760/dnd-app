@@ -1,19 +1,22 @@
 // --- UI EVENT HANDLERS AND INTERACTION CODE ---
 
 import {
-  canvas, ctx, GRID_SIZE, GRID_COLS, GRID_ROWS, rooms, selectedRoomId, placingMarker,
-  symbols, selectedSymbol, placingSymbolType, effectsEnabled, coffeeStains, titleBlockData,
+  getRooms, getSymbols, getEffectsEnabled, getCoffeeStains, getTitleBlockData,
+  getEncounters, getAnnotations, getDmNotes, getTraps, getTerrainLayers,
+  canvas, ctx, GRID_SIZE, GRID_COLS, GRID_ROWS, selectedRoomId, placingMarker,
+  selectedSymbol, placingSymbolType,
   backgroundImg, draggingRoom, dragOffset, mouseDownPos, hasDragged, statusText,
   roomListEl, newDungeonBtn, mapFileInput, jsonFileInput, placeMarkerBtn, exportPngBtn,
   exportJsonBtn, sizeSelect, densityRange, densityValue, themeSelect, algorithmSelect,
   templateSelect, loadTemplateBtn, clearStorageBtn, zoomInBtn, zoomOutBtn, zoomResetBtn,
   undoBtn, redoBtn, renumberBtn, renderStyleSelect, stylePreview, TEMPLATES,
-  rulerMode, rulerStart, rulerEnd, encounters, annotations, dmNotes, showDmNotes,
+  rulerMode, rulerStart, rulerEnd, showDmNotes,
   setRooms, setSelectedRoomId, setPlacingMarker, setBackgroundImg, setDraggingRoom,
   setSymbols, setSelectedSymbol, setPlacingSymbolType, setEffectsEnabled, setTitleBlockData,
   setUndoStack, setRedoStack, setMouseDownPos, setHasDragged, setRenderStyle,
-  setRulerMode, setRulerStart, setRulerEnd, setEncounters, setAnnotations,
-  traps, setTraps, setDmNotes, setShowDmNotes
+  setRulerMode, setRulerStart, setRulerEnd, setEncounters, setAnnotations, setCoffeeStains,
+  setTraps, setDmNotes, setShowDmNotes, setTerrainLayers, addTerrainLayer,
+  levels, getCurrentLevel, setCurrentLevel, addLevel, removeLevel
 } from './state.js';
 
 import { render } from './renderer.js';
@@ -25,6 +28,7 @@ import {
 import { generateDungeon } from './generator.js';
 import { DungeonExporter } from './exporter.js';
 import { generateCoffeeStains } from './effects.js';
+import { generateTreasure, formatTreasure } from './treasure.js';
 
 // Initialize exporter
 const exporter = new DungeonExporter();
@@ -47,10 +51,21 @@ let annotationText = '';
 let placingDmNote = false;
 let pendingDmNoteText = '';
 
+// --- STAIR LINKING STATE ---
+let pendingStair = null;
+
+// --- TREASURE GENERATION STATE ---
+let lastGeneratedTreasure = null;
+
+// --- TERRAIN PAINTING STATE ---
+let paintingTerrain = false;
+let erasingTerrain = false;
+let terrainBrushSize = 2;
+
 // --- ROOM LIST UI ---
 export function rebuildRoomList() {
   roomListEl.innerHTML = '';
-  rooms
+  getRooms()
     .slice()
     .sort((a, b) => a.id - b.id)
     .forEach(room => {
@@ -118,9 +133,9 @@ export function rebuildRoomList() {
 export function deleteRoom(roomId) {
   if (!confirm(`Delete Location ${roomId}? This cannot be undone.`)) return;
   saveState();
-  setRooms(rooms.filter(r => r.id !== roomId));
+  setRooms(getRooms().filter(r => r.id !== roomId));
   if (selectedRoomId === roomId) {
-    setSelectedRoomId(rooms[0]?.id ?? null);
+    setSelectedRoomId(getRooms()[0]?.id ?? null);
   }
   render();
   rebuildRoomList();
@@ -133,7 +148,7 @@ export function deleteRoom(roomId) {
 export function roomAtCanvasPosition(px, py) {
   const gx = px / GRID_SIZE;
   const gy = py / GRID_SIZE;
-  for (const room of rooms) {
+  for (const room of getRooms()) {
     if (
       gx >= room.x &&
       gx <= room.x + room.w &&
@@ -146,11 +161,11 @@ export function roomAtCanvasPosition(px, py) {
 
 // --- SYMBOL HELPER FUNCTIONS ---
 export function findSymbolAt(gx, gy) {
-  return symbols.find(s => s.x === gx && s.y === gy);
+  return getSymbols().find(s => s.x === gx && s.y === gy);
 }
 
 export function deleteSymbol(symbolId) {
-  setSymbols(symbols.filter(s => s.id !== symbolId));
+  setSymbols(getSymbols().filter(s => s.id !== symbolId));
   if (selectedSymbol && selectedSymbol.id === symbolId) {
     setSelectedSymbol(null);
   }
@@ -164,7 +179,7 @@ function isCorridorAt(gx, gy) {
 
   const wallGrid = getWallRegions();
   const isWall = wallGrid[gy][gx];
-  const isRoom = rooms.some(r =>
+  const isRoom = getRooms().some(r =>
     gx >= r.x && gx < r.x + r.w && gy >= r.y && gy < r.y + r.h
   );
 
@@ -172,7 +187,7 @@ function isCorridorAt(gx, gy) {
 }
 
 function doorExistsAt(x, y) {
-  return symbols.some(s =>
+  return getSymbols().some(s =>
     (s.type === 'door' || s.type === 'secret_door' ||
      s.type === 'locked_door' || s.type === 'portcullis') &&
     s.x === x && s.y === y
@@ -182,7 +197,7 @@ function doorExistsAt(x, y) {
 export function autoDetectDoors() {
   const newDoors = [];
 
-  rooms.forEach(room => {
+  getRooms().forEach(room => {
     // Check north wall
     for (let x = room.x; x < room.x + room.w; x++) {
       if (room.y > 0 && isCorridorAt(x, room.y - 1)) {
@@ -252,7 +267,9 @@ export function autoDetectDoors() {
     }
   });
 
-  symbols.push(...newDoors);
+  const currentSymbols = getSymbols();
+  currentSymbols.push(...newDoors);
+  setSymbols(currentSymbols);
   saveState();
   render();
   saveToLocalStorage();
@@ -278,7 +295,7 @@ export function handleCanvasClick(x, y) {
       noteType: 'secret'
     };
 
-    setDmNotes([...dmNotes, newNote]);
+    setDmNotes([...getDmNotes(), newNote]);
     saveState();
     saveToLocalStorage();
     render();
@@ -289,9 +306,47 @@ export function handleCanvasClick(x, y) {
     return;
   }
 
+  // If painting or erasing terrain
+  if (paintingTerrain || erasingTerrain) {
+    const gx = Math.floor(x / GRID_SIZE);
+    const gy = Math.floor(y / GRID_SIZE);
+
+    if (paintingTerrain) {
+      const terrainType = document.getElementById('terrainTypeSelect').value;
+      const newTerrain = {
+        id: `terrain_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+        x: gx,
+        y: gy,
+        width: terrainBrushSize,
+        height: terrainBrushSize,
+        type: terrainType,
+        metadata: getTerrainMetadata(terrainType)
+      };
+      addTerrainLayer(newTerrain);
+      saveState();
+      saveToLocalStorage();
+      render();
+      return;
+    }
+
+    if (erasingTerrain) {
+      // Remove terrain at this location
+      const terrainLayers = getTerrainLayers();
+      const filtered = terrainLayers.filter(t => {
+        return !(gx >= t.x && gx < t.x + t.width &&
+                 gy >= t.y && gy < t.y + t.height);
+      });
+      setTerrainLayers(filtered);
+      saveState();
+      saveToLocalStorage();
+      render();
+      return;
+    }
+  }
+
   // Check if clicked on DM note (only when visible)
   if (showDmNotes) {
-    const clickedNote = dmNotes.find(note => {
+    const clickedNote = getDmNotes().find(note => {
       const noteX = note.x * GRID_SIZE;
       const noteY = note.y * GRID_SIZE;
       const fontSize = 12;
@@ -306,13 +361,13 @@ export function handleCanvasClick(x, y) {
         const newText = prompt('Edit DM note:', clickedNote.text);
         if (newText) {
           clickedNote.text = newText;
-          setDmNotes([...dmNotes]);
+          setDmNotes([...getDmNotes()]);
           saveState();
           saveToLocalStorage();
           render();
         }
       } else {
-        setDmNotes(dmNotes.filter(n => n.id !== clickedNote.id));
+        setDmNotes(getDmNotes().filter(n => n.id !== clickedNote.id));
         saveState();
         saveToLocalStorage();
         render();
@@ -351,7 +406,7 @@ export function handleCanvasClick(x, y) {
       fontSize: 12,
       color: '#000'
     };
-    setAnnotations([...annotations, newAnnotation]);
+    setAnnotations([...getAnnotations(), newAnnotation]);
     saveState();
     saveToLocalStorage();
 
@@ -363,7 +418,7 @@ export function handleCanvasClick(x, y) {
   }
 
   // Check if clicked on annotation
-  const clickedAnnotation = annotations.find(ann => {
+  const clickedAnnotation = getAnnotations().find(ann => {
     const annX = ann.x * GRID_SIZE;
     const annY = ann.y * GRID_SIZE;
     const fontSize = ann.fontSize || 12;
@@ -378,13 +433,13 @@ export function handleCanvasClick(x, y) {
       const newText = prompt('Edit annotation:', clickedAnnotation.text);
       if (newText) {
         clickedAnnotation.text = newText;
-        setAnnotations([...annotations]);
+        setAnnotations([...getAnnotations()]);
         saveState();
         saveToLocalStorage();
         render();
       }
     } else {
-      setAnnotations(annotations.filter(a => a.id !== clickedAnnotation.id));
+      setAnnotations(getAnnotations().filter(a => a.id !== clickedAnnotation.id));
       saveState();
       saveToLocalStorage();
       render();
@@ -408,16 +463,45 @@ export function handleCanvasClick(x, y) {
 
   // Symbol placement mode
   if (placingSymbolType) {
-    saveState();
-
     // Determine direction based on symbol type
     let direction = 'north';
-    let subtype = document.querySelector(`.symbol-btn[data-symbol="${placingSymbolType}"]`)?.dataset.subtype || 'normal';
+    // Get subtype from the dropdown selector (Phase 6 update)
+    let subtype = document.getElementById('symbolSubtypeSelect')?.value || 'normal';
 
     if (placingSymbolType.includes('stairs')) {
-      direction = placingSymbolType.includes('up') ? 'up' : 'down';
+      direction = placingSymbolType.includes('up') ? 'up' : placingSymbolType.includes('down') ? 'down' : 'spiral';
+
+      // INTERCEPT STAIR PLACEMENT - Show link modal instead
+      pendingStair = {
+        x: gx,
+        y: gy,
+        type: placingSymbolType,
+        subtype: subtype,
+        direction: direction
+      };
+
+      // Populate destination dropdown with other levels
+      const select = document.getElementById('stairDestLevel');
+      select.innerHTML = '';
+      levels.forEach((level, idx) => {
+        if (idx !== getCurrentLevel()) {
+          const option = document.createElement('option');
+          option.value = idx;
+          const depthLabel = level.depth === 0 ? 'Ground' :
+                             level.depth > 0 ? `Tower ${level.depth}` :
+                             `Basement ${Math.abs(level.depth)}`;
+          option.textContent = `${level.name} (${depthLabel})`;
+          select.appendChild(option);
+        }
+      });
+
+      // Show modal
+      document.getElementById('stairLinkModal').style.display = 'block';
+      return; // Don't place the stair yet
     }
 
+    // Non-stair symbol placement (existing logic)
+    saveState();
     const newSymbol = {
       id: Date.now() + Math.random(),
       type: placingSymbolType,
@@ -428,16 +512,25 @@ export function handleCanvasClick(x, y) {
       roomId: null
     };
 
-    symbols.push(newSymbol);
+    const currentSymbols = getSymbols();
+    currentSymbols.push(newSymbol);
+    setSymbols(currentSymbols);
     render();
     saveToLocalStorage();
 
     // Deselect room, select symbol
     setSelectedRoomId(null);
     setSelectedSymbol(newSymbol);
+    document.getElementById('btnDeleteSymbol').disabled = false;
+
+    statusText.textContent = `Placed ${placingSymbolType}`;
+    setTimeout(() => { statusText.textContent = ''; }, 2000);
+
+    return;
+  }
 
   // Check if clicked on encounter
-  const clickedEncounter = encounters.find(enc => {
+  const clickedEncounter = getEncounters().find(enc => {
     const encX = enc.x * GRID_SIZE + GRID_SIZE / 2;
     const encY = enc.y * GRID_SIZE + GRID_SIZE / 2;
     const dist = Math.sqrt((x - encX) ** 2 + (y - encY) ** 2);
@@ -448,22 +541,11 @@ export function handleCanvasClick(x, y) {
     const info = `${clickedEncounter.count}x ${clickedEncounter.monsterType}\nAC: ${clickedEncounter.ac}, HP: ${clickedEncounter.hp}\nBehavior: ${clickedEncounter.behavior || 'None'}\n\nDelete this encounter?`;
     const action = confirm(info);
     if (action) {
-      setEncounters(encounters.filter(e => e.id !== clickedEncounter.id));
+      setEncounters(getEncounters().filter(e => e.id !== clickedEncounter.id));
       saveState();
       saveToLocalStorage();
       render();
     }
-    return;
-  }
-    document.getElementById('btnDeleteSymbol').disabled = false;
-
-    statusText.textContent = `Placed ${placingSymbolType}`;
-    setTimeout(() => { statusText.textContent = ''; }, 2000);
-
-    // Keep placing mode active (comment out to place one at a time)
-    // setPlacingSymbolType(null);
-    // document.querySelectorAll('.symbol-btn').forEach(b => b.classList.remove('active'));
-
     return;
   }
   // If placing trap
@@ -480,7 +562,8 @@ export function handleCanvasClick(x, y) {
 
   if (placingMarker) {
     saveState();
-    const id = rooms.length ? Math.max(...rooms.map(r => r.id)) + 1 : 1;
+    const currentRooms = getRooms();
+    const id = currentRooms.length ? Math.max(...currentRooms.map(r => r.id)) + 1 : 1;
     const newRoom = {
       id,
       x: Math.max(0, Math.min(gx - 1, GRID_COLS - 4)),
@@ -492,13 +575,14 @@ export function handleCanvasClick(x, y) {
     };
 
     // Check for overlap
-    const overlap = checkRoomOverlap(newRoom, rooms);
+    const overlap = checkRoomOverlap(newRoom, currentRooms);
     if (overlap) {
       statusText.textContent = `Warning: New location overlaps with Location ${overlap.id}`;
       setTimeout(() => { statusText.textContent = ''; }, 3000);
     }
 
-    rooms.push(newRoom);
+    currentRooms.push(newRoom);
+    setRooms(currentRooms);
     setSelectedRoomId(id);
     setPlacingMarker(false);
     placeMarkerBtn.textContent = 'Add Numbered Location';
@@ -509,7 +593,7 @@ export function handleCanvasClick(x, y) {
   }
 
   // Check if clicked on trap
-  const clickedTrap = traps.find(trap => {
+  const clickedTrap = getTraps().find(trap => {
     const trapX = trap.x * GRID_SIZE + GRID_SIZE / 2;
     const trapY = trap.y * GRID_SIZE + GRID_SIZE / 2;
     const dist = Math.sqrt((x - trapX) ** 2 + (y - trapY) ** 2);
@@ -519,7 +603,7 @@ export function handleCanvasClick(x, y) {
   if (clickedTrap) {
     const action = confirm(`Trap: ${clickedTrap.trapType}\nDC ${clickedTrap.detectionDC}\nDamage: ${clickedTrap.damage}\n\nDelete this trap?`);
     if (action) {
-      setTraps(traps.filter(t => t.id !== clickedTrap.id));
+      setTraps(getTraps().filter(t => t.id !== clickedTrap.id));
       saveState();
       saveToLocalStorage();
       render();
@@ -530,6 +614,19 @@ export function handleCanvasClick(x, y) {
   // Check if clicking on a symbol
   const clickedSymbol = findSymbolAt(gx, gy);
   if (clickedSymbol) {
+    // Check if it's a linked stair - show option to jump
+    if ((clickedSymbol.type === 'stairs_up' || clickedSymbol.type === 'stairs_down' ||
+         clickedSymbol.type === 'stairs_spiral') && clickedSymbol.linkedStair) {
+      const targetLevel = clickedSymbol.linkedStair.levelIndex;
+      const action = confirm(`This stair is linked to ${levels[targetLevel].name}.\n\nJump to that level?`);
+      if (action) {
+        switchToLevel(targetLevel);
+        statusText.textContent = `Jumped to ${levels[targetLevel].name}`;
+        setTimeout(() => { statusText.textContent = ''; }, 2000);
+      }
+      return;
+    }
+
     setSelectedSymbol(clickedSymbol);
     setSelectedRoomId(null);
     document.getElementById('btnDeleteSymbol').disabled = false;
@@ -653,7 +750,7 @@ function setupCanvasInteraction() {
   canvas.addEventListener('mouseup', (event) => {
     if (draggingRoom && hasDragged) {
       // Check for overlap after drag
-      const overlap = checkRoomOverlap(draggingRoom, rooms, draggingRoom.id);
+      const overlap = checkRoomOverlap(draggingRoom, getRooms(), draggingRoom.id);
       if (overlap) {
         statusText.textContent = `Warning: Overlaps with Location ${overlap.id}`;
         setTimeout(() => { statusText.textContent = ''; }, 3000);
@@ -787,7 +884,7 @@ function setupFileInputHandlers() {
     reader.readAsDataURL(file);
   });
 
-  // JSON Import - FIXED to handle both formats
+  // JSON Import - Handles both old single-level and new multi-level formats
   jsonFileInput.addEventListener('change', (e) => {
     const file = e.target.files[0];
     if (!file) return;
@@ -795,77 +892,111 @@ function setupFileInputHandlers() {
     reader.onload = function(ev) {
       try {
         const data = JSON.parse(ev.target.result);
-        sizeSelect.value = data.size || 'medium';
-        densityRange.value = data.density || 5;
-        densityValue.textContent = data.density || 5;
-        themeSelect.value = data.theme || 'classic';
-        algorithmSelect.value = data.algorithm || 'rooms';
-        setRenderStyle(data.renderStyle || 'dyson');
-        renderStyleSelect.value = data.renderStyle || 'dyson';
 
-        // Handle both export formats (gridRect vs flat x,y,w,h)
-        const importedRooms = (data.rooms || []).map(r => {
-          if (r.gridRect) {
-            // Old export format
-            return {
-              id: r.id,
-              x: r.gridRect.x,
-              y: r.gridRect.y,
-              w: r.gridRect.w,
-              h: r.gridRect.h,
-              type: r.type || 'normal',
-              description: r.description || ''
-            };
-          } else {
-            // New flat format
-            return {
-              id: r.id,
-              x: r.x,
-              y: r.y,
-              w: r.w,
-              h: r.h,
-              type: r.type || 'normal',
-              description: r.description || ''
-            };
-          }
-        });
-        setRooms(importedRooms);
-
-        // Phase 2: Load symbols from JSON
-        setSymbols(data.symbols || []);
-
-        // Phase 3: Load effects data from JSON
-        if (data.effectsEnabled) {
-          setEffectsEnabled(data.effectsEnabled);
-          document.getElementById('chkTitleBlock').checked = effectsEnabled.titleBlock;
-          document.getElementById('chkCompass').checked = effectsEnabled.compass;
-          document.getElementById('chkCoffeeStains').checked = effectsEnabled.coffeeStains;
-          document.getElementById('chkAgeSpots').checked = effectsEnabled.ageSpots;
+        // Load UI settings
+        if (data.size) sizeSelect.value = data.size;
+        if (data.density) {
+          densityRange.value = data.density;
+          densityValue.textContent = data.density;
         }
-        if (data.coffeeStains) {
-          coffeeStains.splice(0, coffeeStains.length, ...data.coffeeStains);
-        }
-        if (data.titleBlockData) {
-          setTitleBlockData(data.titleBlockData);
-          document.getElementById('dungeonNameInput').value = titleBlockData.dungeonName;
-          document.getElementById('dmNameInput').value = titleBlockData.dmName;
+        if (data.theme) themeSelect.value = data.theme;
+        if (data.algorithm) algorithmSelect.value = data.algorithm;
+        if (data.renderStyle) {
+          setRenderStyle(data.renderStyle);
+          renderStyleSelect.value = data.renderStyle;
         }
 
-        // Load encounters
-        if (data.encounters) setEncounters(data.encounters);
+        // Check format
+        if (data.version === '2.0-multilevel' && data.levels) {
+          // Load multi-level
+          setLevels(data.levels);
+          setCurrentLevel(data.currentLevel || 0);
+          console.log(`Imported multi-level dungeon: ${data.levels.length} levels`);
 
-        // Phase 5: Load annotations, traps, DM notes
-        if (data.annotations) setAnnotations(data.annotations);
-        if (data.traps) setTraps(data.traps);
-        if (data.dmNotes) setDmNotes(data.dmNotes);
-        if (typeof data.showDmNotes !== 'undefined') setShowDmNotes(data.showDmNotes);
+        } else {
+          // Migrate old format
+          console.log('Migrating old single-level import to multi-level...');
 
-        setSelectedRoomId(rooms[0]?.id ?? null);
+          // Handle both export formats (gridRect vs flat x,y,w,h)
+          const importedRooms = (data.rooms || []).map(r => {
+            if (r.gridRect) {
+              // Old export format
+              return {
+                id: r.id,
+                x: r.gridRect.x,
+                y: r.gridRect.y,
+                w: r.gridRect.w,
+                h: r.gridRect.h,
+                type: r.type || 'normal',
+                description: r.description || ''
+              };
+            } else {
+              // New flat format
+              return {
+                id: r.id,
+                x: r.x,
+                y: r.y,
+                w: r.w,
+                h: r.h,
+                type: r.type || 'normal',
+                description: r.description || ''
+              };
+            }
+          });
+
+          const migratedLevel = {
+            id: 0,
+            name: 'Level 1',
+            depth: 0,
+            rooms: importedRooms,
+            symbols: data.symbols || [],
+            annotations: data.annotations || [],
+            traps: data.traps || [],
+            encounters: data.encounters || [],
+            dmNotes: data.dmNotes || [],
+            coffeeStains: data.coffeeStains || [],
+            effectsEnabled: data.effectsEnabled || {
+              parchmentTexture: false,
+              coffeeStains: false,
+              ageSpots: false,
+              titleBlock: false,
+              compass: false
+            },
+            titleBlockData: data.titleBlockData || {
+              dungeonName: 'Untitled Dungeon',
+              dmName: '',
+              date: new Date().toLocaleDateString()
+            },
+            terrainLayers: []
+          };
+
+          setLevels([migratedLevel]);
+          setCurrentLevel(0);
+        }
+
+        // Update UI from current level
+        if (getEffectsEnabled()) {
+          document.getElementById('chkTitleBlock').checked = getEffectsEnabled().titleBlock;
+          document.getElementById('chkCompass').checked = getEffectsEnabled().compass;
+          document.getElementById('chkCoffeeStains').checked = getEffectsEnabled().coffeeStains;
+          document.getElementById('chkAgeSpots').checked = getEffectsEnabled().ageSpots;
+        }
+        if (getTitleBlockData()) {
+          document.getElementById('dungeonNameInput').value = getTitleBlockData().dungeonName;
+          document.getElementById('dmNameInput').value = getTitleBlockData().dmName;
+        }
+        if (typeof data.showDmNotes !== 'undefined') {
+          setShowDmNotes(data.showDmNotes);
+          const chkShowDmNotes = document.getElementById('chkShowDmNotes');
+          if (chkShowDmNotes) chkShowDmNotes.checked = data.showDmNotes;
+        }
+
+        setSelectedRoomId(getRooms()[0]?.id ?? null);
         saveState();
         render();
         rebuildRoomList();
         saveToLocalStorage();
-        statusText.textContent = 'Imported from JSON';
+        statusText.textContent = 'Imported multi-level dungeon';
         setTimeout(() => { statusText.textContent = ''; }, 3000);
       } catch(err) {
         alert('Failed to import JSON: ' + err.message);
@@ -917,45 +1048,25 @@ function setupExportHandlers() {
       }
     }
 
+    // Export entire multi-level structure
     const data = {
+      version: '2.0-multilevel', // NEW
+      levels: levels,
+      currentLevel: getCurrentLevel(),
+      // Global settings
       size: sizeSelect.value,
       density: densityRange.value,
       theme: themeSelect.value,
       algorithm: algorithmSelect.value,
-      renderStyle: window.renderStyle,
-      rooms: rooms.map(r => ({
-        id: r.id,
-        x: r.x,
-        y: r.y,
-        w: r.w,
-        h: r.h,
-        type: r.type,
-        description: r.description
-      })),
-      symbols: symbols.map(s => ({
-        id: s.id,
-        type: s.type,
-        subtype: s.subtype,
-        x: s.x,
-        y: s.y,
-        direction: s.direction,
-        roomId: s.roomId
-      })),
-      effectsEnabled: effectsEnabled,
-      coffeeStains: coffeeStains,
-      titleBlockData: titleBlockData,
-      encounters: encounters,
-      // PHASE 5 additions:
-      annotations: annotations,
-      traps: traps,
-      dmNotes: dmNotes,
-      showDmNotes: showDmNotes
+      renderStyle: window.renderStyle
     };
-    const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+
+    const json = JSON.stringify(data, null, 2);
+    const blob = new Blob([json], {type: 'application/json'});
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
-    a.download = 'dungeon_data.json';
+    a.download = `dungeon_multilevel_${new Date().toISOString().slice(0,10)}.json`;
     a.click();
     URL.revokeObjectURL(url);
   });
@@ -1003,7 +1114,7 @@ function setupTemplateHandlers() {
     saveState();
     const template = TEMPLATES[templateName];
     setRooms(JSON.parse(JSON.stringify(template.rooms))); // Deep clone
-    setSelectedRoomId(rooms[0]?.id ?? null);
+    setSelectedRoomId(getRooms()[0]?.id ?? null);
     setBackgroundImg(null);
     render();
     rebuildRoomList();
@@ -1031,49 +1142,166 @@ function setupDensitySlider() {
   });
 }
 
-// --- SYMBOL PLACEMENT INTERACTION (PHASE 2) ---
+// --- SYMBOL PLACEMENT INTERACTION (PHASE 2 + PHASE 6 EXPANSION) ---
+
+// Symbol categories and their types
+const symbolCategories = {
+  basic: ['door', 'secret_door', 'locked_door', 'portcullis', 'stairs_up', 'stairs_down', 'stairs_spiral', 'pillar', 'chest', 'table', 'altar', 'statue'],
+  terrain: ['fountain', 'statue2', 'altar2'],
+  interactive: ['lever', 'brazier', 'chain'],
+  containers: ['barrel', 'crate', 'sack'],
+  dressing: ['bones', 'web', 'rubble'],
+  natural: ['mushroom', 'plant', 'crystal', 'pool']
+};
+
+// Subtypes for each symbol type
+const symbolSubtypes = {
+  // Basic
+  door: ['normal', 'wooden', 'metal'],
+  secret_door: ['secret'],
+  locked_door: ['locked'],
+  portcullis: ['portcullis'],
+  stairs_up: ['normal', 'spiral'],
+  stairs_down: ['normal', 'spiral'],
+  stairs_spiral: ['spiral'],
+  pillar: ['round', 'square'],
+  chest: ['closed', 'open'],
+  table: ['wooden'],
+  altar: ['stone'],
+  statue: ['humanoid'],
+  // Terrain Features
+  fountain: ['ornate', 'simple', 'magical', 'dried'],
+  statue2: ['humanoid', 'dragon', 'angel', 'demon'],
+  altar2: ['stone', 'blood', 'holy', 'cursed'],
+  // Interactive Objects
+  lever: ['wall', 'floor', 'up', 'down'],
+  brazier: ['lit', 'unlit', 'magical', 'cold'],
+  chain: ['vertical', 'horizontal', 'hanging'],
+  // Containers
+  barrel: ['intact', 'broken', 'open'],
+  crate: ['closed', 'open', 'broken'],
+  sack: ['full', 'empty', 'coins'],
+  // Room Dressing
+  bones: ['pile', 'skull', 'skeleton'],
+  web: ['corner', 'full', 'torn'],
+  rubble: ['light', 'heavy', 'magical'],
+  // Natural Elements
+  mushroom: ['small', 'large', 'glowing', 'cluster'],
+  plant: ['fern', 'vine', 'thorns', 'mushrooms'],
+  crystal: ['blue', 'red', 'purple', 'cluster'],
+  pool: ['water', 'blood', 'acid', 'magical']
+};
+
+// Friendly names for symbols
+const symbolNames = {
+  door: 'Door',
+  secret_door: 'Secret Door',
+  locked_door: 'Locked Door',
+  portcullis: 'Portcullis',
+  stairs_up: 'Stairs Up',
+  stairs_down: 'Stairs Down',
+  stairs_spiral: 'Spiral Stairs',
+  pillar: 'Pillar',
+  chest: 'Chest',
+  table: 'Table',
+  altar: 'Altar',
+  statue: 'Statue',
+  fountain: 'Fountain',
+  statue2: 'Statue',
+  altar2: 'Altar',
+  lever: 'Lever',
+  brazier: 'Brazier',
+  chain: 'Chain',
+  barrel: 'Barrel',
+  crate: 'Crate',
+  sack: 'Sack',
+  bones: 'Bones',
+  web: 'Spider Web',
+  rubble: 'Rubble',
+  mushroom: 'Mushroom',
+  plant: 'Plant',
+  crystal: 'Crystal',
+  pool: 'Pool'
+};
+
 function setupSymbolHandlers() {
-  document.querySelectorAll('.symbol-btn').forEach(btn => {
-    btn.addEventListener('click', (e) => {
-      // Toggle placing mode
-      if (placingSymbolType === e.target.dataset.symbol) {
-        // Cancel if clicking same button
-        setPlacingSymbolType(null);
-        document.querySelectorAll('.symbol-btn').forEach(b => b.classList.remove('active'));
-        document.getElementById('symbolHint').textContent = 'Click a symbol button, then click on the map to place it.';
-        canvas.style.cursor = 'crosshair';
-      } else {
-        setPlacingSymbolType(e.target.dataset.symbol);
-        setPlacingMarker(false); // Cancel room placement
-        placeMarkerBtn.textContent = 'Add Numbered Location';
+  const categorySelect = document.getElementById('symbolCategorySelect');
+  const typeSelect = document.getElementById('symbolTypeSelect');
+  const subtypeSelect = document.getElementById('symbolSubtypeSelect');
+  const placeBtn = document.getElementById('btnPlaceSymbol');
 
-        // Highlight active button
-        document.querySelectorAll('.symbol-btn').forEach(b => b.classList.remove('active'));
-        e.target.classList.add('active');
+  // Category selector handler
+  categorySelect?.addEventListener('change', (e) => {
+    const category = e.target.value;
+    typeSelect.innerHTML = '';
 
-        document.getElementById('symbolHint').textContent = `Click on map to place ${e.target.textContent}`;
-        canvas.style.cursor = 'crosshair';
-      }
+    symbolCategories[category].forEach(symbolType => {
+      const option = document.createElement('option');
+      option.value = symbolType;
+      option.textContent = symbolNames[symbolType] || symbolType.charAt(0).toUpperCase() + symbolType.slice(1);
+      typeSelect.appendChild(option);
+    });
+
+    // Trigger type change to update subtypes
+    typeSelect.dispatchEvent(new Event('change'));
+  });
+
+  // Symbol type selector handler
+  typeSelect?.addEventListener('change', (e) => {
+    const symbolType = e.target.value;
+    subtypeSelect.innerHTML = '';
+
+    // Get subtypes for this symbol type
+    const subtypes = symbolSubtypes[symbolType] || ['default'];
+    subtypes.forEach(subtype => {
+      const option = document.createElement('option');
+      option.value = subtype;
+      option.textContent = subtype.charAt(0).toUpperCase() + subtype.slice(1);
+      subtypeSelect.appendChild(option);
     });
   });
 
-  document.getElementById('btnAutoDetectDoors').addEventListener('click', () => {
+  // Place Symbol button handler
+  placeBtn?.addEventListener('click', () => {
+    const symbolType = typeSelect.value;
+    const subtype = subtypeSelect.value;
+
+    if (!symbolType) {
+      alert('Please select a symbol type');
+      return;
+    }
+
+    // Set placing mode
+    setPlacingSymbolType(symbolType);
+    setPlacingMarker(false); // Cancel room placement
+    placeMarkerBtn.textContent = 'Add Numbered Location';
+
+    // Update hint
+    document.getElementById('symbolHint').textContent = `Click on map to place ${symbolNames[symbolType]} (${subtype})`;
+    canvas.style.cursor = 'crosshair';
+    statusText.textContent = `Click on map to place ${symbolNames[symbolType]}`;
+  });
+
+  // Auto-detect doors
+  document.getElementById('btnAutoDetectDoors')?.addEventListener('click', () => {
     autoDetectDoors();
   });
 
-  document.getElementById('btnDeleteSymbol').addEventListener('click', () => {
+  // Delete selected symbol
+  document.getElementById('btnDeleteSymbol')?.addEventListener('click', () => {
     if (selectedSymbol) {
       deleteSymbol(selectedSymbol.id);
       document.getElementById('btnDeleteSymbol').disabled = true;
     }
   });
 
-  document.getElementById('btnClearSymbols').addEventListener('click', () => {
-    if (symbols.length === 0) {
+  // Clear all symbols
+  document.getElementById('btnClearSymbols')?.addEventListener('click', () => {
+    if (getSymbols().length === 0) {
       alert('No symbols to clear');
       return;
     }
-    if (confirm(`Clear all ${symbols.length} symbols? This cannot be undone.`)) {
+    if (confirm(`Clear all ${getSymbols().length} symbols? This cannot be undone.`)) {
       saveState();
       setSymbols([]);
       setSelectedSymbol(null);
@@ -1084,25 +1312,34 @@ function setupSymbolHandlers() {
       setTimeout(() => { statusText.textContent = ''; }, 2000);
     }
   });
+
+  // Initialize category selector on page load
+  categorySelect?.dispatchEvent(new Event('change'));
 }
 
 // --- PHASE 3 EVENT HANDLERS (EFFECTS) ---
 function setupEffectsHandlers() {
   document.getElementById('chkTitleBlock').addEventListener('change', (e) => {
-    effectsEnabled.titleBlock = e.target.checked;
+    const effects = getEffectsEnabled();
+    effects.titleBlock = e.target.checked;
+    setEffectsEnabled(effects);
     render();
     saveToLocalStorage();
   });
 
   document.getElementById('chkCompass').addEventListener('change', (e) => {
-    effectsEnabled.compass = e.target.checked;
+    const effects = getEffectsEnabled();
+    effects.compass = e.target.checked;
+    setEffectsEnabled(effects);
     render();
     saveToLocalStorage();
   });
 
   document.getElementById('chkCoffeeStains').addEventListener('change', (e) => {
-    effectsEnabled.coffeeStains = e.target.checked;
-    if (e.target.checked && coffeeStains.length === 0) {
+    const effects = getEffectsEnabled();
+    effects.coffeeStains = e.target.checked;
+    setEffectsEnabled(effects);
+    if (e.target.checked && getCoffeeStains().length === 0) {
       generateCoffeeStains(3);
     }
     render();
@@ -1110,18 +1347,24 @@ function setupEffectsHandlers() {
   });
 
   document.getElementById('chkAgeSpots').addEventListener('change', (e) => {
-    effectsEnabled.ageSpots = e.target.checked;
+    const effects = getEffectsEnabled();
+    effects.ageSpots = e.target.checked;
+    setEffectsEnabled(effects);
     render();
     saveToLocalStorage();
   });
 
   document.getElementById('dungeonNameInput').addEventListener('input', (e) => {
-    titleBlockData.dungeonName = e.target.value;
+    const titleBlock = getTitleBlockData();
+    titleBlock.dungeonName = e.target.value;
+    setTitleBlockData(titleBlock);
     render();
   });
 
   document.getElementById('dmNameInput').addEventListener('input', (e) => {
-    titleBlockData.dmName = e.target.value;
+    const titleBlock = getTitleBlockData();
+    titleBlock.dmName = e.target.value;
+    setTitleBlockData(titleBlock);
     render();
   });
 
@@ -1174,7 +1417,7 @@ function setupEncounterHandlers() {
       notes: document.getElementById('encounterNotes').value || ''
     };
 
-    setEncounters([...encounters, newEncounter]);
+    setEncounters([...getEncounters(), newEncounter]);
     saveState();
     saveToLocalStorage();
     render();
@@ -1267,7 +1510,7 @@ function setupTrapHandlers() {
       description: document.getElementById('trapDescription').value || ''
     };
 
-    setTraps([...traps, newTrap]);
+    setTraps([...getTraps(), newTrap]);
     saveState();
     saveToLocalStorage();
     render();
@@ -1295,6 +1538,370 @@ function setupTrapHandlers() {
     pendingTrapPosition = null;
   });
 }
+
+// --- STAIR LINKING HANDLERS ---
+function setupStairLinkingHandlers() {
+  // Radio button handlers
+  document.querySelectorAll('input[name="stairDest"]').forEach(radio => {
+    radio.addEventListener('change', (e) => {
+      const select = document.getElementById('stairDestLevel');
+      const hint = document.getElementById('stairLinkHint');
+
+      if (e.target.value === 'existing') {
+        select.disabled = false;
+        hint.textContent = 'A linked stair will be placed on the target level.';
+      } else {
+        select.disabled = true;
+        hint.textContent = e.target.value === 'new' ?
+          'A new level will be created with a linked stair.' :
+          'Stair will be decorative only.';
+      }
+    });
+  });
+
+  // Save Stair Link button
+  document.getElementById('btnSaveStairLink').addEventListener('click', () => {
+    if (!pendingStair) return;
+
+    const dest = document.querySelector('input[name="stairDest"]:checked').value;
+    const currentLevelIdx = getCurrentLevel();
+
+    saveState();
+
+    // Create the stair
+    const stair = {
+      id: 'stair_' + Date.now() + '_' + Math.random(),
+      type: pendingStair.type,
+      subtype: pendingStair.subtype,
+      x: pendingStair.x,
+      y: pendingStair.y,
+      direction: pendingStair.direction,
+      roomId: null,
+      linkedStair: null
+    };
+
+    if (dest === 'new') {
+      // Create new level
+      const newLevelDepth = pendingStair.direction === 'down' ?
+        (levels[currentLevelIdx].depth - 1) :
+        (levels[currentLevelIdx].depth + 1);
+      const newLevelName = newLevelDepth < 0 ?
+        `Basement ${Math.abs(newLevelDepth)}` :
+        newLevelDepth > 0 ?
+        `Tower ${newLevelDepth}` :
+        'Ground Level';
+
+      const newLevel = addLevel(newLevelName, newLevelDepth);
+
+      // Create linked stair on new level (at center)
+      const linkedStair = {
+        id: 'stair_' + Date.now() + '_' + Math.random() + '_linked',
+        type: pendingStair.direction === 'down' ? 'stairs_up' : 'stairs_down',
+        subtype: pendingStair.subtype,
+        x: Math.floor(GRID_COLS / 2),
+        y: Math.floor(GRID_ROWS / 2),
+        direction: pendingStair.direction === 'down' ? 'up' : 'down',
+        roomId: null,
+        linkedStair: {
+          levelIndex: currentLevelIdx,
+          stairId: stair.id
+        }
+      };
+
+      newLevel.symbols.push(linkedStair);
+
+      // Link back
+      stair.linkedStair = {
+        levelIndex: levels.length - 1,
+        stairId: linkedStair.id
+      };
+
+      statusText.textContent = `Stairs linked to new ${newLevel.name}!`;
+
+    } else if (dest === 'existing') {
+      const targetLevelIdx = parseInt(document.getElementById('stairDestLevel').value);
+
+      // Create linked stair on target level (at center)
+      const linkedStair = {
+        id: 'stair_' + Date.now() + '_' + Math.random() + '_linked',
+        type: pendingStair.direction === 'down' ? 'stairs_up' : 'stairs_down',
+        subtype: pendingStair.subtype,
+        x: Math.floor(GRID_COLS / 2),
+        y: Math.floor(GRID_ROWS / 2),
+        direction: pendingStair.direction === 'down' ? 'up' : 'down',
+        roomId: null,
+        linkedStair: {
+          levelIndex: currentLevelIdx,
+          stairId: stair.id
+        }
+      };
+
+      levels[targetLevelIdx].symbols.push(linkedStair);
+
+      // Link back
+      stair.linkedStair = {
+        levelIndex: targetLevelIdx,
+        stairId: linkedStair.id
+      };
+
+      statusText.textContent = `Stairs linked to ${levels[targetLevelIdx].name}!`;
+    } else {
+      statusText.textContent = 'Decorative stairs placed.';
+    }
+
+    // Add stair to current level
+    const currentSymbols = getSymbols();
+    currentSymbols.push(stair);
+    setSymbols(currentSymbols);
+
+    // Deselect room, select new stair
+    setSelectedRoomId(null);
+    setSelectedSymbol(stair);
+    document.getElementById('btnDeleteSymbol').disabled = false;
+
+    // Close modal
+    document.getElementById('stairLinkModal').style.display = 'none';
+    pendingStair = null;
+
+    // Update level tabs if new level was created
+    if (dest === 'new') {
+      updateLevelTabs();
+    }
+
+    saveToLocalStorage();
+    render();
+    setTimeout(() => { statusText.textContent = ''; }, 3000);
+  });
+
+  // Cancel button
+  document.getElementById('btnCancelStairLink').addEventListener('click', () => {
+    document.getElementById('stairLinkModal').style.display = 'none';
+    pendingStair = null;
+  });
+
+  // Close X button
+  document.getElementById('btnCloseStairLink').addEventListener('click', () => {
+    document.getElementById('stairLinkModal').style.display = 'none';
+    pendingStair = null;
+  });
+}
+
+// --- LEVEL NAVIGATION FUNCTIONS ---
+export function updateLevelTabs() {
+  const tabsContainer = document.getElementById('levelTabs');
+  const addBtn = document.getElementById('btnAddLevel');
+
+  // Clear existing tabs
+  tabsContainer.innerHTML = '';
+
+  // Create tab for each level
+  levels.forEach((level, index) => {
+    const tab = document.createElement('button');
+    tab.className = 'level-tab' + (index === getCurrentLevel() ? ' active' : '');
+    tab.dataset.level = index;
+
+    const depthLabel = level.depth === 0 ? 'Ground' :
+                       level.depth > 0 ? `Tower ${level.depth}` :
+                       `Basement ${Math.abs(level.depth)}`;
+
+    tab.innerHTML = `${level.name}<span class="level-depth">${depthLabel}</span>`;
+
+    tab.addEventListener('click', () => switchToLevel(index));
+    tabsContainer.appendChild(tab);
+  });
+
+  // Re-add the + button
+  tabsContainer.appendChild(addBtn);
+
+  // Update level name input
+  document.getElementById('levelNameInput').value = levels[getCurrentLevel()].name;
+
+  // Update delete button state
+  document.getElementById('btnDeleteLevel').disabled = levels.length <= 1;
+}
+
+function switchToLevel(index) {
+  saveState(); // Save current level state
+  setCurrentLevel(index);
+  updateLevelTabs();
+  render();
+  rebuildRoomList();
+  statusText.textContent = `Switched to ${levels[index].name}`;
+  setTimeout(() => { statusText.textContent = ''; }, 2000);
+}
+
+// --- TREASURE HANDLERS ---
+function setupTreasureHandlers() {
+  // Open treasure modal
+  document.getElementById('btnOpenTreasure')?.addEventListener('click', () => {
+    document.getElementById('treasureModal').style.display = 'block';
+  });
+
+  // Close treasure modal
+  document.getElementById('treasureModalClose')?.addEventListener('click', () => {
+    document.getElementById('treasureModal').style.display = 'none';
+  });
+
+  // Generate treasure button
+  document.getElementById('btnGenerateTreasure')?.addEventListener('click', () => {
+    const cr = parseInt(document.getElementById('treasureCR').value) || 5;
+    const includeCoins = document.getElementById('treasureIncludeCoins').checked;
+    const includeGems = document.getElementById('treasureIncludeGems').checked;
+    const includeArt = document.getElementById('treasureIncludeArt').checked;
+    const includeMagic = document.getElementById('treasureIncludeMagic').checked;
+
+    lastGeneratedTreasure = generateTreasure(cr, includeCoins, includeGems, includeArt, includeMagic);
+    const formatted = formatTreasure(lastGeneratedTreasure);
+
+    document.getElementById('treasureOutput').textContent = formatted;
+  });
+
+  // Re-roll button (same as generate)
+  document.getElementById('btnRerollTreasure')?.addEventListener('click', () => {
+    document.getElementById('btnGenerateTreasure').click();
+  });
+
+  // Copy to clipboard button
+  document.getElementById('btnCopyTreasure')?.addEventListener('click', () => {
+    const text = document.getElementById('treasureOutput').textContent;
+    navigator.clipboard.writeText(text).then(() => {
+      const btn = document.getElementById('btnCopyTreasure');
+      const oldText = btn.textContent;
+      btn.textContent = '✅ Copied!';
+      setTimeout(() => { btn.textContent = oldText; }, 2000);
+    });
+  });
+
+  // Add to DM notes button
+  document.getElementById('btnAddTreasureToDmNotes')?.addEventListener('click', () => {
+    if (!lastGeneratedTreasure) {
+      alert('Generate treasure first!');
+      return;
+    }
+
+    const formatted = formatTreasure(lastGeneratedTreasure);
+    const dmNotes = getDmNotes();
+
+    // Add as DM note annotation
+    const newNote = {
+      id: `dmnote_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+      x: Math.floor(GRID_COLS / 2),  // Center of map
+      y: Math.floor(GRID_ROWS / 2),
+      text: formatted,
+      noteType: 'treasure',
+      isSecret: true
+    };
+
+    setDmNotes([...dmNotes, newNote]);
+    saveState();
+    saveToLocalStorage();
+    render();
+
+    document.getElementById('treasureModal').style.display = 'none';
+    statusText.textContent = 'Treasure added to DM Notes layer!';
+    setTimeout(() => { statusText.textContent = ''; }, 3000);
+  });
+}
+
+// --- TERRAIN HELPER FUNCTION ---
+function getTerrainMetadata(type) {
+  const metadata = {
+    water: { moveCost: 2, damage: null, dc: null, saveType: null },
+    lava: { moveCost: null, damage: '4d10 fire', dc: null, saveType: null },
+    pit: { moveCost: null, damage: '1d6 bludgeoning', dc: null, saveType: 'Dex' },
+    difficult: { moveCost: 2, damage: null, dc: null, saveType: null },
+    darkness: { moveCost: 1, damage: null, dc: null, saveType: null, obscured: 'heavily' },
+    ice: { moveCost: 1, damage: null, dc: 10, saveType: 'Dex', effect: 'prone on fail' },
+    poison: { moveCost: 1, damage: '2d8 poison', dc: 12, saveType: 'Con' }
+  };
+  return metadata[type] || {};
+}
+
+// --- TERRAIN EVENT HANDLERS ---
+function setupTerrainHandlers() {
+  // Brush size slider
+  const brushSizeRange = document.getElementById('terrainBrushSize');
+  const brushSizeLabel = document.getElementById('brushSizeLabel');
+  brushSizeRange?.addEventListener('input', (e) => {
+    terrainBrushSize = parseInt(e.target.value);
+    brushSizeLabel.textContent = `${terrainBrushSize} grid`;
+  });
+
+  // Paint mode button
+  document.getElementById('btnPaintTerrain')?.addEventListener('click', () => {
+    paintingTerrain = !paintingTerrain;
+    erasingTerrain = false;
+    const btn = document.getElementById('btnPaintTerrain');
+    btn.textContent = paintingTerrain ? '🖌️ Painting...' : '🖌️ Paint Mode';
+    btn.style.background = paintingTerrain ? '#4a9eff' : '';
+    const eraseBtn = document.getElementById('btnEraseTerrain');
+    if (eraseBtn) eraseBtn.style.background = '';
+    if (paintingTerrain) {
+      statusText.textContent = 'Click on map to paint terrain';
+    } else {
+      statusText.textContent = '';
+    }
+  });
+
+  // Erase mode button
+  document.getElementById('btnEraseTerrain')?.addEventListener('click', () => {
+    erasingTerrain = !erasingTerrain;
+    paintingTerrain = false;
+    const btn = document.getElementById('btnEraseTerrain');
+    btn.textContent = erasingTerrain ? '🧹 Erasing...' : '🧹 Erase Terrain';
+    btn.style.background = erasingTerrain ? '#ff6b6b' : '';
+    const paintBtn = document.getElementById('btnPaintTerrain');
+    if (paintBtn) paintBtn.style.background = '';
+    if (erasingTerrain) {
+      statusText.textContent = 'Click on terrain to erase';
+    } else {
+      statusText.textContent = '';
+    }
+  });
+
+  // Clear all button
+  document.getElementById('btnClearAllTerrain')?.addEventListener('click', () => {
+    if (confirm('Clear all terrain on this level?')) {
+      setTerrainLayers([]);
+      saveState();
+      saveToLocalStorage();
+      render();
+      statusText.textContent = 'All terrain cleared';
+      setTimeout(() => { statusText.textContent = ''; }, 2000);
+    }
+  });
+}
+
+// --- LEVEL NAVIGATION EVENT HANDLERS ---
+function setupLevelHandlers() {
+  // Add Level button
+  document.getElementById('btnAddLevel').addEventListener('click', () => {
+    const newLevel = addLevel(`Level ${levels.length + 1}`);
+    switchToLevel(levels.length - 1);
+    statusText.textContent = 'New level created!';
+    setTimeout(() => { statusText.textContent = ''; }, 2000);
+  });
+
+  // Delete Level button
+  document.getElementById('btnDeleteLevel').addEventListener('click', () => {
+    if (levels.length <= 1) return;
+    if (!confirm(`Delete ${levels[getCurrentLevel()].name}? This cannot be undone.`)) return;
+
+    const currentIdx = getCurrentLevel();
+    removeLevel(currentIdx);
+    setCurrentLevel(Math.min(currentIdx, levels.length - 1));
+    updateLevelTabs();
+    render();
+    rebuildRoomList();
+  });
+
+  // Level name input
+  document.getElementById('levelNameInput').addEventListener('change', (e) => {
+    levels[getCurrentLevel()].name = e.target.value;
+    updateLevelTabs();
+    saveToLocalStorage();
+  });
+}
 // --- MAIN INITIALIZATION FUNCTION ---
 export function setupEventHandlers() {
   setupCanvasInteraction();
@@ -1312,4 +1919,11 @@ export function setupEventHandlers() {
   setupTrapHandlers();
   setupDmNotesHandlers();
   setupEncounterHandlers();
+  setupLevelHandlers();
+  setupStairLinkingHandlers();
+  setupTreasureHandlers();
+  setupTerrainHandlers();
+
+  // Initialize level tabs on startup
+  updateLevelTabs();
 }

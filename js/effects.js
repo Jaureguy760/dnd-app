@@ -1,4 +1,4 @@
-import { canvas, ctx, effectsEnabled, coffeeStains, titleBlockData, renderStyle, setCoffeeStains } from './state.js';
+import { getEffectsEnabled, getCoffeeStains, getTitleBlockData, canvas, ctx, renderStyle, setCoffeeStains } from './state.js';
 import { drawHandDrawnRect, drawHandDrawnLine } from './renderer.js';
 
 // --- PHASE 3: MAP EFFECTS RENDERING ---
@@ -74,8 +74,8 @@ export function drawCoffeeStain(stain) {
 }
 
 export function renderCoffeeStains() {
-  if (!effectsEnabled.coffeeStains) return;
-  coffeeStains.forEach(stain => drawCoffeeStain(stain));
+  if (!getEffectsEnabled().coffeeStains) return;
+  getCoffeeStains().forEach(stain => drawCoffeeStain(stain));
 }
 
 // Title Block System
@@ -113,7 +113,7 @@ export function drawCornerFlourish(x, y, corner) {
 }
 
 export function drawTitleBlock() {
-  if (!effectsEnabled.titleBlock) return;
+  if (!getEffectsEnabled().titleBlock) return;
 
   const blockW = 220;
   const blockH = 150;
@@ -160,7 +160,7 @@ export function drawTitleBlock() {
   ctx.font = 'bold 18px Georgia, serif';
   ctx.textAlign = 'left';
   ctx.textBaseline = 'top';
-  ctx.fillText(titleBlockData.dungeonName, textX, textY);
+  ctx.fillText(getTitleBlockData().dungeonName, textX, textY);
   textY += 28;
 
   // Divider line
@@ -178,11 +178,11 @@ export function drawTitleBlock() {
 
   // Details (smaller font)
   ctx.font = '13px Georgia, serif';
-  ctx.fillText(`Level: ${titleBlockData.level}`, textX, textY);
+  ctx.fillText(`Level: ${getTitleBlockData().level}`, textX, textY);
   textY += 20;
-  ctx.fillText(`DM: ${titleBlockData.dmName}`, textX, textY);
+  ctx.fillText(`DM: ${getTitleBlockData().dmName}`, textX, textY);
   textY += 20;
-  ctx.fillText(`Date: ${titleBlockData.date}`, textX, textY);
+  ctx.fillText(`Date: ${getTitleBlockData().date}`, textX, textY);
 }
 
 // Compass Rose System
@@ -195,7 +195,7 @@ export function getCompassPosition() {
 }
 
 export function drawCompassRose(x, y, size = 50) {
-  if (!effectsEnabled.compass) return;
+  if (!getEffectsEnabled().compass) return;
 
   ctx.strokeStyle = '#000';
   ctx.fillStyle = '#000';
@@ -282,7 +282,7 @@ export function drawCompassRose(x, y, size = 50) {
 
 // Age Spots (Foxing) Effect
 export function drawAgeSpots(count = 20) {
-  if (!effectsEnabled.ageSpots) return;
+  if (!getEffectsEnabled().ageSpots) return;
 
   ctx.fillStyle = 'rgba(139, 90, 43, 0.2)';
 

@@ -1,5 +1,5 @@
-import { GRID_SIZE, rooms, titleBlockData, traps, encounters, dmNotes, showDmNotes } from './state.js';
-import { render } from './renderer.js';
+import { getRooms, getTitleBlockData, getTraps, getEncounters, getDmNotes, getTerrainLayers, GRID_SIZE, showDmNotes, levels, getCurrentLevel, getCurrentLevelData, setCurrentLevel } from './state.js';
+import { render, drawTerrainLayers } from './renderer.js';
 
 // --- PHASE 4: EXPORT SYSTEM ---
 
@@ -11,7 +11,9 @@ export class DungeonExporter {
       resolution: 1,
       includeEffects: true,
       showGrid: false,
-      includeDmNotes: false
+      includeDmNotes: false,
+      exportAllLevels: false,
+      includeLevelName: true
     };
   }
 
@@ -22,6 +24,8 @@ export class DungeonExporter {
     this.options.includeEffects = document.getElementById('exportIncludeEffects')?.checked ?? true;
     this.options.showGrid = document.getElementById('exportShowGrid')?.checked ?? false;
     this.options.includeDmNotes = document.getElementById('exportIncludeDmNotes')?.checked ?? false;
+    this.options.exportAllLevels = document.getElementById('exportAllLevels')?.checked ?? false;
+    this.options.includeLevelName = document.getElementById('exportIncludeLevelName')?.checked ?? true;
   }
 
   createExportCanvas() {
@@ -179,7 +183,7 @@ export class DungeonExporter {
     ctx.font = '14px Georgia, serif';
     const lineHeight = 20;
 
-    rooms.forEach(room => {
+    getRooms().forEach(room => {
       // Room header
       ctx.font = 'bold 14px Georgia, serif';
       const header = `${room.id}. ${room.type.toUpperCase()}`;
@@ -197,7 +201,7 @@ export class DungeonExporter {
       }
 
       // Add trap info
-      const roomTraps = traps.filter(t => {
+      const roomTraps = getTraps().filter(t => {
         // Check if trap is within this room's bounds
         return t.x >= room.x && t.x < room.x + room.w &&
                t.y >= room.y && t.y < room.y + room.h;
@@ -215,7 +219,7 @@ export class DungeonExporter {
       }
 
       // Add encounter info
-      const roomEncounters = encounters.filter(e => {
+      const roomEncounters = getEncounters().filter(e => {
         return e.x >= room.x && e.x < room.x + room.w &&
                e.y >= room.y && e.y < room.y + room.h;
       });
@@ -256,9 +260,12 @@ export class DungeonExporter {
     return lines;
   }
 
-  async export() {
-    this.gatherOptions();
+  async exportLevel(levelIndex) {
     const exportCanvas = this.createExportCanvas();
+
+    // Temporarily switch context to export this level
+    const oldLevel = getCurrentLevel();
+    setCurrentLevel(levelIndex);
 
     // Render based on layout
     if (this.options.layout === 'map-only') {
@@ -267,18 +274,49 @@ export class DungeonExporter {
       await this.renderMapAndKey(exportCanvas);
     }
 
-    this.downloadPNG(exportCanvas);
+    // Restore level
+    setCurrentLevel(oldLevel);
+
+    // Download with level name in filename
+    this.downloadPNG(exportCanvas, levelIndex);
   }
 
-  downloadPNG(exportCanvas) {
+  async export() {
+    this.gatherOptions();
+
+    if (this.options.exportAllLevels) {
+      // Export each level separately
+      for (let i = 0; i < levels.length; i++) {
+        await this.exportLevel(i);
+      }
+      const statusText = document.getElementById('statusText');
+      if (statusText) {
+        statusText.textContent = `Exported ${levels.length} levels!`;
+      }
+    } else {
+      // Export current level only
+      await this.exportLevel(getCurrentLevel());
+    }
+  }
+
+  downloadPNG(exportCanvas, levelIndex = null) {
     exportCanvas.toBlob(blob => {
       const url = URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = url;
 
       const timestamp = new Date().toISOString().slice(0, 10);
-      const name = titleBlockData.dungeonName.replace(/[^a-z0-9]/gi, '_').toLowerCase();
-      a.download = `${name}_${this.options.layout}_${timestamp}.png`;
+      const dungeonName = getTitleBlockData().dungeonName.replace(/[^a-z0-9]/gi, '_').toLowerCase();
+
+      let filename = `${dungeonName}_${this.options.layout}_${timestamp}`;
+
+      // Add level name if exporting multiple OR if option enabled
+      if (levelIndex !== null && (this.options.exportAllLevels || this.options.includeLevelName)) {
+        const levelName = levels[levelIndex].name.replace(/[^a-z0-9]/gi, '_').toLowerCase();
+        filename = `${dungeonName}_${levelName}_${this.options.layout}_${timestamp}`;
+      }
+
+      a.download = `${filename}.png`;
 
       a.click();
       URL.revokeObjectURL(url);

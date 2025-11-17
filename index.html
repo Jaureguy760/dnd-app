@@ -16,6 +16,21 @@
   <div class="status" id="statusText">Auto-saved</div>
 </header>
 
+<!-- Level Navigation -->
+<div class="level-navigation">
+  <div class="level-tabs" id="levelTabs">
+    <button class="level-tab active" data-level="0">
+      Level 1
+      <span class="level-depth">Ground</span>
+    </button>
+    <button class="level-tab-add" id="btnAddLevel">+ Add Level</button>
+  </div>
+  <div class="level-info">
+    <input type="text" id="levelNameInput" placeholder="Level name..." value="Level 1">
+    <button id="btnDeleteLevel" class="btn-small" disabled>Delete Level</button>
+  </div>
+</div>
+
 <main class="layout">
   <!-- LEFT: MAP -->
   <section class="left">
@@ -107,35 +122,43 @@
       🎨 Dyson Mode: Hand-drawn lines + cross-hatched walls + organic shapes. Switch to Modern for clean digital look.
     </div>
 
-    <!-- SYMBOL PALETTE (Phase 2) -->
+    <!-- SYMBOL PALETTE (Phase 2 + Phase 6 Expansion) -->
     <details style="margin-top: 0.5rem; background: #1a1a1a; padding: 0.5rem; border-radius: 4px; border: 1px solid #333;">
       <summary style="cursor: pointer; font-weight: bold; font-size: 0.9rem;">🔨 Map Symbols</summary>
 
       <div style="display: flex; flex-direction: column; gap: 0.5rem; margin-top: 0.5rem;">
-        <div style="font-size: 0.85rem; color: #aaa;">Doors:</div>
-        <div style="display: flex; flex-wrap: wrap; gap: 0.25rem;">
-          <button class="symbol-btn" data-symbol="door" data-subtype="normal">🚪 Door</button>
-          <button class="symbol-btn" data-symbol="secret_door" data-subtype="secret">🔒 Secret</button>
-          <button class="symbol-btn" data-symbol="locked_door" data-subtype="locked">🔑 Locked</button>
-          <button class="symbol-btn" data-symbol="portcullis" data-subtype="portcullis">⛩️ Portcullis</button>
-          <button id="btnAutoDetectDoors">🔍 Auto-Detect</button>
+        <!-- Category Selector -->
+        <div>
+          <label style="font-size: 0.85rem; color: #aaa;">Category:</label>
+          <select id="symbolCategorySelect" style="width: 100%; margin-top: 0.25rem;">
+            <option value="basic">Basic (Doors/Stairs)</option>
+            <option value="terrain">Terrain Features</option>
+            <option value="interactive">Interactive Objects</option>
+            <option value="containers">Containers</option>
+            <option value="dressing">Room Dressing</option>
+            <option value="natural">Natural Elements</option>
+          </select>
         </div>
 
-        <div style="font-size: 0.85rem; color: #aaa; margin-top: 0.25rem;">Stairs:</div>
-        <div style="display: flex; flex-wrap: wrap; gap: 0.25rem;">
-          <button class="symbol-btn" data-symbol="stairs_up" data-subtype="normal">⬆️ Up</button>
-          <button class="symbol-btn" data-symbol="stairs_down" data-subtype="normal">⬇️ Down</button>
-          <button class="symbol-btn" data-symbol="stairs_spiral" data-subtype="spiral">🌀 Spiral</button>
+        <!-- Symbol Type (dynamically populated) -->
+        <div>
+          <label style="font-size: 0.85rem; color: #aaa;">Symbol:</label>
+          <select id="symbolTypeSelect" style="width: 100%; margin-top: 0.25rem;">
+            <!-- Populated by JavaScript -->
+          </select>
         </div>
 
-        <div style="font-size: 0.85rem; color: #aaa; margin-top: 0.25rem;">Features:</div>
-        <div style="display: flex; flex-wrap: wrap; gap: 0.25rem;">
-          <button class="symbol-btn" data-symbol="pillar" data-subtype="round">⚫ Pillar</button>
-          <button class="symbol-btn" data-symbol="chest" data-subtype="">📦 Chest</button>
-          <button class="symbol-btn" data-symbol="table" data-subtype="">🪑 Table</button>
-          <button class="symbol-btn" data-symbol="altar" data-subtype="">⛪ Altar</button>
-          <button class="symbol-btn" data-symbol="statue" data-subtype="">🗿 Statue</button>
+        <!-- Subtype (dynamically populated) -->
+        <div>
+          <label style="font-size: 0.85rem; color: #aaa;">Style:</label>
+          <select id="symbolSubtypeSelect" style="width: 100%; margin-top: 0.25rem;">
+            <!-- Populated by JavaScript -->
+          </select>
         </div>
+
+        <!-- Place Symbol Button -->
+        <button id="btnPlaceSymbol" class="symbol-btn">Place Symbol on Map</button>
+        <button id="btnAutoDetectDoors">🔍 Auto-Detect Doors</button>
 
         <div style="display: flex; gap: 0.25rem; margin-top: 0.25rem;">
           <button id="btnDeleteSymbol" disabled style="background: #5a2a2a; border-color: #844;">❌ Delete Selected</button>
@@ -143,7 +166,7 @@
         </div>
 
         <div id="symbolHint" style="font-size: 0.75rem; color: #888; font-style: italic;">
-          Click a symbol button, then click on the map to place it.
+          Select category, symbol, and style, then click "Place Symbol" and click on the map.
         </div>
       </div>
     </details>
@@ -228,6 +251,38 @@
         </label>
         <button id="btnAddDmNote">Add Secret Note</button>
         <button id="btnClearDmNotes">✕ Clear DM Notes</button>
+
+        <!-- Treasure Generation -->
+        <h4 style="margin-top: 1rem;">💰 Treasure</h4>
+        <button id="btnOpenTreasure">🎲 Generate Loot</button>
+      </div>
+    </details>
+
+    <!-- PHASE 6: ENVIRONMENTAL HAZARDS -->
+    <details style="margin-top: 0.5rem; background: #1a1a1a; padding: 0.5rem; border-radius: 4px; border: 1px solid #333;">
+      <summary style="cursor: pointer; font-weight: bold; font-size: 0.9rem;">🌊 Environmental Hazards</summary>
+
+      <div style="display: flex; flex-direction: column; gap: 0.5rem; margin-top: 0.5rem; font-size: 0.85rem;">
+        <label>Terrain Type:</label>
+        <select id="terrainTypeSelect">
+          <option value="water">💧 Water (difficult terrain)</option>
+          <option value="lava">🔥 Lava (4d10 fire/turn)</option>
+          <option value="pit">🕳️ Pit (10ft fall, 1d6)</option>
+          <option value="difficult">🌿 Difficult Terrain (½ speed)</option>
+          <option value="darkness">🌑 Darkness (heavily obscured)</option>
+          <option value="ice">❄️ Ice (DC 10 Dex save)</option>
+          <option value="poison">☠️ Poison Gas (DC 12 Con save)</option>
+        </select>
+
+        <label>Brush Size:</label>
+        <div style="display: flex; align-items: center; gap: 0.5rem;">
+          <input type="range" id="terrainBrushSize" min="1" max="5" value="2" style="flex: 1;">
+          <span id="brushSizeLabel" style="min-width: 50px;">2 grid</span>
+        </div>
+
+        <button id="btnPaintTerrain">🖌️ Paint Mode</button>
+        <button id="btnEraseTerrain">🧹 Erase Terrain</button>
+        <button id="btnClearAllTerrain">✕ Clear All</button>
       </div>
     </details>
   </section>
@@ -305,6 +360,14 @@
           </label>
           <label>
             <input type="checkbox" id="exportIncludeDmNotes"> Include DM Notes (for DM map)
+          </label>
+
+          <h4 style="margin-top: 1rem;">Multi-Level</h4>
+          <label>
+            <input type="checkbox" id="exportAllLevels"> Export all levels (separate files)
+          </label>
+          <label>
+            <input type="checkbox" id="exportIncludeLevelName" checked> Include level name in filename
           </label>
         </div>
       </div>
@@ -386,6 +449,87 @@
     <div class="modal-footer">
       <button id="btnSaveEncounter" class="btn-large primary">Save Monster</button>
       <button id="btnCancelEncounter" class="btn-large">Cancel</button>
+    </div>
+  </div>
+</div>
+
+<!-- STAIR LINKING MODAL -->
+<div id="stairLinkModal" class="modal">
+  <div class="modal-content">
+    <div class="modal-header">
+      <h2>🪜 Stair Destination</h2>
+      <button class="modal-close" id="btnCloseStairLink">×</button>
+    </div>
+    <div style="padding: 1rem;">
+      <p>Where does this stair lead?</p>
+
+      <label>
+        <input type="radio" name="stairDest" value="new" checked>
+        Create new level (auto-link)
+      </label>
+      <br>
+
+      <label>
+        <input type="radio" name="stairDest" value="existing">
+        Link to existing level:
+        <select id="stairDestLevel" disabled>
+          <!-- Dynamically populated -->
+        </select>
+      </label>
+      <br>
+
+      <label>
+        <input type="radio" name="stairDest" value="none">
+        No link (decorative)
+      </label>
+
+      <p class="hint" id="stairLinkHint" style="font-size: 0.85rem; color: #888; margin-top: 0.5rem;">A new level will be created with a linked stair.</p>
+    </div>
+    <div class="modal-footer">
+      <button id="btnSaveStairLink" class="btn-large primary">Create Stair</button>
+      <button id="btnCancelStairLink" class="btn-large">Cancel</button>
+    </div>
+  </div>
+</div>
+
+<!-- TREASURE GENERATOR MODAL -->
+<div id="treasureModal" class="modal">
+  <div class="modal-content" style="max-width: 600px;">
+    <div class="modal-header">
+      <h2>💰 Treasure Generator</h2>
+      <button class="modal-close" id="treasureModalClose">×</button>
+    </div>
+
+    <div style="padding: 1rem;">
+      <label>
+        <strong>Challenge Rating:</strong>
+        <input type="number" id="treasureCR" min="0" max="30" value="5" style="width: 60px;">
+      </label>
+
+      <div style="margin-top: 0.5rem;">
+        <label><input type="checkbox" id="treasureIncludeCoins" checked> Coins</label>
+        <label><input type="checkbox" id="treasureIncludeGems" checked> Gemstones</label>
+        <label><input type="checkbox" id="treasureIncludeArt" checked> Art Objects</label>
+        <label><input type="checkbox" id="treasureIncludeMagic" checked> Magic Items</label>
+      </div>
+    </div>
+
+    <div style="padding: 0 1rem;">
+      <button id="btnGenerateTreasure" style="padding: 0.75rem 1.5rem; font-size: 1.1rem;">
+        🎲 Generate Loot
+      </button>
+      <button id="btnRerollTreasure" style="padding: 0.75rem 1.5rem; margin-left: 0.5rem;">
+        🔄 Re-roll
+      </button>
+    </div>
+
+    <div id="treasureOutput" style="margin: 1rem; padding: 1rem; background: #2a2a2a; border-radius: 4px; min-height: 200px; white-space: pre-wrap; font-family: monospace; font-size: 0.9rem;">
+      Click "Generate Loot" to create treasure!
+    </div>
+
+    <div class="modal-footer">
+      <button id="btnCopyTreasure">📋 Copy to Clipboard</button>
+      <button id="btnAddTreasureToDmNotes">📝 Add to DM Notes</button>
     </div>
   </div>
 </div>
