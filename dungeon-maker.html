@@ -191,6 +191,104 @@
       border-color: #89a;
       box-shadow: 0 0 5px #89a;
     }
+    .modal {
+      display: none;
+      position: fixed;
+      top: 0; left: 0; right: 0; bottom: 0;
+      background: rgba(0,0,0,0.85);
+      z-index: 1000;
+      overflow-y: auto;
+    }
+    .modal-content {
+      background: #222;
+      padding: 1.5rem;
+      max-width: 900px;
+      margin: 2rem auto;
+      border-radius: 8px;
+      border: 1px solid #444;
+    }
+    .modal-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 1rem;
+      padding-bottom: 0.75rem;
+      border-bottom: 1px solid #444;
+    }
+    .modal-header h2 {
+      margin: 0;
+      font-size: 1.3rem;
+    }
+    .modal-close {
+      font-size: 1.5rem;
+      background: none;
+      border: none;
+      color: #aaa;
+      cursor: pointer;
+      padding: 0;
+      width: 30px;
+      height: 30px;
+    }
+    .modal-close:hover {
+      color: #fff;
+    }
+    .export-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 1.5rem;
+    }
+    .export-section {
+      margin-bottom: 1rem;
+    }
+    .export-section h3 {
+      margin: 0 0 0.5rem;
+      font-size: 0.95rem;
+      color: #4a9eff;
+    }
+    .export-section label {
+      display: block;
+      margin-bottom: 0.4rem;
+      font-size: 0.85rem;
+      cursor: pointer;
+    }
+    .export-section label input {
+      margin-right: 0.5rem;
+    }
+    .style-desc {
+      display: block;
+      font-size: 0.75rem;
+      color: #888;
+      margin-left: 1.5rem;
+    }
+    .export-preview {
+      border: 1px solid #444;
+      border-radius: 4px;
+      padding: 0.75rem;
+      background: #1a1a1a;
+    }
+    .export-preview canvas {
+      width: 100%;
+      height: auto;
+      border: 1px solid #333;
+    }
+    .export-info {
+      font-size: 0.75rem;
+      color: #aaa;
+      margin-top: 0.5rem;
+      text-align: center;
+    }
+    .modal-footer {
+      display: flex;
+      gap: 0.75rem;
+      justify-content: flex-end;
+      margin-top: 1.5rem;
+      padding-top: 1rem;
+      border-top: 1px solid #444;
+    }
+    .btn-large {
+      padding: 0.5rem 1.5rem;
+      font-size: 0.95rem;
+    }
   </style>
 </head>
 <body>
@@ -375,6 +473,91 @@
     <ol id="roomList"></ol>
   </section>
 </main>
+
+<!-- EXPORT MODAL (Phase 4) -->
+<div id="exportModal" class="modal">
+  <div class="modal-content">
+    <div class="modal-header">
+      <h2>📤 Export Dungeon</h2>
+      <button class="modal-close" id="btnCloseExport">×</button>
+    </div>
+
+    <div class="export-grid">
+      <!-- Left: Options -->
+      <div>
+        <div class="export-section">
+          <h3>🎨 Visual Style</h3>
+          <label>
+            <input type="radio" name="exportStyle" value="modern"> Modern Clean
+            <span class="style-desc">Crisp digital lines, solid colors</span>
+          </label>
+          <label>
+            <input type="radio" name="exportStyle" value="dyson" checked> Hand-Drawn (Dyson)
+            <span class="style-desc">Sketchy lines, cross-hatched walls</span>
+          </label>
+          <label>
+            <input type="radio" name="exportStyle" value="vintage"> TSR Vintage
+            <span class="style-desc">Classic blue grid style</span>
+          </label>
+        </div>
+
+        <div class="export-section">
+          <h3>📐 Layout</h3>
+          <label>
+            <input type="radio" name="exportLayout" value="map-only" checked> Map Only
+            <span class="style-desc">Just the dungeon map</span>
+          </label>
+          <label>
+            <input type="radio" name="exportLayout" value="map-key"> Map + Room Key
+            <span class="style-desc">Map on left, descriptions on right</span>
+          </label>
+        </div>
+
+        <div class="export-section">
+          <h3>🔍 Resolution</h3>
+          <label>
+            <input type="radio" name="exportRes" value="1" checked> Standard (800×600)
+            <span class="style-desc">Screen viewing, web sharing</span>
+          </label>
+          <label>
+            <input type="radio" name="exportRes" value="2"> High Quality (1600×1200)
+            <span class="style-desc">High-DPI screens, VTTs</span>
+          </label>
+          <label>
+            <input type="radio" name="exportRes" value="4"> Print Quality (3200×2400)
+            <span class="style-desc">Physical printing, large displays</span>
+          </label>
+        </div>
+
+        <div class="export-section">
+          <h3>⚙️ Options</h3>
+          <label>
+            <input type="checkbox" id="exportIncludeEffects" checked> Include visual effects
+          </label>
+          <label>
+            <input type="checkbox" id="exportShowGrid"> Show grid overlay
+          </label>
+        </div>
+      </div>
+
+      <!-- Right: Preview -->
+      <div>
+        <div class="export-section">
+          <h3>👁️ Preview</h3>
+        </div>
+        <div class="export-preview">
+          <canvas id="exportPreviewCanvas" width="400" height="300"></canvas>
+          <p class="export-info" id="exportInfo">800×600 @ 1x | ~120 KB</p>
+        </div>
+      </div>
+    </div>
+
+    <div class="modal-footer">
+      <button id="btnExecuteExport" class="btn-large primary">📥 Download PNG</button>
+      <button id="btnCancelExport" class="btn-large">Cancel</button>
+    </div>
+  </div>
+</div>
 
 <script>
   // --- GLOBAL STATE ---
@@ -1413,6 +1596,243 @@
       ctx.fill();
     }
   }
+
+  // --- PHASE 4: EXPORT SYSTEM ---
+
+  class DungeonExporter {
+    constructor() {
+      this.options = {
+        style: 'dyson',
+        layout: 'map-only',
+        resolution: 1,
+        includeEffects: true,
+        showGrid: false
+      };
+    }
+
+    gatherOptions() {
+      this.options.style = document.querySelector('input[name="exportStyle"]:checked')?.value || 'dyson';
+      this.options.layout = document.querySelector('input[name="exportLayout"]:checked')?.value || 'map-only';
+      this.options.resolution = parseInt(document.querySelector('input[name="exportRes"]:checked')?.value || '1');
+      this.options.includeEffects = document.getElementById('exportIncludeEffects')?.checked ?? true;
+      this.options.showGrid = document.getElementById('exportShowGrid')?.checked ?? false;
+    }
+
+    createExportCanvas() {
+      const canvas = document.createElement('canvas');
+      const scale = this.options.resolution;
+
+      if (this.options.layout === 'map-only') {
+        canvas.width = 800 * scale;
+        canvas.height = 600 * scale;
+      } else if (this.options.layout === 'map-key') {
+        canvas.width = 1700 * scale;
+        canvas.height = 1100 * scale;
+      }
+
+      return canvas;
+    }
+
+    async renderMapOnly(exportCanvas) {
+      const exportCtx = exportCanvas.getContext('2d');
+      const scale = this.options.resolution;
+
+      exportCtx.scale(scale, scale);
+
+      // Save current state
+      const oldCtx = window.ctx;
+      const oldStyle = window.renderStyle;
+      const oldEffects = {...window.effectsEnabled};
+
+      // Set export context
+      window.ctx = exportCtx;
+      window.renderStyle = this.options.style;
+
+      if (!this.options.includeEffects) {
+        window.effectsEnabled = {
+          parchmentTexture: false,
+          coffeeStains: false,
+          ageSpots: false,
+          titleBlock: false,
+          compass: false
+        };
+      }
+
+      // Render full map
+      render();
+
+      // Add grid overlay if requested
+      if (this.options.showGrid) {
+        exportCtx.strokeStyle = 'rgba(0, 0, 0, 0.2)';
+        exportCtx.lineWidth = 0.5;
+
+        for (let x = 0; x <= 800; x += GRID_SIZE) {
+          exportCtx.beginPath();
+          exportCtx.moveTo(x, 0);
+          exportCtx.lineTo(x, 600);
+          exportCtx.stroke();
+        }
+
+        for (let y = 0; y <= 600; y += GRID_SIZE) {
+          exportCtx.beginPath();
+          exportCtx.moveTo(0, y);
+          exportCtx.lineTo(800, y);
+          exportCtx.stroke();
+        }
+      }
+
+      // Restore state
+      window.ctx = oldCtx;
+      window.renderStyle = oldStyle;
+      window.effectsEnabled = oldEffects;
+
+      exportCtx.setTransform(1, 0, 0, 1, 0, 0);
+    }
+
+    async renderMapAndKey(exportCanvas) {
+      const exportCtx = exportCanvas.getContext('2d');
+      const scale = this.options.resolution;
+
+      exportCtx.scale(scale, scale);
+
+      // Background
+      exportCtx.fillStyle = '#ffffff';
+      exportCtx.fillRect(0, 0, 1700, 1100);
+
+      // Left 60%: Map
+      const mapWidth = 1700 * 0.58;
+      const mapHeight = 1100;
+      const mapScale = Math.min(
+        (mapWidth - 40) / 800,
+        (mapHeight - 40) / 600
+      );
+
+      const mapX = 20;
+      const mapY = (mapHeight - 600 * mapScale) / 2;
+
+      exportCtx.save();
+      exportCtx.translate(mapX, mapY);
+      exportCtx.scale(mapScale, mapScale);
+
+      // Render map
+      const oldCtx = window.ctx;
+      const oldStyle = window.renderStyle;
+      const oldEffects = {...window.effectsEnabled};
+
+      window.ctx = exportCtx;
+      window.renderStyle = this.options.style;
+
+      if (!this.options.includeEffects) {
+        window.effectsEnabled = {
+          parchmentTexture: false,
+          coffeeStains: false,
+          ageSpots: false,
+          titleBlock: false,
+          compass: false
+        };
+      }
+
+      render();
+
+      window.ctx = oldCtx;
+      window.renderStyle = oldStyle;
+      window.effectsEnabled = oldEffects;
+
+      exportCtx.restore();
+
+      // Right 40%: Room key
+      const keyX = mapWidth + 20;
+      const keyY = 40;
+      const keyWidth = 1700 - keyX - 20;
+
+      this.renderRoomKey(exportCtx, keyX, keyY, keyWidth);
+
+      exportCtx.setTransform(1, 0, 0, 1, 0, 0);
+    }
+
+    renderRoomKey(ctx, x, y, maxWidth) {
+      ctx.fillStyle = '#000';
+      ctx.font = 'bold 20px Georgia, serif';
+      ctx.fillText('Room Key', x, y);
+
+      let currentY = y + 30;
+      ctx.font = '14px Georgia, serif';
+      const lineHeight = 20;
+
+      rooms.forEach(room => {
+        // Room header
+        ctx.font = 'bold 14px Georgia, serif';
+        const header = `${room.id}. ${room.type.toUpperCase()}`;
+        ctx.fillText(header, x, currentY);
+        currentY += lineHeight;
+
+        // Description
+        if (room.description) {
+          ctx.font = '13px Georgia, serif';
+          const wrapped = this.wrapText(ctx, room.description, maxWidth - 20);
+          wrapped.forEach(line => {
+            ctx.fillText(line, x + 15, currentY);
+            currentY += lineHeight - 2;
+          });
+        }
+
+        currentY += 10; // Spacing
+      });
+    }
+
+    wrapText(ctx, text, maxWidth) {
+      const words = text.split(' ');
+      const lines = [];
+      let currentLine = '';
+
+      words.forEach(word => {
+        const testLine = currentLine + (currentLine ? ' ' : '') + word;
+        const metrics = ctx.measureText(testLine);
+
+        if (metrics.width > maxWidth && currentLine) {
+          lines.push(currentLine);
+          currentLine = word;
+        } else {
+          currentLine = testLine;
+        }
+      });
+
+      if (currentLine) lines.push(currentLine);
+      return lines;
+    }
+
+    async export() {
+      this.gatherOptions();
+      const exportCanvas = this.createExportCanvas();
+
+      // Render based on layout
+      if (this.options.layout === 'map-only') {
+        await this.renderMapOnly(exportCanvas);
+      } else if (this.options.layout === 'map-key') {
+        await this.renderMapAndKey(exportCanvas);
+      }
+
+      this.downloadPNG(exportCanvas);
+    }
+
+    downloadPNG(exportCanvas) {
+      exportCanvas.toBlob(blob => {
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+
+        const timestamp = new Date().toISOString().slice(0, 10);
+        const name = titleBlockData.dungeonName.replace(/[^a-z0-9]/gi, '_').toLowerCase();
+        a.download = `${name}_${this.options.layout}_${timestamp}.png`;
+
+        a.click();
+        URL.revokeObjectURL(url);
+      }, 'image/png', 0.95);
+    }
+  }
+
+  // Initialize exporter
+  const exporter = new DungeonExporter();
 
   // --- DUNGEON GENERATION ALGORITHMS ---
 
@@ -2492,13 +2912,69 @@
     reader.readAsText(file);
   });
 
+  // Phase 4: Export PNG - Show modal
   exportPngBtn.addEventListener('click', () => {
-    const dataUrl = canvas.toDataURL('image/png');
-    const a = document.createElement('a');
-    a.href = dataUrl;
-    a.download = 'dungeon_map.png';
-    a.click();
+    document.getElementById('exportModal').style.display = 'block';
+    updateExportPreview();
   });
+
+  // Export modal handlers
+  document.getElementById('btnExecuteExport').addEventListener('click', async () => {
+    document.getElementById('exportModal').style.display = 'none';
+
+    statusText.textContent = 'Exporting...';
+    await exporter.export();
+    statusText.textContent = 'Export complete!';
+    setTimeout(() => { statusText.textContent = ''; }, 3000);
+  });
+
+  document.getElementById('btnCancelExport').addEventListener('click', () => {
+    document.getElementById('exportModal').style.display = 'none';
+  });
+
+  document.getElementById('btnCloseExport').addEventListener('click', () => {
+    document.getElementById('exportModal').style.display = 'none';
+  });
+
+  // Live preview update
+  function updateExportPreview() {
+    const previewCanvas = document.getElementById('exportPreviewCanvas');
+    const previewCtx = previewCanvas.getContext('2d');
+
+    previewCtx.clearRect(0, 0, previewCanvas.width, previewCanvas.height);
+
+    const scale = Math.min(
+      previewCanvas.width / 800,
+      previewCanvas.height / 600
+    );
+
+    previewCtx.save();
+    previewCtx.scale(scale, scale);
+
+    const oldCtx = window.ctx;
+    const oldStyle = window.renderStyle;
+
+    window.ctx = previewCtx;
+    window.renderStyle = document.querySelector('input[name="exportStyle"]:checked')?.value || 'dyson';
+
+    render();
+
+    window.ctx = oldCtx;
+    window.renderStyle = oldStyle;
+
+    previewCtx.restore();
+
+    // Update info
+    const res = parseInt(document.querySelector('input[name="exportRes"]:checked')?.value || '1');
+    const w = 800 * res;
+    const h = 600 * res;
+    document.getElementById('exportInfo').textContent =
+      `${w}×${h} @ ${res}x | ~${Math.round(w * h * 4 / 1024)} KB`;
+  }
+
+  // Update preview on option change
+  document.querySelectorAll('input[name="exportStyle"], input[name="exportLayout"], input[name="exportRes"]')
+    .forEach(input => input.addEventListener('change', updateExportPreview));
 
   exportJsonBtn.addEventListener('click', () => {
     // Warn if background image is loaded
