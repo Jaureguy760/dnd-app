@@ -1,0 +1,194 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Player View - Dungeon Map</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, sans-serif;
+      background: #2c2c2c;
+      color: #eee;
+      height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+    }
+    header {
+      background: #1a1a1a;
+      padding: 1rem;
+      text-align: center;
+      width: 100%;
+      position: absolute;
+      top: 0;
+    }
+    header h1 {
+      font-size: 1.5rem;
+      color: #4ecdc4;
+    }
+    .map-container {
+      background: #1a1a1a;
+      padding: 1.5rem;
+      border-radius: 12px;
+      box-shadow: 0 10px 40px rgba(0,0,0,0.5);
+    }
+    canvas {
+      background: #faf8f0;
+      border: 3px solid #4ecdc4;
+    }
+    .waiting {
+      text-align: center;
+      color: #888;
+      font-size: 1.2rem;
+    }
+    .waiting p {
+      margin-top: 1rem;
+      font-size: 0.9rem;
+    }
+
+    /* Fog of war overlay */
+    .fog-overlay {
+      position: absolute;
+      top: 0;
+      left: 0;
+      pointer-events: none;
+    }
+  </style>
+</head>
+<body>
+
+<header>
+  <h1>🗺️ Dungeon Map</h1>
+</header>
+
+<div class="map-container">
+  <canvas id="mapCanvas" width="800" height="600"></canvas>
+</div>
+
+<script>
+  const canvas = document.getElementById('mapCanvas');
+  const ctx = canvas.getContext('2d');
+
+  // Store revealed rooms
+  let currentRooms = [];
+  let renderStyle = 'dyson';
+
+  // Grid settings (must match DM view)
+  const GRID_SIZE = 20;
+  const GRID_COLS = 40;
+  const GRID_ROWS = 30;
+
+  // Listen for updates from DM
+  if (window.electronAPI) {
+    window.electronAPI.onMapUpdate((data) => {
+      currentRooms = data.rooms || [];
+      renderStyle = data.renderStyle || 'dyson';
+      renderMap();
+    });
+  }
+
+  function renderMap() {
+    // Clear canvas
+    ctx.fillStyle = '#faf8f0';
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+    // Draw grid
+    ctx.strokeStyle = '#ddd';
+    ctx.lineWidth = 0.5;
+    for (let x = 0; x <= GRID_COLS; x++) {
+      ctx.beginPath();
+      ctx.moveTo(x * GRID_SIZE, 0);
+      ctx.lineTo(x * GRID_SIZE, canvas.height);
+      ctx.stroke();
+    }
+    for (let y = 0; y <= GRID_ROWS; y++) {
+      ctx.beginPath();
+      ctx.moveTo(0, y * GRID_SIZE);
+      ctx.lineTo(canvas.width, y * GRID_SIZE);
+      ctx.stroke();
+    }
+
+    if (currentRooms.length === 0) {
+      // Show waiting message
+      ctx.fillStyle = '#888';
+      ctx.font = '24px sans-serif';
+      ctx.textAlign = 'center';
+      ctx.fillText('Waiting for DM to reveal the map...', canvas.width / 2, canvas.height / 2);
+      return;
+    }
+
+    // Draw revealed rooms
+    drawRooms();
+
+    // Draw corridors between revealed rooms
+    drawCorridors();
+  }
+
+  function drawRooms() {
+    ctx.lineWidth = 3;
+    ctx.strokeStyle = '#000';
+
+    currentRooms.forEach(room => {
+      const x = room.x * GRID_SIZE;
+      const y = room.y * GRID_SIZE;
+      const w = room.w * GRID_SIZE;
+      const h = room.h * GRID_SIZE;
+
+      // Fill room
+      ctx.fillStyle = '#fff';
+      ctx.fillRect(x, y, w, h);
+
+      // Draw outline
+      ctx.strokeRect(x, y, w, h);
+
+      // Room number
+      ctx.fillStyle = '#000';
+      ctx.font = 'bold 20px serif';
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      const cx = x + w / 2;
+      const cy = y + h / 2;
+      ctx.fillText(String(room.id), cx, cy);
+    });
+  }
+
+  function drawCorridors() {
+    if (currentRooms.length < 2) return;
+
+    ctx.strokeStyle = '#000';
+    ctx.lineWidth = 2;
+
+    // Simple corridor drawing - connect adjacent revealed rooms
+    for (let i = 0; i < currentRooms.length; i++) {
+      for (let j = i + 1; j < currentRooms.length; j++) {
+        const r1 = currentRooms[i];
+        const r2 = currentRooms[j];
+
+        // Calculate distance
+        const x1 = (r1.x + r1.w / 2) * GRID_SIZE;
+        const y1 = (r1.y + r1.h / 2) * GRID_SIZE;
+        const x2 = (r2.x + r2.w / 2) * GRID_SIZE;
+        const y2 = (r2.y + r2.h / 2) * GRID_SIZE;
+
+        const dist = Math.sqrt((x2 - x1) ** 2 + (y2 - y1) ** 2);
+
+        // Only connect nearby rooms
+        if (dist < 300) {
+          ctx.beginPath();
+          // L-shaped corridor
+          ctx.moveTo(x1, y1);
+          ctx.lineTo(x2, y1);
+          ctx.lineTo(x2, y2);
+          ctx.stroke();
+        }
+      }
+    }
+  }
+
+  // Initial render
+  renderMap();
+</script>
+
+</body>
+</html>

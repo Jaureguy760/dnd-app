@@ -1,6 +1,7 @@
-import { getRooms, GRID_COLS, GRID_ROWS, sizeSelect, densityRange, themeSelect, algorithmSelect, setRooms, setSelectedRoomId } from './state.js';
+import { getRooms, GRID_COLS, GRID_ROWS, sizeSelect, densityRange, themeSelect, algorithmSelect, setRooms, setSelectedRoomId, getCurrentLevel } from './state.js';
 import { randInt, getThemePrompt } from './main.js';
 import { render } from './renderer.js';
+import { generateRoomContent } from './content-generator.js';
 
 // --- DUNGEON GENERATION ALGORITHMS ---
 
@@ -21,6 +22,14 @@ export function generateRoomsDungeon() {
   } else {
     roomCount = 8 + density;
     minSize = 3; maxSize = 7;
+  }
+
+  // Override with custom sizes if available
+  if (typeof window !== 'undefined' && window.customMinSize) {
+    minSize = window.customMinSize;
+  }
+  if (typeof window !== 'undefined' && window.customMaxSize) {
+    maxSize = window.customMaxSize;
   }
 
   const newRooms = [];
@@ -283,20 +292,12 @@ export function generateDungeon() {
 }
 
 export function autoFillDescriptions() {
-  const themeText = getThemePrompt(themeSelect.value);
-  getRooms().forEach((room, idx) => {
+  const theme = themeSelect.value;
+  const dungeonLevel = getCurrentLevel() + 1; // Convert 0-indexed to 1-indexed
+
+  getRooms().forEach((room) => {
     if (!room.description) {
-      if (room.type === 'entrance') {
-        room.description = `Entrance (${room.id}). Players arrive here. Describe how they enter the dungeon and any immediate threats.`;
-      } else if (room.type === 'boss') {
-        room.description = `Boss chamber (${room.id}). The final challenge awaits. A formidable opponent guards this area.`;
-      } else if (room.type === 'treasure') {
-        room.description = `Treasure room (${room.id}). Valuable items hidden here. Perhaps guarded or trapped.`;
-      } else if (room.type === 'trap') {
-        room.description = `Trapped area (${room.id}). Danger lurks here. Describe the trap and its trigger mechanism.`;
-      } else {
-        room.description = `Area ${room.id}. ${themeText} This room has a notable feature or encounter tailored by the DM.`;
-      }
+      room.description = generateRoomContent(room, theme, dungeonLevel);
     }
   });
 }

@@ -1,0 +1,71 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512">
+  <!-- Background Circle - Deep Navy -->
+  <circle cx="256" cy="256" r="250" fill="#0f1e3d"/>
+  <circle cx="256" cy="256" r="240" fill="none" stroke="#d4af37" stroke-width="8"/>
+  <circle cx="256" cy="256" r="230" fill="none" stroke="#c0c0c0" stroke-width="2"/>
+
+  <!-- Mountains - Bottom -->
+  <path d="M50 380 L130 280 L180 320 L230 250 L280 310 L330 240 L380 300 L430 260 L462 380 Z"
+        fill="#1a3a5c" stroke="#d4af37" stroke-width="2"/>
+  <path d="M80 380 L150 300 L200 340 L256 270 L312 340 L362 300 L432 380 Z"
+        fill="#162a52" stroke="#c0c0c0" stroke-width="1"/>
+
+  <!-- Two Trees of Valinor -->
+  <!-- Telperion (Silver Tree - Left) -->
+  <g transform="translate(140, 200)">
+    <rect x="-8" y="60" width="16" height="80" fill="#8b7355"/>
+    <circle cx="0" cy="30" r="50" fill="#c0c0c0" opacity="0.9"/>
+    <circle cx="-20" cy="10" r="35" fill="#e0e0e0" opacity="0.8"/>
+    <circle cx="20" cy="15" r="40" fill="#d0d0d0" opacity="0.85"/>
+    <circle cx="0" cy="-10" r="30" fill="#f0f0f0" opacity="0.7"/>
+    <!-- Silver glow -->
+    <circle cx="0" cy="20" r="60" fill="none" stroke="#c0c0c0" stroke-width="3" opacity="0.4"/>
+  </g>
+
+  <!-- Laurelin (Gold Tree - Right) -->
+  <g transform="translate(372, 200)">
+    <rect x="-8" y="60" width="16" height="80" fill="#8b7355"/>
+    <circle cx="0" cy="30" r="50" fill="#d4af37" opacity="0.9"/>
+    <circle cx="-20" cy="10" r="35" fill="#ffd700" opacity="0.8"/>
+    <circle cx="20" cy="15" r="40" fill="#f0c040" opacity="0.85"/>
+    <circle cx="0" cy="-10" r="30" fill="#ffe066" opacity="0.7"/>
+    <!-- Gold glow -->
+    <circle cx="0" cy="20" r="60" fill="none" stroke="#d4af37" stroke-width="3" opacity="0.4"/>
+  </g>
+
+  <!-- The One Ring - Center -->
+  <g transform="translate(256, 180)">
+    <!-- Ring outer -->
+    <circle cx="0" cy="0" r="55" fill="none" stroke="#d4af37" stroke-width="12"/>
+    <!-- Ring inner glow -->
+    <circle cx="0" cy="0" r="55" fill="none" stroke="#ffd700" stroke-width="6" opacity="0.5"/>
+    <!-- Elvish inscription simulation -->
+    <circle cx="0" cy="0" r="48" fill="none" stroke="#ff6600" stroke-width="2" opacity="0.6"
+            stroke-dasharray="8 4 2 4"/>
+    <!-- Inner darkness -->
+    <circle cx="0" cy="0" r="40" fill="#0a1428"/>
+    <!-- Eye of Sauron hint -->
+    <ellipse cx="0" cy="0" rx="25" ry="12" fill="#ff4500" opacity="0.3"/>
+    <circle cx="0" cy="0" r="8" fill="#ff0000" opacity="0.5"/>
+  </g>
+
+  <!-- Stars (Silmarils representation) -->
+  <g fill="#ffffff" opacity="0.9">
+    <polygon points="256,60 260,72 273,72 263,80 267,93 256,85 245,93 249,80 239,72 252,72"
+             transform="scale(1.2) translate(-43, -10)"/>
+    <polygon points="180,90 183,98 192,98 185,103 187,112 180,107 173,112 175,103 168,98 177,98"/>
+    <polygon points="332,90 335,98 344,98 337,103 339,112 332,107 325,112 327,103 320,98 329,98"/>
+  </g>
+
+  <!-- Title Arc -->
+  <path id="titleArc" d="M 80 420 A 200 200 0 0 1 432 420" fill="none"/>
+  <text font-family="serif" font-size="28" fill="#d4af37" font-weight="bold" letter-spacing="4">
+    <textPath href="#titleArc" startOffset="50%" text-anchor="middle">
+      DUNGEON MASTER
+    </textPath>
+  </text>
+
+  <!-- Top text -->
+  <text x="256" y="460" font-family="serif" font-size="16" fill="#c0c0c0"
+        text-anchor="middle" letter-spacing="6">THE SILMARILLION</text>
+</svg>

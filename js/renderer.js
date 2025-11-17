@@ -266,28 +266,28 @@ export function drawRoomsModern() {
 }
 
 export function drawRoomsDyson() {
-  // Hand-drawn Dyson Logos style
+  // Hand-drawn Dyson Logos style - BOLD & DRAMATIC
 
-  // First: Draw cross-hatching on wall regions
+  // First: Draw HEAVY cross-hatching on wall regions
   const wallGrid = getWallRegions();
 
-  // Find contiguous wall regions and hatch them
+  // Find contiguous wall regions and hatch them - THICKER LINES, DENSER
   ctx.strokeStyle = '#000';
-  ctx.lineWidth = 0.5;
+  ctx.lineWidth = 1.2; // THICKER hatching
 
   for (let gy = 0; gy < GRID_ROWS; gy++) {
     for (let gx = 0; gx < GRID_COLS; gx++) {
       if (wallGrid[gy][gx]) {
         const x = gx * GRID_SIZE;
         const y = gy * GRID_SIZE;
-        fillCrossHatch(x, y, GRID_SIZE, GRID_SIZE, 45, 6);
+        fillCrossHatch(x, y, GRID_SIZE, GRID_SIZE, 45, 4); // DENSER hatching (4 instead of 6)
       }
     }
   }
 
-  // Second: Draw corridors with hand-drawn lines
+  // Second: Draw corridors with BOLD hand-drawn lines
   ctx.strokeStyle = '#000';
-  ctx.lineWidth = 1.5;
+  ctx.lineWidth = 2.5; // THICKER corridors
 
   const connections = getClosestRooms();
   connections.forEach(([r1, r2]) => {
@@ -298,50 +298,48 @@ export function drawRoomsDyson() {
 
     const corridors = createLCorridor(x1, y1, x2, y2);
     corridors.forEach(c => {
-      drawHandDrawnLine(c.x1, c.y1, c.x2, c.y2, 2);
+      drawHandDrawnLine(c.x1, c.y1, c.x2, c.y2, 3); // THICKER wobble
     });
   });
 
-  // Third: Draw rooms with hand-drawn organic shapes
+  // Third: Draw rooms with BOLD hand-drawn organic shapes
   getRooms().forEach(room => {
     const isSelected = room.id === selectedRoomId;
 
     ctx.strokeStyle = isSelected ? '#4b7abf' : '#000';
-    ctx.lineWidth = isSelected ? 2.5 : 1.5;
-    ctx.fillStyle = renderStyle === 'vintage' ? '#fff' : '#f5f5dc'; // White or parchment
+    ctx.lineWidth = isSelected ? 4 : 3; // MUCH THICKER outlines
+    ctx.fillStyle = '#fff'; // Pure white rooms for contrast
 
     const x = room.x * GRID_SIZE;
     const y = room.y * GRID_SIZE;
     const w = room.w * GRID_SIZE;
     const h = room.h * GRID_SIZE;
 
-    // Add slight organic distortion to corners
-    const wobble = 3;
-    const x1 = x + (Math.random() - 0.5) * wobble;
-    const y1 = y + (Math.random() - 0.5) * wobble;
-    const x2 = x + w + (Math.random() - 0.5) * wobble;
-    const y2 = y + h + (Math.random() - 0.5) * wobble;
-
-    // Fill room
+    // Fill room with white
     ctx.fillRect(x, y, w, h);
 
-    // Draw hand-drawn outline
-    drawHandDrawnRect(x, y, w, h, 2);
+    // Draw BOLD hand-drawn outline
+    drawHandDrawnRect(x, y, w, h, 4); // THICKER wobble
 
-    // Room number
+    // Room number - BIGGER & BOLDER
     ctx.fillStyle = '#000';
-    ctx.font = 'bold 16px serif';
+    ctx.font = 'bold 20px serif'; // LARGER font
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
     const cx = x + w / 2;
     const cy = y + h / 2;
+
+    // Draw number with slight shadow for emphasis
+    ctx.fillStyle = '#666';
+    ctx.fillText(String(room.id), cx + 1, cy + 1);
+    ctx.fillStyle = '#000';
     ctx.fillText(String(room.id), cx, cy);
 
     // Room type indicator (small text below number)
     if (room.type !== 'normal') {
-      ctx.font = '9px serif';
-      ctx.fillStyle = '#444';
-      ctx.fillText(room.type.toUpperCase(), cx, cy + 12);
+      ctx.font = 'bold 10px serif';
+      ctx.fillStyle = '#333';
+      ctx.fillText(room.type.toUpperCase(), cx, cy + 14);
     }
   });
 }

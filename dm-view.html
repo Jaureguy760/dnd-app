@@ -1,0 +1,4264 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>The Silmarillion - Dungeon Master's View</title>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Cinzel:wght@400;700&family=Uncial+Antiqua&display=swap');
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: 'Cinzel', Georgia, serif;
+      background: linear-gradient(135deg, #0f1e3d 0%, #162a52 50%, #0a1428 100%);
+      color: #c4b896;
+      height: 100vh;
+      display: flex;
+      flex-direction: column;
+    }
+    header {
+      background: linear-gradient(90deg, #0a1428 0%, #1a3a5c 50%, #0a1428 100%);
+      padding: 0.75rem 1rem;
+      padding-top: 1.2rem;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      border-bottom: 3px solid #d4af37;
+      box-shadow: 0 2px 10px rgba(0,0,0,0.5);
+      position: relative;
+    }
+    header h1 {
+      font-size: 1.4rem;
+      color: #d4af37;
+      font-family: 'Uncial Antiqua', cursive;
+      text-shadow: 2px 2px 4px #000, 0 0 10px rgba(212, 175, 55, 0.3);
+      letter-spacing: 4px;
+      position: relative;
+    }
+    header h1::before {
+      content: "✦ ✦ ✦";
+      position: absolute;
+      top: -12px;
+      left: 50%;
+      transform: translateX(-50%);
+      font-size: 0.5rem;
+      color: #c0c0c0;
+      letter-spacing: 8px;
+    }
+    header h1::after {
+      content: "💍 J.R.R. TOLKIEN 💍";
+      position: absolute;
+      bottom: -14px;
+      left: 50%;
+      transform: translateX(-50%);
+      font-size: 0.5rem;
+      color: #c0c0c0;
+      letter-spacing: 2px;
+      font-family: 'Cinzel', serif;
+    }
+    /* Lonely Mountain decorative border */
+    header::before {
+      content: "⛰️ ⛰️ ⛰️ ⛰️ ⛰️";
+      position: absolute;
+      top: 2px;
+      left: 50%;
+      transform: translateX(-50%);
+      font-size: 0.6rem;
+      opacity: 0.4;
+      letter-spacing: 15px;
+    }
+    header::after {
+      content: "━━━━ 💎 EREBOR 💎 ━━━━";
+      position: absolute;
+      bottom: -2px;
+      right: 20px;
+      font-size: 0.45rem;
+      color: #d4af37;
+      opacity: 0.6;
+      font-family: 'Cinzel', serif;
+    }
+    .controls {
+      display: flex;
+      gap: 0.5rem;
+    }
+    .btn {
+      padding: 0.5rem 1rem;
+      border: 1px solid #4a6a8a;
+      border-radius: 4px;
+      cursor: pointer;
+      font-size: 0.8rem;
+      font-weight: 500;
+      font-family: 'Cinzel', serif;
+      transition: all 0.3s ease;
+    }
+    .btn-primary {
+      background: linear-gradient(180deg, #d4af37 0%, #a67c00 100%);
+      color: #0a1428;
+      border-color: #d4af37;
+      font-weight: 700;
+    }
+    .btn-secondary {
+      background: linear-gradient(180deg, #2a4a6a 0%, #1a3a5c 100%);
+      color: #c0c0c0;
+      border-color: #4a6a8a;
+    }
+    .btn-success {
+      background: linear-gradient(180deg, #c0c0c0 0%, #808080 100%);
+      color: #0a1428;
+      border-color: #c0c0c0;
+    }
+    .btn:hover {
+      transform: translateY(-1px);
+      box-shadow: 0 2px 8px rgba(212, 175, 55, 0.4);
+    }
+    .btn.active {
+      background: linear-gradient(180deg, #d4af37 0%, #a67c00 100%);
+      color: #0a1428;
+    }
+
+    main {
+      flex: 1;
+      display: grid;
+      grid-template-columns: 1fr 350px;
+      gap: 1rem;
+      padding: 1rem;
+      overflow: hidden;
+    }
+
+    .map-area {
+      background: linear-gradient(135deg, #162a52 0%, #0f1e3d 100%);
+      border-radius: 8px;
+      padding: 1rem;
+      position: relative;
+      overflow: auto;
+      border: 2px solid #4a6a8a;
+      box-shadow: inset 0 0 20px rgba(0,0,0,0.5), 0 0 30px rgba(212, 175, 55, 0.1);
+    }
+    canvas {
+      background: #f5e6c8;
+      background-image:
+        radial-gradient(circle at 20% 30%, rgba(212,175,55,0.05) 0%, transparent 50%),
+        radial-gradient(circle at 80% 70%, rgba(192,192,192,0.05) 0%, transparent 50%);
+      border: 3px solid #d4af37;
+      cursor: crosshair;
+      box-shadow: 0 0 20px rgba(212, 175, 55, 0.3);
+    }
+
+    .sidebar {
+      background: linear-gradient(180deg, #0a1428 0%, #05101f 100%);
+      border-radius: 8px;
+      padding: 1rem;
+      overflow-y: auto;
+      border: 2px solid #2a4a6a;
+    }
+    .sidebar h2 {
+      font-size: 1rem;
+      margin-bottom: 1rem;
+      color: #d4af37;
+      font-family: 'Uncial Antiqua', cursive;
+      border-bottom: 1px solid #2a4a6a;
+      padding-bottom: 0.5rem;
+    }
+
+    .fog-controls {
+      background: linear-gradient(180deg, #1a3a5c 0%, #0a1428 100%);
+      padding: 0.75rem;
+      border-radius: 4px;
+      margin-bottom: 1rem;
+      border: 1px solid #4a6a8a;
+    }
+    .fog-controls h3 {
+      font-size: 0.9rem;
+      margin-bottom: 0.5rem;
+      color: #c0c0c0;
+      font-family: 'Cinzel', serif;
+    }
+    .fog-controls label {
+      display: block;
+      font-size: 0.8rem;
+      margin-bottom: 0.5rem;
+    }
+    .fog-controls input[type="range"] {
+      width: 100%;
+    }
+    .reveal-mode {
+      display: flex;
+      gap: 0.5rem;
+      margin-top: 0.5rem;
+    }
+    .reveal-mode .btn {
+      flex: 1;
+      font-size: 0.75rem;
+      padding: 0.4rem;
+    }
+    .btn.active { background: #e94560; }
+
+    .room-list {
+      list-style: none;
+    }
+    .room-item {
+      background: #0f3460;
+      padding: 0.5rem;
+      margin-bottom: 0.5rem;
+      border-radius: 4px;
+      border-left: 3px solid #533483;
+    }
+    .room-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 0.25rem;
+    }
+    .room-number { font-weight: 700; color: #e94560; cursor: pointer; }
+    .room-number:hover { text-decoration: underline; }
+    .room-type { font-size: 0.7rem; background: #533483; padding: 0.15rem 0.3rem; border-radius: 2px; }
+    .room-type-select {
+      font-size: 0.7rem;
+      background: #533483;
+      color: white;
+      border: none;
+      padding: 0.15rem 0.3rem;
+      border-radius: 2px;
+      cursor: pointer;
+    }
+    .room-number-input {
+      width: 50px;
+      font-weight: 700;
+      color: #e94560;
+      background: #16213e;
+      border: 1px solid #e94560;
+      border-radius: 2px;
+      padding: 0.1rem;
+      font-size: inherit;
+    }
+    .room-desc {
+      font-size: 0.75rem;
+      color: #aaa;
+      max-height: 80px;
+      overflow-y: auto;
+      cursor: pointer;
+      padding: 0.25rem;
+      border-radius: 2px;
+    }
+    .room-desc:hover {
+      background: rgba(255,255,255,0.05);
+    }
+    .room-desc-textarea {
+      width: 100%;
+      min-height: 80px;
+      font-size: 0.75rem;
+      color: #eee;
+      background: #16213e;
+      border: 1px solid #e94560;
+      border-radius: 2px;
+      padding: 0.25rem;
+      resize: vertical;
+      font-family: inherit;
+    }
+    .reveal-btn {
+      font-size: 0.7rem;
+      padding: 0.2rem 0.4rem;
+      cursor: pointer;
+      border: none;
+      border-radius: 2px;
+    }
+    .reveal-btn.revealed { background: #2ecc71; color: #000; }
+    .reveal-btn.hidden { background: #c0392b; color: #fff; }
+
+    .status {
+      position: fixed;
+      bottom: 1rem;
+      left: 50%;
+      transform: translateX(-50%);
+      background: #e94560;
+      color: white;
+      padding: 0.5rem 1rem;
+      border-radius: 4px;
+      display: none;
+    }
+    .status.show { display: block; }
+
+    /* Fog overlay on DM's map showing what players can see */
+    .fog-indicator {
+      position: absolute;
+      pointer-events: none;
+      background: rgba(255, 0, 0, 0.1);
+      border: 2px dashed #e94560;
+    }
+
+    /* Generation options modal */
+    .modal-overlay {
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background: rgba(0,0,0,0.85);
+      display: none;
+      align-items: center;
+      justify-content: center;
+      z-index: 1000;
+    }
+    .modal-overlay.show { display: flex; }
+    .modal {
+      background: linear-gradient(180deg, #2d1f0f 0%, #1a120a 100%);
+      border: 3px solid #c9a961;
+      border-radius: 8px;
+      padding: 1.5rem;
+      min-width: 400px;
+      max-width: 500px;
+      box-shadow: 0 0 30px rgba(201, 169, 97, 0.3);
+    }
+    .modal h2 {
+      color: #c9a961;
+      margin-bottom: 1rem;
+      font-size: 1.2rem;
+      font-family: 'Uncial Antiqua', cursive;
+      text-align: center;
+    }
+    .modal-field {
+      margin-bottom: 1rem;
+    }
+    .modal-field label {
+      display: block;
+      font-size: 0.85rem;
+      margin-bottom: 0.3rem;
+      color: #d4c4a8;
+      font-family: 'Cinzel', serif;
+    }
+    .modal-field input,
+    .modal-field select {
+      width: 100%;
+      padding: 0.5rem;
+      background: #3d2d1d;
+      border: 1px solid #8b7355;
+      border-radius: 4px;
+      color: #d4c4a8;
+      font-size: 0.9rem;
+      font-family: 'Cinzel', serif;
+    }
+    .modal-field input[type="range"] {
+      padding: 0;
+    }
+    .modal-row {
+      display: flex;
+      gap: 1rem;
+    }
+    .modal-row .modal-field {
+      flex: 1;
+    }
+    .modal-actions {
+      display: flex;
+      gap: 0.5rem;
+      justify-content: flex-end;
+      margin-top: 1.5rem;
+    }
+    .range-value {
+      font-size: 0.75rem;
+      color: #c9a961;
+      float: right;
+    }
+
+    /* Area tabs */
+    .area-tabs {
+      display: flex;
+      gap: 0.25rem;
+      background: #3d2d1d;
+      padding: 0.5rem;
+      border-radius: 8px 8px 0 0;
+      margin-bottom: -1px;
+      border: 1px solid #8b7355;
+      border-bottom: none;
+    }
+    .area-tab {
+      padding: 0.4rem 0.8rem;
+      background: #16213e;
+      border: none;
+      border-radius: 4px 4px 0 0;
+      color: #aaa;
+      cursor: pointer;
+      font-size: 0.8rem;
+      position: relative;
+    }
+    .area-tab.active {
+      background: #533483;
+      color: #fff;
+    }
+    .area-tab:hover {
+      background: #533483;
+    }
+    .area-tab .close-tab {
+      margin-left: 0.5rem;
+      color: #e94560;
+      font-weight: bold;
+    }
+    .area-tab .close-tab:hover {
+      color: #fff;
+    }
+
+    /* Resize cursor styles */
+    .resize-nw { cursor: nw-resize; }
+    .resize-ne { cursor: ne-resize; }
+    .resize-sw { cursor: sw-resize; }
+    .resize-se { cursor: se-resize; }
+    .resize-n { cursor: n-resize; }
+    .resize-s { cursor: s-resize; }
+    .resize-e { cursor: e-resize; }
+    .resize-w { cursor: w-resize; }
+  </style>
+</head>
+<body>
+
+<header>
+  <h1><span style="font-size:1rem; margin-right:8px; color:#c0c0c0;">⛰️</span><span style="font-size:1.2rem; margin-right:6px; color:#c0c0c0;">🌳</span>THE SILMARILLION<span style="font-size:1.2rem; margin-left:6px; color:#d4af37;">🌳</span><span style="font-size:1rem; margin-left:8px; color:#d4af37;">⛰️</span></h1>
+  <div class="controls">
+    <button class="btn btn-primary" id="generateBtn">Forge Realm</button>
+    <button class="btn btn-secondary" id="addAreaBtn">+ New Region</button>
+    <button class="btn btn-secondary" id="saveDungeonBtn">📜 Inscribe</button>
+    <button class="btn btn-secondary" id="loadDungeonBtn">📖 Recall</button>
+    <button class="btn btn-secondary" id="exportPngBtn">🗺️ Map</button>
+    <button class="btn btn-secondary" id="undoBtn">↩️ Undo</button>
+    <button class="btn btn-secondary" id="redoBtn">↪️ Redo</button>
+    <button class="btn btn-secondary" id="encounterBtn">⚔️ Battle</button>
+    <label style="color:#d4c4a8; margin-left:10px;"><input type="checkbox" id="gridToggle" checked> Grid</label>
+    <button class="btn btn-secondary" id="openPlayerBtn">Fellowship View</button>
+    <button class="btn btn-success" id="revealAllBtn">Reveal All</button>
+    <button class="btn btn-success" id="hideAllBtn">Shroud All</button>
+  </div>
+  <input type="file" id="loadFileInput" accept=".json" style="display:none;">
+</header>
+
+<main>
+  <div class="map-area">
+    <div class="area-tabs" id="areaTabs">
+      <button class="area-tab active" data-area="0">Area 1</button>
+    </div>
+    <canvas id="mapCanvas" width="800" height="600"></canvas>
+  </div>
+
+  <div class="sidebar">
+    <div class="fog-controls">
+      <h3>⚙️ Loremaster Tools</h3>
+      <div class="reveal-mode" style="margin-bottom:0.5rem;">
+        <button class="btn active" id="fogModeBtn">🌫️ Mist</button>
+        <button class="btn" id="moveModeBtn">✋ Move</button>
+        <button class="btn" id="resizeModeBtn">↔️ Shape</button>
+        <button class="btn" id="tokenModeBtn">🧝 Figures</button>
+      </div>
+      <div id="fogOptions">
+        <label>
+          Reveal Brush Size: <span id="brushSizeLabel">50px</span>
+          <input type="range" id="brushSize" min="20" max="150" value="50">
+        </label>
+        <div class="reveal-mode">
+          <button class="btn active" id="revealModeBtn">🔦 Reveal</button>
+          <button class="btn" id="hideModeBtn">🌑 Hide</button>
+        </div>
+        <p style="font-size:0.7rem; color:#888; margin-top:0.5rem;">
+          Click and drag on map to reveal/hide areas for players
+        </p>
+      </div>
+      <div id="moveOptions" style="display:none;">
+        <p style="font-size:0.7rem; color:#888;">
+          Click and drag rooms to reposition them on the map
+        </p>
+      </div>
+      <div id="resizeOptions" style="display:none;">
+        <p style="font-size:0.7rem; color:#888;">
+          Click and drag room edges or corners to resize
+        </p>
+      </div>
+      <div id="tokenOptions" style="display:none;">
+        <div style="margin-bottom:0.5rem;">
+          <button class="btn btn-primary" id="addPlayerBtn" style="font-size:0.7rem; padding:0.3rem 0.5rem;">+ Player</button>
+          <button class="btn btn-secondary" id="addCreatureBtn" style="font-size:0.7rem; padding:0.3rem 0.5rem;">+ Creature</button>
+        </div>
+        <p style="font-size:0.7rem; color:#888;">
+          Click map to place token, drag to move
+        </p>
+      </div>
+    </div>
+
+    <div class="fog-controls" style="margin-top:0.5rem;">
+      <h3>🧝 Fellowship & Foes</h3>
+      <div id="tokenList" style="font-size:0.75rem; color:#aaa;">
+        No companions placed yet
+      </div>
+    </div>
+
+    <div class="fog-controls" style="margin-top:0.5rem;">
+      <h3>🗺️ Realm Markers</h3>
+      <p style="font-size:0.65rem; color:#53a8b6; margin-bottom:0.3rem;">Dungeon</p>
+      <div style="display:grid; grid-template-columns:repeat(4,1fr); gap:0.3rem;">
+        <button class="btn" style="font-size:1rem; padding:0.3rem;" data-symbol="stairs-up" title="Stairs Up">⬆️</button>
+        <button class="btn" style="font-size:1rem; padding:0.3rem;" data-symbol="stairs-down" title="Stairs Down">⬇️</button>
+        <button class="btn" style="font-size:1rem; padding:0.3rem;" data-symbol="door" title="Door">🚪</button>
+        <button class="btn" style="font-size:1rem; padding:0.3rem;" data-symbol="secret-door" title="Secret Door">🔒</button>
+        <button class="btn" style="font-size:1rem; padding:0.3rem;" data-symbol="trap" title="Trap">⚠️</button>
+        <button class="btn" style="font-size:1rem; padding:0.3rem;" data-symbol="chest" title="Chest">📦</button>
+        <button class="btn" style="font-size:1rem; padding:0.3rem;" data-symbol="water" title="Water">💧</button>
+        <button class="btn" style="font-size:1rem; padding:0.3rem;" data-symbol="pillar" title="Pillar">⬤</button>
+      </div>
+      <p style="font-size:0.65rem; color:#53a8b6; margin-top:0.5rem; margin-bottom:0.3rem;">Terrain</p>
+      <div style="display:grid; grid-template-columns:repeat(4,1fr); gap:0.3rem;">
+        <button class="btn" style="font-size:1rem; padding:0.3rem;" data-symbol="castle" title="Castle">🏰</button>
+        <button class="btn" style="font-size:1rem; padding:0.3rem;" data-symbol="forest" title="Forest">🌲</button>
+        <button class="btn" style="font-size:1rem; padding:0.3rem;" data-symbol="mountain" title="Mountain">⛰️</button>
+        <button class="btn" style="font-size:1rem; padding:0.3rem;" data-symbol="river" title="River">🌊</button>
+        <button class="btn" style="font-size:1rem; padding:0.3rem;" data-symbol="village" title="Village">🏘️</button>
+        <button class="btn" style="font-size:1rem; padding:0.3rem;" data-symbol="bridge" title="Bridge">🌉</button>
+        <button class="btn" style="font-size:1rem; padding:0.3rem;" data-symbol="road" title="Road">🛤️</button>
+        <button class="btn" style="font-size:1rem; padding:0.3rem;" data-symbol="cave-entrance" title="Cave Entrance">🕳️</button>
+      </div>
+      <p style="font-size:0.65rem; color:#53a8b6; margin-top:0.5rem; margin-bottom:0.3rem;">Hazards</p>
+      <div style="display:grid; grid-template-columns:repeat(4,1fr); gap:0.3rem;">
+        <button class="btn" style="font-size:1rem; padding:0.3rem;" data-symbol="lava" title="Lava">🔥</button>
+        <button class="btn" style="font-size:1rem; padding:0.3rem;" data-symbol="poison" title="Poison Gas">☠️</button>
+        <button class="btn" style="font-size:1rem; padding:0.3rem;" data-symbol="ice" title="Ice/Cold">❄️</button>
+        <button class="btn" style="font-size:1rem; padding:0.3rem;" data-symbol="lightning" title="Lightning">⚡</button>
+      </div>
+      <p style="font-size:0.65rem; color:#53a8b6; margin-top:0.5rem; margin-bottom:0.3rem;">Tools</p>
+      <div style="display:grid; grid-template-columns:repeat(2,1fr); gap:0.3rem;">
+        <button class="btn" style="font-size:1rem; padding:0.3rem; background:#8b0000;" data-symbol="eraser" title="Eraser - Drag to erase">🧹 Eraser</button>
+        <button class="btn" style="font-size:0.8rem; padding:0.3rem;" id="clearAllSymbolsBtn" title="Clear All Symbols">🗑️ Clear All</button>
+      </div>
+      <p style="font-size:0.65rem; color:#888; margin-top:0.3rem;">
+        Click symbol, then drag on map. Right-click to delete single.
+      </p>
+    </div>
+
+    <div class="fog-controls" style="margin-top:0.5rem;">
+      <h3>🏛️ Room Templates</h3>
+      <select id="templateSelect" style="width:100%; padding:0.4rem; background:#3d2d1d; border:1px solid #8b7355; color:#d4c4a8; border-radius:4px; font-size:0.75rem;">
+        <option value="">-- Select Template --</option>
+        <optgroup label="Dungeons & Underground">
+          <option value="prison-cells">Prison Cells</option>
+          <option value="torture-chamber">Torture Chamber</option>
+          <option value="crypt">Crypt / Tomb</option>
+          <option value="mine-shaft">Mine Shaft</option>
+          <option value="sewer-junction">Sewer Junction</option>
+          <option value="underground-lake">Underground Lake</option>
+          <option value="mushroom-cavern">Mushroom Cavern</option>
+          <option value="spider-nest">Spider Nest</option>
+          <option value="treasure-vault">Treasure Vault</option>
+          <option value="alchemy-lab">Alchemy Laboratory</option>
+        </optgroup>
+        <optgroup label="Religious & Sacred">
+          <option value="chapel">Chapel</option>
+          <option value="cathedral">Cathedral Hall</option>
+          <option value="shrine">Sacred Shrine</option>
+          <option value="monastery">Monastery</option>
+          <option value="bell-tower">Bell Tower</option>
+          <option value="graveyard">Graveyard</option>
+        </optgroup>
+        <optgroup label="Castle & Military">
+          <option value="throne-room">Throne Room</option>
+          <option value="guard-barracks">Guard Barracks</option>
+          <option value="armory">Armory</option>
+          <option value="war-room">War Room / Strategy</option>
+          <option value="castle-gate">Castle Gatehouse</option>
+          <option value="tower-top">Tower Top</option>
+          <option value="great-hall">Great Hall</option>
+          <option value="castle-kitchen">Castle Kitchen</option>
+        </optgroup>
+        <optgroup label="Village & Town">
+          <option value="tavern">Tavern / Inn</option>
+          <option value="blacksmith">Blacksmith Forge</option>
+          <option value="market-square">Market Square</option>
+          <option value="town-hall">Town Hall</option>
+          <option value="stable">Stable</option>
+          <option value="mill">Windmill / Watermill</option>
+          <option value="farmhouse">Farmhouse</option>
+          <option value="wizard-tower">Wizard's Tower</option>
+          <option value="library">Library / Archives</option>
+          <option value="apothecary">Apothecary Shop</option>
+        </optgroup>
+        <optgroup label="Natural & Wilderness">
+          <option value="forest-clearing">Forest Clearing</option>
+          <option value="river-crossing">River Crossing</option>
+          <option value="mountain-pass">Mountain Pass</option>
+          <option value="cave-entrance">Cave Entrance</option>
+          <option value="ancient-ruins">Ancient Ruins</option>
+          <option value="druid-grove">Druid's Grove</option>
+          <option value="bandit-camp">Bandit Camp</option>
+        </optgroup>
+      </select>
+      <button class="btn btn-primary" id="placeTemplateBtn" style="width:100%; margin-top:0.3rem; font-size:0.75rem;">Place Template</button>
+      <p style="font-size:0.6rem; color:#888; margin-top:0.2rem;">
+        Places a pre-made room layout on the map
+      </p>
+    </div>
+
+    <h2>Chamber Lore</h2>
+    <ul class="room-list" id="roomList">
+      <li style="color:#888; font-size:0.85rem;">Forge a realm to reveal its secrets</li>
+    </ul>
+  </div>
+</main>
+
+<div class="status" id="statusText"></div>
+
+<!-- Token Name Modal -->
+<div class="modal-overlay" id="tokenModal">
+  <div class="modal" style="min-width:300px;">
+    <h2 id="tokenModalTitle">🎭 Name Token</h2>
+    <div class="modal-field">
+      <label>Token Name</label>
+      <input type="text" id="tokenNameInput" placeholder="Enter name...">
+    </div>
+    <div class="modal-actions">
+      <button class="btn btn-secondary" id="cancelTokenBtn">Cancel</button>
+      <button class="btn btn-primary" id="confirmTokenBtn">Place Token</button>
+    </div>
+  </div>
+</div>
+
+<!-- Room Label Modal -->
+<div class="modal-overlay" id="roomLabelModal">
+  <div class="modal" style="min-width:300px;">
+    <h2>🏷️ Label Room</h2>
+    <div class="modal-field">
+      <label>Room Name</label>
+      <input type="text" id="roomLabelInput" placeholder="e.g., Guard Room, Treasure Vault...">
+    </div>
+    <div class="modal-actions">
+      <button class="btn btn-secondary" id="cancelRoomLabelBtn">Cancel</button>
+      <button class="btn btn-primary" id="confirmRoomLabelBtn">Save Label</button>
+    </div>
+  </div>
+</div>
+
+<!-- Encounter Generator Modal -->
+<div class="modal-overlay" id="encounterModal">
+  <div class="modal" style="min-width:400px; max-height:80vh; overflow-y:auto;">
+    <h2>⚔️ Encounter Generator</h2>
+    <div class="modal-field">
+      <label>Party Level</label>
+      <input type="number" id="partyLevel" value="3" min="1" max="20">
+    </div>
+    <div class="modal-field">
+      <label>Party Size</label>
+      <input type="number" id="partySize" value="4" min="1" max="10">
+    </div>
+    <div class="modal-field">
+      <label>Difficulty</label>
+      <select id="encounterDifficulty">
+        <option value="easy">Easy</option>
+        <option value="medium" selected>Medium</option>
+        <option value="hard">Hard</option>
+        <option value="deadly">Deadly</option>
+      </select>
+    </div>
+    <div id="encounterResult" style="background:#1a1a2e; padding:10px; border-radius:5px; margin-top:10px; display:none;"></div>
+    <div class="modal-actions">
+      <button class="btn btn-secondary" id="closeEncounterBtn">Close</button>
+      <button class="btn btn-primary" id="generateEncounterBtn">Generate</button>
+    </div>
+  </div>
+</div>
+
+<!-- Generation Options Modal -->
+<div class="modal-overlay" id="genModal">
+  <div class="modal">
+    <h2>🎲 Dungeon Generation Options</h2>
+
+    <div class="modal-field">
+      <label>Generation Type</label>
+      <select id="optGenType">
+        <option value="rooms">Rectangular Rooms</option>
+        <option value="rotjs">ROT.js Digger (Professional)</option>
+        <option value="cave">Cave (Cellular Automata)</option>
+        <option value="themed">🏰 Themed Dungeon (Uses Templates)</option>
+        <option value="prebaked">📜 Pre-Built Adventure</option>
+      </select>
+    </div>
+
+    <div class="modal-field" id="themedDungeonField" style="display:none;">
+      <label>Dungeon Scenario</label>
+      <select id="optScenario">
+        <optgroup label="Classic Adventures">
+          <option value="goblin-lair">Goblin Lair</option>
+          <option value="haunted-castle">Haunted Castle</option>
+          <option value="dragon-den">Dragon's Den</option>
+          <option value="bandit-hideout">Bandit Hideout</option>
+        </optgroup>
+        <optgroup label="Underground">
+          <option value="dwarven-ruins">Dwarven Ruins</option>
+          <option value="underdark-outpost">Underdark Outpost</option>
+          <option value="abandoned-mine">Abandoned Mine</option>
+          <option value="sewer-network">City Sewer Network</option>
+        </optgroup>
+        <optgroup label="Mystical">
+          <option value="wizard-tower">Wizard's Tower</option>
+          <option value="temple-evil">Temple of Evil</option>
+          <option value="fey-crossing">Fey Crossing</option>
+          <option value="necromancer-lair">Necromancer's Lair</option>
+        </optgroup>
+        <optgroup label="Wilderness">
+          <option value="forest-ruins">Forest Ruins</option>
+          <option value="mountain-fortress">Mountain Fortress</option>
+          <option value="coastal-caves">Coastal Caves</option>
+          <option value="druid-sanctuary">Druid Sanctuary</option>
+        </optgroup>
+      </select>
+    </div>
+
+    <div class="modal-field" id="prebakedField" style="display:none;">
+      <label>Pre-Built Adventure</label>
+      <select id="optPrebaked">
+        <option value="lost-mine">The Lost Mine of Phandelver</option>
+        <option value="death-house">Death House</option>
+        <option value="sunless-citadel">The Sunless Citadel</option>
+        <option value="cragmaw-hideout">Cragmaw Hideout</option>
+        <option value="thundertree">Thundertree Village</option>
+        <option value="wave-echo">Wave Echo Cave</option>
+        <option value="tresendar-manor">Tresendar Manor</option>
+        <option value="orc-stronghold">Orc Stronghold</option>
+      </select>
+    </div>
+
+    <div class="modal-field">
+      <label>Natural Language (optional - describe your dungeon)</label>
+      <input type="text" id="optNaturalLang" placeholder="e.g., 'A spooky crypt with spider webs and a vampire boss'" style="width:100%; padding:0.5rem; background:#1a1a2e; border:1px solid #333; color:#fff; border-radius:4px;">
+      <p style="font-size:0.65rem; color:#888; margin-top:0.2rem;">Keywords: spooky, ancient, abandoned, flooded, fiery, frozen, magical, overgrown, ruined</p>
+    </div>
+
+    <div class="modal-field">
+      <label>Dungeon Theme</label>
+      <select id="optTheme">
+        <option value="classic">Classic Dungeon</option>
+        <option value="undead">Undead Crypt</option>
+        <option value="cavern">Natural Cavern</option>
+        <option value="arcane">Arcane Laboratory</option>
+        <option value="fortress">Military Fortress</option>
+        <option value="temple">Ancient Temple</option>
+        <option value="sewers">City Sewers</option>
+        <option value="mines">Abandoned Mines</option>
+      </select>
+    </div>
+
+    <div class="modal-field">
+      <label>Dungeon Level (affects monster CR & treasure) <span class="range-value" id="levelVal">1</span></label>
+      <input type="range" id="optLevel" min="1" max="10" value="1">
+    </div>
+
+    <div class="modal-row">
+      <div class="modal-field">
+        <label>Min Rooms <span class="range-value" id="minRoomsVal">8</span></label>
+        <input type="range" id="optMinRooms" min="3" max="20" value="8">
+      </div>
+      <div class="modal-field">
+        <label>Max Rooms <span class="range-value" id="maxRoomsVal">15</span></label>
+        <input type="range" id="optMaxRooms" min="5" max="30" value="15">
+      </div>
+    </div>
+
+    <div class="modal-row">
+      <div class="modal-field">
+        <label>Min Room Size <span class="range-value" id="minSizeVal">3</span></label>
+        <input type="range" id="optMinSize" min="2" max="10" value="3">
+      </div>
+      <div class="modal-field">
+        <label>Max Room Size <span class="range-value" id="maxSizeVal">7</span></label>
+        <input type="range" id="optMaxSize" min="4" max="15" value="7">
+      </div>
+    </div>
+
+    <div class="modal-field">
+      <label>Special Rooms</label>
+      <div style="font-size:0.8rem; color:#aaa;">
+        <label style="display:inline;"><input type="checkbox" id="optEntrance" checked> Entrance</label>
+        <label style="display:inline; margin-left:1rem;"><input type="checkbox" id="optBoss" checked> Boss Room</label>
+        <label style="display:inline; margin-left:1rem;"><input type="checkbox" id="optTreasure" checked> Treasure Room</label>
+      </div>
+    </div>
+
+    <div class="modal-actions">
+      <button class="btn btn-secondary" id="cancelGenBtn">Cancel</button>
+      <button class="btn btn-primary" id="confirmGenBtn">Generate Dungeon</button>
+    </div>
+  </div>
+</div>
+
+<script>
+  // Self-contained dungeon generator for Electron
+  const canvas = document.getElementById('mapCanvas');
+  const ctx = canvas.getContext('2d');
+
+  // Grid settings
+  const GRID_SIZE = 20;
+  const GRID_COLS = 40;
+  const GRID_ROWS = 30;
+
+  // Multi-area support
+  let areas = [
+    { name: 'Area 1', rooms: [], revealedRoomIds: [] }
+  ];
+  let currentAreaIndex = 0;
+
+  // Current area's rooms (for convenience)
+  let rooms = [];
+
+  // Map symbols state (must be before saveUndoState)
+  let mapSymbols = []; // Array of {type, x, y}
+  let placingSymbol = null;
+  let draggingSymbolIndex = -1;
+  let paintingSymbol = false; // For drag-painting terrain
+  let lastPaintedCell = null; // Track last cell to avoid duplicates
+
+  // Generation settings (from modal)
+  let genSettings = {
+    genType: 'rooms',
+    theme: 'classic',
+    level: 1,
+    minRooms: 8,
+    maxRooms: 15,
+    minSize: 3,
+    maxSize: 7,
+    hasEntrance: true,
+    hasBoss: true,
+    hasTreasure: true
+  };
+
+  // Undo/Redo state (must be before generateDungeon)
+  let undoStack = [];
+  let redoStack = [];
+  const MAX_UNDO = 50;
+  let showGrid = true;
+
+  // *** CRITICAL: These MUST be declared before saveUndoState() ***
+  // Fog of war state
+  let fogGrid = []; // Grid-based fog tracking
+  let revealedRoomIds = [];
+
+  // Token state (must be before saveUndoState)
+  let tokens = []; // Array of {id, type: 'player'|'creature', name, x, y, color}
+
+  // Save current state for undo
+  function saveUndoState() {
+    const state = {
+      rooms: JSON.parse(JSON.stringify(rooms)),
+      tokens: JSON.parse(JSON.stringify(tokens)),
+      mapSymbols: JSON.parse(JSON.stringify(mapSymbols)),
+      fogGrid: JSON.parse(JSON.stringify(fogGrid)),
+      revealedRoomIds: [...revealedRoomIds]
+    };
+    undoStack.push(state);
+    if (undoStack.length > MAX_UNDO) undoStack.shift();
+    redoStack = []; // Clear redo on new action
+  }
+
+  // Helper to sync rooms with current area
+  function syncCurrentArea() {
+    areas[currentAreaIndex].rooms = rooms;
+    areas[currentAreaIndex].revealedRoomIds = revealedRoomIds;
+  }
+
+  function loadCurrentArea() {
+    rooms = areas[currentAreaIndex].rooms;
+    revealedRoomIds = areas[currentAreaIndex].revealedRoomIds;
+  }
+
+  // Simple random int
+  function randInt(min, max) {
+    return Math.floor(Math.random() * (max - min + 1)) + min;
+  }
+
+  // Generate dungeon
+  function generateDungeon() {
+    saveUndoState(); // Save state before generating
+
+    // Check generation type
+    if (genSettings.genType === 'cave') {
+      generateCaveDungeon();
+      return;
+    }
+
+    if (genSettings.genType === 'rotjs') {
+      generateROTjsDungeon();
+      return;
+    }
+
+    if (genSettings.genType === 'themed') {
+      generateThemedDungeon();
+      return;
+    }
+
+    if (genSettings.genType === 'prebaked') {
+      generatePrebakedDungeon();
+      return;
+    }
+
+    const roomCount = randInt(genSettings.minRooms, genSettings.maxRooms);
+    const minSize = genSettings.minSize;
+    const maxSize = genSettings.maxSize;
+
+    rooms = [];
+    let id = 1;
+    let attempts = 0;
+
+    while (rooms.length < roomCount && attempts < 200) {
+      const w = randInt(minSize, maxSize);
+      const h = randInt(minSize, maxSize);
+      const x = randInt(1, GRID_COLS - w - 1);
+      const y = randInt(1, GRID_ROWS - h - 1);
+
+      let overlaps = false;
+      for (const r of rooms) {
+        if (x < r.x + r.w + 1 && x + w + 1 > r.x &&
+            y < r.y + r.h + 1 && y + h + 1 > r.y) {
+          overlaps = true;
+          break;
+        }
+      }
+
+      if (!overlaps) {
+        let type = 'normal';
+        if (rooms.length === 0 && genSettings.hasEntrance) type = 'entrance';
+        else if (rooms.length === roomCount - 1 && genSettings.hasBoss) type = 'boss';
+        else if (rooms.length === Math.floor(roomCount / 2) && genSettings.hasTreasure) type = 'treasure';
+        else if (Math.random() < 0.1) type = 'trap';
+        else if (Math.random() < 0.05) type = 'secret';
+
+        // Add irregular shape data for some rooms
+        const shape = generateRoomShape(w, h);
+
+        const room = { id: id++, x, y, w, h, type, description: '', shape };
+        // Generate rich content using the D&D tables
+        room.description = generateRoomContent(room, genSettings.theme, genSettings.level);
+        rooms.push(room);
+      }
+      attempts++;
+    }
+
+    renderMap();
+  }
+
+  // Cave generation using cellular automata
+  function generateCaveDungeon() {
+    rooms = [];
+    const caveGrid = [];
+
+    // Initialize with random noise
+    for (let y = 0; y < GRID_ROWS; y++) {
+      caveGrid[y] = [];
+      for (let x = 0; x < GRID_COLS; x++) {
+        // 45% chance of being open space initially
+        caveGrid[y][x] = Math.random() < 0.45 ? 1 : 0;
+        // Border is always wall
+        if (x === 0 || x === GRID_COLS - 1 || y === 0 || y === GRID_ROWS - 1) {
+          caveGrid[y][x] = 0;
+        }
+      }
+    }
+
+    // Apply cellular automata rules (4 iterations)
+    for (let iter = 0; iter < 4; iter++) {
+      const newGrid = [];
+      for (let y = 0; y < GRID_ROWS; y++) {
+        newGrid[y] = [];
+        for (let x = 0; x < GRID_COLS; x++) {
+          const neighbors = countNeighbors(caveGrid, x, y);
+          // Birth: dead cell with >=5 neighbors becomes alive
+          // Death: alive cell with <4 neighbors dies
+          if (caveGrid[y][x] === 0) {
+            newGrid[y][x] = neighbors >= 5 ? 1 : 0;
+          } else {
+            newGrid[y][x] = neighbors >= 4 ? 1 : 0;
+          }
+        }
+      }
+      for (let y = 0; y < GRID_ROWS; y++) {
+        for (let x = 0; x < GRID_COLS; x++) {
+          caveGrid[y][x] = newGrid[y][x];
+        }
+      }
+    }
+
+    // Find contiguous cave regions and create rooms from them
+    const visited = [];
+    for (let y = 0; y < GRID_ROWS; y++) {
+      visited[y] = new Array(GRID_COLS).fill(false);
+    }
+
+    let roomId = 1;
+    for (let y = 1; y < GRID_ROWS - 1; y++) {
+      for (let x = 1; x < GRID_COLS - 1; x++) {
+        if (caveGrid[y][x] === 1 && !visited[y][x]) {
+          // Flood fill to find cave region
+          const region = floodFill(caveGrid, visited, x, y);
+          if (region.length >= 4) { // Minimum size
+            // Create a room from this region
+            const bounds = getRegionBounds(region);
+            let type = 'normal';
+            if (roomId === 1 && genSettings.hasEntrance) type = 'entrance';
+            else if (Math.random() < 0.1) type = 'trap';
+            else if (Math.random() < 0.1) type = 'treasure';
+
+            const room = {
+              id: roomId++,
+              x: bounds.minX,
+              y: bounds.minY,
+              w: bounds.maxX - bounds.minX + 1,
+              h: bounds.maxY - bounds.minY + 1,
+              type: type,
+              description: '',
+              shape: { type: 'cave', cells: region },
+              isCave: true
+            };
+            room.description = generateRoomContent(room, genSettings.theme, genSettings.level);
+            rooms.push(room);
+
+            if (rooms.length >= genSettings.maxRooms) break;
+          }
+        }
+      }
+      if (rooms.length >= genSettings.maxRooms) break;
+    }
+
+    // Mark last room as boss if needed
+    if (rooms.length > 0 && genSettings.hasBoss) {
+      rooms[rooms.length - 1].type = 'boss';
+    }
+
+    renderMap();
+  }
+
+  function countNeighbors(grid, x, y) {
+    let count = 0;
+    for (let dy = -1; dy <= 1; dy++) {
+      for (let dx = -1; dx <= 1; dx++) {
+        if (dx === 0 && dy === 0) continue;
+        const nx = x + dx;
+        const ny = y + dy;
+        if (nx >= 0 && nx < GRID_COLS && ny >= 0 && ny < GRID_ROWS) {
+          count += grid[ny][nx];
+        }
+      }
+    }
+    return count;
+  }
+
+  function floodFill(grid, visited, startX, startY) {
+    const region = [];
+    const queue = [{ x: startX, y: startY }];
+    visited[startY][startX] = true;
+
+    while (queue.length > 0) {
+      const { x, y } = queue.shift();
+      region.push({ x, y });
+
+      // Check 4 neighbors
+      const dirs = [[0, -1], [0, 1], [-1, 0], [1, 0]];
+      for (const [dx, dy] of dirs) {
+        const nx = x + dx;
+        const ny = y + dy;
+        if (nx >= 0 && nx < GRID_COLS && ny >= 0 && ny < GRID_ROWS &&
+            grid[ny][nx] === 1 && !visited[ny][nx]) {
+          visited[ny][nx] = true;
+          queue.push({ x: nx, y: ny });
+        }
+      }
+    }
+    return region;
+  }
+
+  function getRegionBounds(region) {
+    let minX = Infinity, maxX = -Infinity;
+    let minY = Infinity, maxY = -Infinity;
+    for (const cell of region) {
+      minX = Math.min(minX, cell.x);
+      maxX = Math.max(maxX, cell.x);
+      minY = Math.min(minY, cell.y);
+      maxY = Math.max(maxY, cell.y);
+    }
+    return { minX, maxX, minY, maxY };
+  }
+
+  // ROT.js Digger dungeon generation (professional grade)
+  function generateROTjsDungeon() {
+    // Check if ROT.js is available
+    if (typeof ROT === 'undefined') {
+      showStatus('ROT.js not loaded - using regular generation instead');
+      genSettings.genType = 'rooms';
+      generateDungeon();
+      return;
+    }
+
+    rooms = [];
+    mapSymbols = []; // Clear symbols for new dungeon
+
+    // Use ROT.js Digger for professional dungeon layout
+    const digger = new ROT.Map.Digger(GRID_COLS, GRID_ROWS, {
+      roomWidth: [genSettings.minSize, genSettings.maxSize],
+      roomHeight: [genSettings.minSize, genSettings.maxSize],
+      corridorLength: [2, 8],
+      dugPercentage: 0.3,
+      timeLimit: 2000
+    });
+
+    // Generate the dungeon
+    const dungeonMap = [];
+    for (let x = 0; x < GRID_COLS; x++) {
+      dungeonMap[x] = [];
+      for (let y = 0; y < GRID_ROWS; y++) {
+        dungeonMap[x][y] = 1; // Start with walls
+      }
+    }
+
+    digger.create((x, y, value) => {
+      dungeonMap[x][y] = value; // 0 = floor, 1 = wall
+    });
+
+    // Extract rooms from ROT.js
+    const rotRooms = digger.getRooms();
+    let roomId = 1;
+
+    rotRooms.forEach((rotRoom, index) => {
+      const left = rotRoom.getLeft();
+      const top = rotRoom.getTop();
+      const right = rotRoom.getRight();
+      const bottom = rotRoom.getBottom();
+
+      let type = 'normal';
+      if (index === 0 && genSettings.hasEntrance) type = 'entrance';
+      else if (index === rotRooms.length - 1 && genSettings.hasBoss) type = 'boss';
+      else if (index === Math.floor(rotRooms.length / 2) && genSettings.hasTreasure) type = 'treasure';
+      else if (Math.random() < 0.1) type = 'trap';
+      else if (Math.random() < 0.05) type = 'secret';
+
+      const room = {
+        id: roomId++,
+        x: left,
+        y: top,
+        w: right - left + 1,
+        h: bottom - top + 1,
+        type: type,
+        description: '',
+        shape: { type: 'rect' }
+      };
+
+      room.description = generateRoomContent(room, genSettings.theme, genSettings.level);
+      rooms.push(room);
+
+      // Add door symbols where ROT.js placed doors
+      rotRoom.getDoors((doorX, doorY) => {
+        mapSymbols.push({ type: 'door', x: doorX, y: doorY });
+      });
+    });
+
+    // Extract corridors for visualization
+    const corridors = digger.getCorridors();
+    corridors.forEach(corridor => {
+      // Corridors are already carved into dungeonMap
+      // We could add special corridor symbols here if needed
+    });
+
+    renderMap();
+    showStatus(`Generated ${rooms.length} rooms using ROT.js Digger (professional algorithm)`);
+  }
+
+  // Themed dungeon generation using templates
+  function generateThemedDungeon() {
+    const scenario = document.getElementById('optScenario').value;
+    const naturalLang = document.getElementById('optNaturalLang').value.toLowerCase();
+
+    rooms = [];
+    mapSymbols = [];
+
+    // Define template combinations for each scenario
+    const scenarioTemplates = {
+      'goblin-lair': ['prison-cells', 'guard-barracks', 'treasure-vault', 'bandit-camp'],
+      'haunted-castle': ['throne-room', 'crypt', 'graveyard', 'great-hall', 'bell-tower'],
+      'dragon-den': ['treasure-vault', 'underground-lake', 'mountain-pass', 'ancient-ruins'],
+      'bandit-hideout': ['bandit-camp', 'stable', 'armory', 'prison-cells'],
+      'dwarven-ruins': ['mine-shaft', 'treasure-vault', 'blacksmith', 'armory', 'great-hall'],
+      'underdark-outpost': ['spider-nest', 'mushroom-cavern', 'underground-lake', 'alchemy-lab'],
+      'abandoned-mine': ['mine-shaft', 'underground-lake', 'treasure-vault', 'sewer-junction'],
+      'sewer-network': ['sewer-junction', 'prison-cells', 'apothecary', 'underground-lake'],
+      'wizard-tower': ['wizard-tower', 'alchemy-lab', 'library', 'treasure-vault'],
+      'temple-evil': ['cathedral', 'crypt', 'torture-chamber', 'graveyard', 'shrine'],
+      'fey-crossing': ['druid-grove', 'forest-clearing', 'shrine', 'river-crossing'],
+      'necromancer-lair': ['crypt', 'graveyard', 'alchemy-lab', 'torture-chamber', 'library'],
+      'forest-ruins': ['ancient-ruins', 'forest-clearing', 'druid-grove', 'river-crossing'],
+      'mountain-fortress': ['castle-gate', 'tower-top', 'armory', 'war-room', 'great-hall'],
+      'coastal-caves': ['underground-lake', 'river-crossing', 'treasure-vault', 'bandit-camp'],
+      'druid-sanctuary': ['druid-grove', 'shrine', 'forest-clearing', 'apothecary', 'library']
+    };
+
+    const templates = scenarioTemplates[scenario] || ['tavern', 'guard-barracks', 'crypt'];
+
+    // Parse natural language for modifications
+    let addSpiders = naturalLang.includes('spider') || naturalLang.includes('web');
+    let addWater = naturalLang.includes('flood') || naturalLang.includes('water');
+    let addFire = naturalLang.includes('fire') || naturalLang.includes('fiery');
+    let addPoison = naturalLang.includes('poison') || naturalLang.includes('toxic');
+    let addTraps = naturalLang.includes('trap') || naturalLang.includes('danger');
+
+    // Place 2-4 templates in different areas of the map
+    const numTemplates = Math.min(templates.length, randInt(2, 4));
+    const positions = [
+      { offsetX: 0, offsetY: 0 },
+      { offsetX: 15, offsetY: 0 },
+      { offsetX: 0, offsetY: 12 },
+      { offsetX: 15, offsetY: 12 }
+    ];
+
+    let roomId = 1;
+    for (let i = 0; i < numTemplates; i++) {
+      const templateId = templates[i % templates.length];
+      const template = roomTemplates[templateId];
+      if (!template) continue;
+
+      const pos = positions[i];
+
+      // Add rooms from template with offset
+      template.rooms.forEach(r => {
+        const room = {
+          id: roomId++,
+          x: r.x + pos.offsetX,
+          y: r.y + pos.offsetY,
+          w: r.w,
+          h: r.h,
+          type: r.type || 'normal',
+          description: r.desc || '',
+          shape: { type: 'rect' }
+        };
+        // Keep rooms in bounds
+        if (room.x + room.w < GRID_COLS && room.y + room.h < GRID_ROWS) {
+          rooms.push(room);
+        }
+      });
+
+      // Add symbols from template with offset
+      template.symbols.forEach(s => {
+        const newX = s.x + pos.offsetX;
+        const newY = s.y + pos.offsetY;
+        if (newX < GRID_COLS && newY < GRID_ROWS) {
+          mapSymbols.push({ type: s.type, x: newX, y: newY });
+        }
+      });
+    }
+
+    // Add natural language modifications
+    if (addSpiders) {
+      for (let i = 0; i < 5; i++) {
+        mapSymbols.push({ type: 'trap', x: randInt(5, 35), y: randInt(5, 25) });
+      }
+    }
+    if (addWater) {
+      for (let i = 0; i < 8; i++) {
+        mapSymbols.push({ type: 'water', x: randInt(5, 35), y: randInt(5, 25) });
+      }
+    }
+    if (addFire) {
+      for (let i = 0; i < 4; i++) {
+        mapSymbols.push({ type: 'lava', x: randInt(5, 35), y: randInt(5, 25) });
+      }
+    }
+    if (addPoison) {
+      for (let i = 0; i < 5; i++) {
+        mapSymbols.push({ type: 'poison', x: randInt(5, 35), y: randInt(5, 25) });
+      }
+    }
+    if (addTraps) {
+      for (let i = 0; i < 6; i++) {
+        mapSymbols.push({ type: 'trap', x: randInt(5, 35), y: randInt(5, 25) });
+      }
+    }
+
+    renderMap();
+    showStatus(`Generated themed dungeon: ${scenario.replace(/-/g, ' ')} with ${rooms.length} rooms`);
+  }
+
+  // Pre-baked dungeon generation (complete adventures)
+  function generatePrebakedDungeon() {
+    const adventure = document.getElementById('optPrebaked').value;
+
+    rooms = [];
+    mapSymbols = [];
+
+    // Define complete adventure layouts
+    const adventures = {
+      'lost-mine': {
+        rooms: [
+          { id: 1, x: 2, y: 2, w: 6, h: 4, type: 'entrance', desc: 'Mine Entrance' },
+          { id: 2, x: 10, y: 3, w: 8, h: 6, type: 'normal', desc: 'Main Cavern' },
+          { id: 3, x: 20, y: 2, w: 5, h: 5, type: 'normal', desc: 'Guard Post' },
+          { id: 4, x: 27, y: 3, w: 7, h: 8, type: 'boss', desc: 'Spider Queen Lair' },
+          { id: 5, x: 10, y: 12, w: 6, h: 5, type: 'normal', desc: 'Storage Chamber' },
+          { id: 6, x: 18, y: 14, w: 8, h: 6, type: 'treasure', desc: 'Wave Echo Cave' },
+          { id: 7, x: 28, y: 15, w: 6, h: 6, type: 'normal', desc: 'Forge of Spells' },
+          { id: 8, x: 3, y: 16, w: 5, h: 5, type: 'normal', desc: 'Collapsed Tunnel' }
+        ],
+        symbols: [
+          { type: 'door', x: 7, y: 4 }, { type: 'door', x: 17, y: 5 },
+          { type: 'trap', x: 22, y: 4 }, { type: 'trap', x: 29, y: 6 },
+          { type: 'chest', x: 30, y: 8 }, { type: 'chest', x: 31, y: 8 },
+          { type: 'stairs-down', x: 12, y: 14 },
+          { type: 'chest', x: 20, y: 16 }, { type: 'chest', x: 22, y: 16 },
+          { type: 'lava', x: 29, y: 17 }, { type: 'lava', x: 30, y: 17 }
+        ]
+      },
+      'death-house': {
+        rooms: [
+          { id: 1, x: 12, y: 2, w: 8, h: 6, type: 'entrance', desc: 'Entry Hall' },
+          { id: 2, x: 8, y: 9, w: 6, h: 5, type: 'normal', desc: 'Dining Room' },
+          { id: 3, x: 16, y: 9, w: 6, h: 5, type: 'normal', desc: 'Kitchen' },
+          { id: 4, x: 12, y: 16, w: 8, h: 6, type: 'normal', desc: 'Hidden Basement' },
+          { id: 5, x: 10, y: 24, w: 12, h: 4, type: 'boss', desc: 'Ritual Chamber' },
+          { id: 6, x: 24, y: 10, w: 5, h: 8, type: 'normal', desc: 'Secret Passage' },
+          { id: 7, x: 2, y: 10, w: 5, h: 8, type: 'treasure', desc: 'Hidden Vault' }
+        ],
+        symbols: [
+          { type: 'door', x: 15, y: 7 }, { type: 'stairs-down', x: 15, y: 14 },
+          { type: 'trap', x: 14, y: 18 }, { type: 'trap', x: 16, y: 18 },
+          { type: 'chest', x: 3, y: 12 }, { type: 'chest', x: 4, y: 12 },
+          { type: 'pillar', x: 12, y: 25 }, { type: 'pillar', x: 19, y: 25 }
+        ]
+      },
+      'cragmaw-hideout': {
+        rooms: [
+          { id: 1, x: 2, y: 12, w: 6, h: 4, type: 'entrance', desc: 'Cave Mouth' },
+          { id: 2, x: 10, y: 10, w: 8, h: 8, type: 'normal', desc: 'Kennel' },
+          { id: 3, x: 20, y: 8, w: 7, h: 6, type: 'normal', desc: 'Goblin Den' },
+          { id: 4, x: 20, y: 16, w: 8, h: 6, type: 'boss', desc: "Klarg's Cave" },
+          { id: 5, x: 30, y: 10, w: 6, h: 8, type: 'treasure', desc: 'Supply Storage' },
+          { id: 6, x: 10, y: 20, w: 6, h: 5, type: 'normal', desc: 'Bridge Room' }
+        ],
+        symbols: [
+          { type: 'water', x: 12, y: 12 }, { type: 'water', x: 13, y: 12 },
+          { type: 'water', x: 14, y: 12 }, { type: 'water', x: 12, y: 13 },
+          { type: 'trap', x: 22, y: 10 }, { type: 'chest', x: 25, y: 18 },
+          { type: 'chest', x: 31, y: 12 }, { type: 'chest', x: 32, y: 12 },
+          { type: 'bridge', x: 12, y: 21 }
+        ]
+      },
+      'sunless-citadel': {
+        rooms: [
+          { id: 1, x: 15, y: 2, w: 6, h: 4, type: 'entrance', desc: 'Ravine Entrance' },
+          { id: 2, x: 12, y: 8, w: 12, h: 8, type: 'normal', desc: 'Citadel Courtyard' },
+          { id: 3, x: 6, y: 10, w: 5, h: 6, type: 'normal', desc: 'Goblin Territory' },
+          { id: 4, x: 26, y: 10, w: 5, h: 6, type: 'normal', desc: 'Kobold Territory' },
+          { id: 5, x: 14, y: 18, w: 8, h: 6, type: 'boss', desc: 'Gulthias Tree' },
+          { id: 6, x: 8, y: 20, w: 5, h: 4, type: 'treasure', desc: 'Dragon Shrine' },
+          { id: 7, x: 24, y: 20, w: 5, h: 4, type: 'normal', desc: 'Twilight Grove' }
+        ],
+        symbols: [
+          { type: 'stairs-down', x: 17, y: 5 },
+          { type: 'pillar', x: 14, y: 10 }, { type: 'pillar', x: 21, y: 10 },
+          { type: 'forest', x: 16, y: 20 }, { type: 'forest', x: 18, y: 20 },
+          { type: 'poison', x: 15, y: 21 }, { type: 'poison', x: 17, y: 21 },
+          { type: 'chest', x: 9, y: 21 }, { type: 'trap', x: 25, y: 21 }
+        ]
+      },
+      'thundertree': {
+        rooms: [
+          { id: 1, x: 2, y: 5, w: 8, h: 6, type: 'normal', desc: 'Ruined Tavern' },
+          { id: 2, x: 12, y: 3, w: 6, h: 5, type: 'normal', desc: 'Herb Shop' },
+          { id: 3, x: 20, y: 4, w: 7, h: 7, type: 'normal', desc: 'Town Square' },
+          { id: 4, x: 30, y: 5, w: 6, h: 8, type: 'boss', desc: 'Dragon Tower' },
+          { id: 5, x: 5, y: 14, w: 6, h: 5, type: 'normal', desc: 'Cultist House' },
+          { id: 6, x: 14, y: 12, w: 8, h: 6, type: 'treasure', desc: 'Druid Refuge' },
+          { id: 7, x: 24, y: 15, w: 7, h: 6, type: 'normal', desc: 'Blighted Cottages' }
+        ],
+        symbols: [
+          { type: 'forest', x: 10, y: 8 }, { type: 'forest', x: 18, y: 9 },
+          { type: 'forest', x: 28, y: 12 }, { type: 'poison', x: 26, y: 17 },
+          { type: 'chest', x: 16, y: 14 }, { type: 'lava', x: 32, y: 8 },
+          { type: 'trap', x: 6, y: 15 }, { type: 'pillar', x: 32, y: 10 }
+        ]
+      },
+      'wave-echo': {
+        rooms: [
+          { id: 1, x: 2, y: 12, w: 6, h: 5, type: 'entrance', desc: 'Cave Entrance' },
+          { id: 2, x: 10, y: 8, w: 10, h: 10, type: 'normal', desc: 'Cavern of Echoes' },
+          { id: 3, x: 22, y: 6, w: 8, h: 6, type: 'normal', desc: 'Smelter Cavern' },
+          { id: 4, x: 22, y: 14, w: 8, h: 8, type: 'boss', desc: "Black Spider's Lair" },
+          { id: 5, x: 32, y: 10, w: 6, h: 8, type: 'treasure', desc: 'Forge of Spells' },
+          { id: 6, x: 10, y: 20, w: 8, h: 5, type: 'normal', desc: 'Fungus Cavern' },
+          { id: 7, x: 20, y: 24, w: 10, h: 4, type: 'normal', desc: 'Wave Echo Cave' }
+        ],
+        symbols: [
+          { type: 'water', x: 12, y: 10 }, { type: 'water', x: 14, y: 12 },
+          { type: 'water', x: 16, y: 11 }, { type: 'lava', x: 24, y: 8 },
+          { type: 'lava', x: 26, y: 9 }, { type: 'trap', x: 24, y: 16 },
+          { type: 'chest', x: 34, y: 12 }, { type: 'chest', x: 35, y: 12 },
+          { type: 'poison', x: 12, y: 22 }, { type: 'pillar', x: 33, y: 14 }
+        ]
+      },
+      'tresendar-manor': {
+        rooms: [
+          { id: 1, x: 10, y: 4, w: 12, h: 8, type: 'entrance', desc: 'Manor Hall' },
+          { id: 2, x: 4, y: 6, w: 5, h: 6, type: 'normal', desc: 'West Wing' },
+          { id: 3, x: 24, y: 6, w: 5, h: 6, type: 'normal', desc: 'East Wing' },
+          { id: 4, x: 12, y: 14, w: 8, h: 6, type: 'normal', desc: 'Basement' },
+          { id: 5, x: 6, y: 16, w: 5, h: 5, type: 'normal', desc: 'Crypt' },
+          { id: 6, x: 22, y: 16, w: 5, h: 5, type: 'treasure', desc: 'Redbrand Stash' },
+          { id: 7, x: 14, y: 22, w: 6, h: 4, type: 'boss', desc: "Glasstaff's Quarters" }
+        ],
+        symbols: [
+          { type: 'door', x: 15, y: 11 }, { type: 'stairs-down', x: 15, y: 13 },
+          { type: 'chest', x: 5, y: 8 }, { type: 'chest', x: 25, y: 8 },
+          { type: 'trap', x: 14, y: 16 }, { type: 'chest', x: 23, y: 18 },
+          { type: 'pillar', x: 7, y: 17 }, { type: 'pillar', x: 8, y: 17 }
+        ]
+      },
+      'orc-stronghold': {
+        rooms: [
+          { id: 1, x: 4, y: 10, w: 8, h: 6, type: 'entrance', desc: 'Stronghold Gate' },
+          { id: 2, x: 14, y: 8, w: 10, h: 10, type: 'normal', desc: 'War Camp' },
+          { id: 3, x: 26, y: 6, w: 8, h: 6, type: 'normal', desc: 'Barracks' },
+          { id: 4, x: 26, y: 14, w: 8, h: 8, type: 'boss', desc: 'Warchief Throne' },
+          { id: 5, x: 14, y: 20, w: 8, h: 5, type: 'treasure', desc: 'Plunder Hoard' },
+          { id: 6, x: 4, y: 18, w: 6, h: 6, type: 'normal', desc: 'Prisoner Pit' },
+          { id: 7, x: 24, y: 24, w: 6, h: 4, type: 'normal', desc: 'Shaman Hut' }
+        ],
+        symbols: [
+          { type: 'door', x: 11, y: 12 }, { type: 'trap', x: 16, y: 12 },
+          { type: 'lava', x: 18, y: 14 }, { type: 'lava', x: 20, y: 14 },
+          { type: 'chest', x: 28, y: 8 }, { type: 'chest', x: 16, y: 22 },
+          { type: 'chest', x: 18, y: 22 }, { type: 'pillar', x: 28, y: 16 },
+          { type: 'pillar', x: 31, y: 16 }, { type: 'trap', x: 5, y: 20 }
+        ]
+      }
+    };
+
+    const selectedAdventure = adventures[adventure];
+    if (!selectedAdventure) {
+      showStatus('Adventure not found - using default');
+      return;
+    }
+
+    // Copy rooms
+    selectedAdventure.rooms.forEach(r => {
+      rooms.push({
+        id: r.id,
+        x: r.x,
+        y: r.y,
+        w: r.w,
+        h: r.h,
+        type: r.type,
+        description: r.desc,
+        shape: { type: 'rect' }
+      });
+    });
+
+    // Copy symbols
+    selectedAdventure.symbols.forEach(s => {
+      mapSymbols.push({ type: s.type, x: s.x, y: s.y });
+    });
+
+    renderMap();
+    updateRoomList();
+    showStatus(`Generated pre-built adventure: ${adventure.replace(/-/g, ' ')} with ${rooms.length} rooms`);
+  }
+
+  // Generate irregular room shapes (L-shapes, alcoves, etc.)
+  function generateRoomShape(w, h) {
+    const shapeType = Math.random();
+
+    if (w >= 4 && h >= 4 && shapeType < 0.3) {
+      // L-shaped room
+      const cutW = randInt(1, Math.floor(w / 2));
+      const cutH = randInt(1, Math.floor(h / 2));
+      const corner = ['nw', 'ne', 'sw', 'se'][randInt(0, 3)];
+      return { type: 'L', cutW, cutH, corner };
+    } else if (w >= 5 && h >= 5 && shapeType < 0.5) {
+      // Room with alcove
+      const alcoveW = randInt(1, 2);
+      const alcoveH = randInt(1, 2);
+      const side = ['n', 's', 'e', 'w'][randInt(0, 3)];
+      return { type: 'alcove', alcoveW, alcoveH, side };
+    } else {
+      // Standard rectangle
+      return { type: 'rect' };
+    }
+  }
+
+  // === RICH D&D CONTENT TABLES ===
+  const atmosphereByTheme = {
+    classic: [
+      "The air smells of dust and ancient stone",
+      "Cobwebs hang in thick sheets from the ceiling",
+      "Torch sconces line the walls, long since extinguished",
+      "The sound of dripping water echoes in the distance",
+      "Faded murals depict forgotten battles",
+      "Shadows dance in the flickering torchlight",
+      "Old bloodstains mar the flagstones",
+      "Lichen grows in patches along the walls",
+      "Footprints in the dust suggest recent passage",
+      "Rusted iron fixtures hang askew"
+    ],
+    undead: [
+      "The stench of decay fills the air",
+      "Skeletal remains are scattered across the floor",
+      "A deathly chill permeates the chamber",
+      "The walls are carved with necromantic symbols",
+      "Corpse candles flicker with an eerie green light",
+      "Ghostly whispers seem to come from nowhere",
+      "An unnatural silence muffles all sound"
+    ],
+    cavern: [
+      "Water drips steadily from stalactites above",
+      "Bioluminescent fungi cast an eerie glow",
+      "Stalagmites rise from the floor like stone teeth",
+      "Crystal formations catch the light",
+      "The air is cool and humid"
+    ],
+    arcane: [
+      "Magical runes pulse with faint light",
+      "The air crackles with residual energy",
+      "A low hum of magical power vibrates through the floor",
+      "Spectral lights drift near the ceiling",
+      "Reality seems slightly distorted here"
+    ]
+  };
+
+  const roomDressing = {
+    entrance: [
+      "iron torch brackets mounted on either side",
+      "heavy stone door with iron reinforcements",
+      "warning inscriptions carved in ancient script",
+      "discarded equipment from previous explorers"
+    ],
+    treasure: [
+      "gilded display cases with broken glass",
+      "scattered coins and gems on the floor",
+      "complex lock mechanisms on iron chests",
+      "magical detection runes around valuable items"
+    ],
+    boss: [
+      "an ornate throne on a raised dais",
+      "trophy skulls of defeated foes mounted on pikes",
+      "war banners bearing a fearsome sigil",
+      "chains and shackles for prisoners"
+    ],
+    trap: [
+      "pressure plates barely visible in the floor",
+      "suspicious holes in the walls at chest height",
+      "scorch marks suggesting previous activations",
+      "remains of previous victims"
+    ],
+    normal: [
+      "overturned furniture scattered about",
+      "rotting wooden crates stacked haphazardly",
+      "crude bedding made from straw and rags",
+      "a pile of bones in the corner",
+      "fungal growth in damp corners"
+    ],
+    secret: [
+      "a concealed door behind a tapestry",
+      "hidden compartments in the walls",
+      "dust patterns suggesting hidden mechanisms"
+    ]
+  };
+
+  const traps = [
+    { name: "Poison Dart Trap", dc: 12, damage: "1d4 poison" },
+    { name: "Pit Trap", dc: 10, damage: "2d6 bludgeoning" },
+    { name: "Swinging Blade", dc: 14, damage: "2d8 slashing" },
+    { name: "Fire Glyph", dc: 15, damage: "3d6 fire" },
+    { name: "Crossbow Turret", dc: 13, damage: "2d6 piercing" },
+    { name: "Crushing Walls", dc: 16, damage: "4d6 bludgeoning" },
+    { name: "Net Trap", dc: 10, damage: "restrained" },
+    { name: "Acid Spray", dc: 12, damage: "2d6 acid" }
+  ];
+
+  const monstersByCR = {
+    0.25: [
+      { name: "Goblin", ac: 15, hp: 7, attack: "+4", damage: "1d6+2 slashing", xp: 50 },
+      { name: "Kobold", ac: 12, hp: 5, attack: "+4", damage: "1d4+2 piercing", xp: 50 },
+      { name: "Skeleton", ac: 13, hp: 13, attack: "+4", damage: "1d6+2 piercing", xp: 50 },
+      { name: "Zombie", ac: 8, hp: 22, attack: "+3", damage: "1d6+1 bludgeoning", xp: 50 }
+    ],
+    0.5: [
+      { name: "Orc", ac: 13, hp: 15, attack: "+5", damage: "1d12+3 slashing", xp: 100 },
+      { name: "Hobgoblin", ac: 18, hp: 11, attack: "+3", damage: "1d8+1 slashing", xp: 100 },
+      { name: "Shadow", ac: 12, hp: 16, attack: "+4", damage: "2d6+2 necrotic", xp: 100 }
+    ],
+    1: [
+      { name: "Bugbear", ac: 16, hp: 27, attack: "+4", damage: "2d8+2 piercing", xp: 200 },
+      { name: "Ghoul", ac: 12, hp: 22, attack: "+4", damage: "2d6+2 piercing", xp: 200 },
+      { name: "Giant Spider", ac: 14, hp: 26, attack: "+5", damage: "1d8+3 + 2d8 poison", xp: 200 }
+    ],
+    2: [
+      { name: "Ogre", ac: 11, hp: 59, attack: "+6", damage: "2d8+4 bludgeoning", xp: 450 },
+      { name: "Mimic", ac: 12, hp: 58, attack: "+5", damage: "1d8+3 + 1d8 acid", xp: 450 },
+      { name: "Gelatinous Cube", ac: 6, hp: 84, attack: "+4", damage: "3d6 acid", xp: 450 }
+    ],
+    3: [
+      { name: "Owlbear", ac: 13, hp: 59, attack: "+7", damage: "2d8+5 slashing", xp: 700 },
+      { name: "Minotaur", ac: 14, hp: 76, attack: "+6", damage: "2d12+4 slashing", xp: 700 },
+      { name: "Wight", ac: 14, hp: 45, attack: "+4", damage: "1d8+2 + 1d6 necrotic", xp: 700 }
+    ],
+    5: [
+      { name: "Troll", ac: 15, hp: 84, attack: "+7", damage: "2d6+4 slashing", xp: 1800 },
+      { name: "Wraith", ac: 13, hp: 67, attack: "+6", damage: "4d8+3 necrotic", xp: 1800 },
+      { name: "Hill Giant", ac: 13, hp: 105, attack: "+8", damage: "3d8+5 bludgeoning", xp: 1800 }
+    ]
+  };
+
+  const containerTypes = [
+    "locked chest", "stone coffer", "hidden alcove", "iron strongbox",
+    "burial urn", "concealed compartment", "ornate jewelry box"
+  ];
+
+  const magicItemsByRarity = {
+    common: ['Potion of Healing', 'Spell Scroll (cantrip)', 'Potion of Climbing'],
+    uncommon: ['Bag of Holding', '+1 Weapon', 'Boots of Elvenkind', 'Cloak of Protection', 'Wand of Magic Missiles'],
+    rare: ['+2 Weapon', 'Flame Tongue', 'Ring of Spell Storing', 'Wand of Fireballs', 'Boots of Speed']
+  };
+
+  const gemstones = {
+    10: ['Azurite', 'Lapis lazuli', 'Malachite', 'Turquoise'],
+    50: ['Bloodstone', 'Carnelian', 'Moonstone', 'Onyx'],
+    100: ['Amber', 'Amethyst', 'Coral', 'Garnet', 'Pearl'],
+    500: ['Alexandrite', 'Aquamarine', 'Black pearl', 'Topaz']
+  };
+
+  const artObjects = {
+    25: ['Silver ewer', 'Carved bone statuette', 'Small gold bracelet'],
+    250: ['Gold ring with bloodstones', 'Silver necklace with gemstone pendant'],
+    750: ['Silver chalice with moonstones', 'Carved harp of exotic wood']
+  };
+
+  // === TREASURE GENERATOR ===
+  function generateTreasure(cr, coins = true, gems = true, art = true, magic = true) {
+    const treasure = { coins: { cp: 0, sp: 0, ep: 0, gp: 0, pp: 0 }, gems: [], artObjects: [], magicItems: [] };
+
+    if (coins) {
+      if (cr >= 5) {
+        treasure.coins.gp = randInt(10, 100);
+        treasure.coins.pp = randInt(0, 10);
+      } else if (cr >= 2) {
+        treasure.coins.gp = randInt(0, 50);
+        treasure.coins.sp = randInt(0, 100);
+      } else {
+        treasure.coins.sp = randInt(0, 50);
+        treasure.coins.cp = randInt(0, 200);
+      }
+    }
+
+    if (gems && cr >= 2) {
+      const count = cr >= 5 ? randInt(2, 4) : randInt(1, 3);
+      const values = cr >= 5 ? [100, 500] : [10, 50];
+      for (let i = 0; i < count; i++) {
+        const val = values[randInt(0, values.length - 1)];
+        treasure.gems.push({ name: gemstones[val][randInt(0, gemstones[val].length - 1)], value: val });
+      }
+    }
+
+    if (art && cr >= 5) {
+      const values = [25, 250];
+      const val = values[randInt(0, values.length - 1)];
+      treasure.artObjects.push({ name: artObjects[val][randInt(0, artObjects[val].length - 1)], value: val });
+    }
+
+    if (magic && cr >= 5) {
+      const rarity = cr >= 10 ? 'rare' : 'uncommon';
+      treasure.magicItems.push({ name: magicItemsByRarity[rarity][randInt(0, magicItemsByRarity[rarity].length - 1)], rarity });
+    }
+
+    return treasure;
+  }
+
+  function formatTreasureCompact(treasure) {
+    const parts = [];
+    const coinParts = [];
+    if (treasure.coins.pp > 0) coinParts.push(`${treasure.coins.pp}pp`);
+    if (treasure.coins.gp > 0) coinParts.push(`${treasure.coins.gp}gp`);
+    if (treasure.coins.sp > 0) coinParts.push(`${treasure.coins.sp}sp`);
+    if (treasure.coins.cp > 0) coinParts.push(`${treasure.coins.cp}cp`);
+    if (coinParts.length > 0) parts.push(coinParts.join(', '));
+
+    if (treasure.gems.length > 0) {
+      const totalGems = treasure.gems.reduce((sum, g) => sum + g.value, 0);
+      parts.push(`${treasure.gems.length} gems (${totalGems}gp)`);
+    }
+    if (treasure.artObjects.length > 0) {
+      treasure.artObjects.forEach(a => parts.push(`${a.name} (${a.value}gp)`));
+    }
+    treasure.magicItems.forEach(item => parts.push(item.name));
+    return parts.join(', ');
+  }
+
+  // === ROOM CONTENT GENERATOR ===
+  function generateRoomContent(room, theme = 'classic', dungeonLevel = 1) {
+    const widthFt = room.w * 5;
+    const heightFt = room.h * 5;
+    let desc = `${widthFt}x${heightFt}ft.`;
+
+    // Atmosphere
+    const atmos = atmosphereByTheme[theme] || atmosphereByTheme.classic;
+    desc += ` ${atmos[randInt(0, atmos.length - 1)]}.`;
+
+    // Content based on type
+    switch (room.type) {
+      case 'entrance':
+        const entranceDescs = ['Heavy iron doors stand ajar', 'Stairs descend into darkness', 'Ancient stone doors bear worn carvings'];
+        desc += ` ${entranceDescs[randInt(0, entranceDescs.length - 1)]}.`;
+        if (Math.random() < 0.3) {
+          const guards = monstersByCR[0.25];
+          const g = guards[randInt(0, guards.length - 1)];
+          const count = randInt(1, 2);
+          desc += ` ${count} ${g.name}${count > 1 ? 's' : ''} (AC ${g.ac}, HP ${g.hp}, ${g.attack}) stand watch.`;
+        }
+        break;
+
+      case 'treasure':
+        const cr = Math.min(5, dungeonLevel);
+        const treasure = generateTreasure(cr, true, true, true, cr >= 5);
+        const container = containerTypes[randInt(0, containerTypes.length - 1)];
+        desc += ` ${container} contains ${formatTreasureCompact(treasure)}.`;
+        if (Math.random() < 0.4) {
+          const trap = traps[randInt(0, traps.length - 1)];
+          desc += ` TRAPPED: ${trap.name} (DC ${trap.dc}, ${trap.damage}).`;
+        }
+        break;
+
+      case 'trap':
+        const trapRoom = traps[randInt(0, traps.length - 1)];
+        desc += ` ${trapRoom.name} (DC ${trapRoom.dc} to spot/disarm, ${trapRoom.damage}).`;
+        if (roomDressing.trap) {
+          desc += ` ${roomDressing.trap[randInt(0, roomDressing.trap.length - 1)]}.`;
+        }
+        break;
+
+      case 'boss':
+        const bossMonsters = monstersByCR[Math.min(5, dungeonLevel + 2)] || monstersByCR[3];
+        const boss = bossMonsters[randInt(0, bossMonsters.length - 1)];
+        desc += ` ${boss.name} (AC ${boss.ac}, HP ${boss.hp}, ${boss.attack}, ${boss.damage}) lairs here.`;
+        const bossTreasure = generateTreasure(dungeonLevel + 3, true, true, true, true);
+        desc += ` Treasure: ${formatTreasureCompact(bossTreasure)}.`;
+        break;
+
+      case 'secret':
+        desc += ` Hidden chamber.`;
+        if (roomDressing.secret) {
+          desc += ` ${roomDressing.secret[randInt(0, roomDressing.secret.length - 1)]}.`;
+        }
+        if (Math.random() < 0.6) {
+          const secretTreasure = generateTreasure(dungeonLevel + 1, true, true, false, false);
+          desc += ` Contains ${formatTreasureCompact(secretTreasure)}.`;
+        }
+        break;
+
+      default: // normal
+        if (roomDressing.normal) {
+          desc += ` ${roomDressing.normal[randInt(0, roomDressing.normal.length - 1)]}.`;
+        }
+        if (Math.random() < 0.5) {
+          const monsters = monstersByCR[Math.min(2, dungeonLevel)] || monstersByCR[0.5];
+          const m = monsters[randInt(0, monsters.length - 1)];
+          const count = randInt(1, 3);
+          desc += ` ${count} ${m.name}${count > 1 ? 's' : ''} (AC ${m.ac}, HP ${m.hp}, ${m.attack}).`;
+        }
+        if (Math.random() < 0.3) {
+          const loot = generateTreasure(dungeonLevel - 1, true, false, false, false);
+          const lootStr = formatTreasureCompact(loot);
+          if (lootStr) desc += ` Contains ${lootStr}.`;
+        }
+        break;
+    }
+
+    return desc;
+  }
+
+  function getRandomDesc() {
+    const descs = [
+      'Cobwebs hang from the ceiling.',
+      'The air smells of dust and decay.',
+      'Water drips from cracks above.',
+      'Old bloodstains mark the floor.',
+      'Faded murals cover the walls.',
+      'Broken furniture lies scattered.',
+      'Strange runes glow faintly.',
+      'The room is eerily silent.'
+    ];
+    return descs[randInt(0, descs.length - 1)];
+  }
+
+  function getRooms() {
+    return rooms;
+  }
+
+  function renderMap() {
+    // Parchment/cream background
+    ctx.fillStyle = '#f5f0e6';
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+    // Draw corridors first
+    if (rooms.length > 1) {
+      drawCorridors();
+    }
+
+    // Draw white room interiors
+    rooms.forEach(room => {
+      if (room.isCave && room.shape && room.shape.type === 'cave') {
+        // Draw cave cells
+        ctx.fillStyle = '#ffffff';
+        room.shape.cells.forEach(cell => {
+          ctx.fillRect(cell.x * GRID_SIZE, cell.y * GRID_SIZE, GRID_SIZE, GRID_SIZE);
+        });
+      } else {
+        const x = room.x * GRID_SIZE;
+        const y = room.y * GRID_SIZE;
+        const w = room.w * GRID_SIZE;
+        const h = room.h * GRID_SIZE;
+        ctx.fillStyle = '#ffffff';
+        ctx.fillRect(x, y, w, h);
+      }
+    });
+
+    // Draw CLEAN Dyson-style edge hatching
+    ctx.strokeStyle = '#000';
+    ctx.lineWidth = 1;
+    rooms.forEach(room => {
+      if (room.isCave && room.shape && room.shape.type === 'cave') {
+        // Draw hatching for cave edges
+        const cells = new Set(room.shape.cells.map(c => `${c.x},${c.y}`));
+        const hatchLen = 12;
+        room.shape.cells.forEach(cell => {
+          const cx = cell.x * GRID_SIZE;
+          const cy = cell.y * GRID_SIZE;
+          // Check each edge for hatching
+          if (!cells.has(`${cell.x},${cell.y - 1}`)) {
+            // Top edge
+            for (let hx = cx + 3; hx < cx + GRID_SIZE; hx += 6) {
+              ctx.beginPath();
+              ctx.moveTo(hx, cy);
+              ctx.lineTo(hx, cy - hatchLen);
+              ctx.stroke();
+            }
+          }
+          if (!cells.has(`${cell.x},${cell.y + 1}`)) {
+            // Bottom edge
+            for (let hx = cx + 3; hx < cx + GRID_SIZE; hx += 6) {
+              ctx.beginPath();
+              ctx.moveTo(hx, cy + GRID_SIZE);
+              ctx.lineTo(hx, cy + GRID_SIZE + hatchLen);
+              ctx.stroke();
+            }
+          }
+          if (!cells.has(`${cell.x - 1},${cell.y}`)) {
+            // Left edge
+            for (let hy = cy + 3; hy < cy + GRID_SIZE; hy += 6) {
+              ctx.beginPath();
+              ctx.moveTo(cx, hy);
+              ctx.lineTo(cx - hatchLen, hy);
+              ctx.stroke();
+            }
+          }
+          if (!cells.has(`${cell.x + 1},${cell.y}`)) {
+            // Right edge
+            for (let hy = cy + 3; hy < cy + GRID_SIZE; hy += 6) {
+              ctx.beginPath();
+              ctx.moveTo(cx + GRID_SIZE, hy);
+              ctx.lineTo(cx + GRID_SIZE + hatchLen, hy);
+              ctx.stroke();
+            }
+          }
+        });
+        // Draw outline for cave cells
+        ctx.lineWidth = 2;
+        room.shape.cells.forEach(cell => {
+          const cx = cell.x * GRID_SIZE;
+          const cy = cell.y * GRID_SIZE;
+          if (!cells.has(`${cell.x},${cell.y - 1}`)) {
+            ctx.beginPath(); ctx.moveTo(cx, cy); ctx.lineTo(cx + GRID_SIZE, cy); ctx.stroke();
+          }
+          if (!cells.has(`${cell.x},${cell.y + 1}`)) {
+            ctx.beginPath(); ctx.moveTo(cx, cy + GRID_SIZE); ctx.lineTo(cx + GRID_SIZE, cy + GRID_SIZE); ctx.stroke();
+          }
+          if (!cells.has(`${cell.x - 1},${cell.y}`)) {
+            ctx.beginPath(); ctx.moveTo(cx, cy); ctx.lineTo(cx, cy + GRID_SIZE); ctx.stroke();
+          }
+          if (!cells.has(`${cell.x + 1},${cell.y}`)) {
+            ctx.beginPath(); ctx.moveTo(cx + GRID_SIZE, cy); ctx.lineTo(cx + GRID_SIZE, cy + GRID_SIZE); ctx.stroke();
+          }
+        });
+        ctx.lineWidth = 1;
+      } else {
+        const x = room.x * GRID_SIZE;
+        const y = room.y * GRID_SIZE;
+        const w = room.w * GRID_SIZE;
+        const h = room.h * GRID_SIZE;
+
+        const hatchLen = 15;
+        const spacing = 6;
+
+        // Top edge - lines going up
+        for (let hx = x + spacing/2; hx < x + w; hx += spacing) {
+          ctx.beginPath();
+          ctx.moveTo(hx, y);
+          ctx.lineTo(hx, y - hatchLen);
+          ctx.stroke();
+        }
+        // Bottom edge - lines going down
+        for (let hx = x + spacing/2; hx < x + w; hx += spacing) {
+          ctx.beginPath();
+          ctx.moveTo(hx, y + h);
+          ctx.lineTo(hx, y + h + hatchLen);
+          ctx.stroke();
+        }
+        // Left edge - lines going left
+        for (let hy = y + spacing/2; hy < y + h; hy += spacing) {
+          ctx.beginPath();
+          ctx.moveTo(x, hy);
+          ctx.lineTo(x - hatchLen, hy);
+          ctx.stroke();
+        }
+        // Right edge - lines going right
+        for (let hy = y + spacing/2; hy < y + h; hy += spacing) {
+          ctx.beginPath();
+          ctx.moveTo(x + w, hy);
+          ctx.lineTo(x + w + hatchLen, hy);
+          ctx.stroke();
+        }
+      }
+    });
+
+    // Draw room outlines and details
+    rooms.forEach(room => {
+      const x = room.x * GRID_SIZE;
+      const y = room.y * GRID_SIZE;
+      const w = room.w * GRID_SIZE;
+      const h = room.h * GRID_SIZE;
+
+      // Thick black outline
+      ctx.strokeStyle = '#000';
+      ctx.lineWidth = 2.5;
+      ctx.strokeRect(x, y, w, h);
+
+      // Room type label
+      if (room.type !== 'normal') {
+        ctx.fillStyle = '#555';
+        ctx.font = 'italic 8px serif';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'top';
+        ctx.fillText(room.type, x + w/2, y + 3);
+      }
+
+      // Room number
+      ctx.fillStyle = '#000';
+      ctx.font = 'bold 16px serif';
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillText(String(room.id), x + w/2, y + h/2);
+
+      // Room label (custom name)
+      if (room.label) {
+        ctx.fillStyle = '#2a5599';
+        ctx.font = 'bold 10px sans-serif';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'bottom';
+        ctx.fillText(room.label, x + w/2, y + h - 3);
+      }
+    });
+
+    // Draw grid overlay if enabled
+    if (showGrid) {
+      ctx.strokeStyle = 'rgba(0, 0, 0, 0.1)';
+      ctx.lineWidth = 0.5;
+      for (let gx = 0; gx <= canvas.width; gx += GRID_SIZE) {
+        ctx.beginPath();
+        ctx.moveTo(gx, 0);
+        ctx.lineTo(gx, canvas.height);
+        ctx.stroke();
+      }
+      for (let gy = 0; gy <= canvas.height; gy += GRID_SIZE) {
+        ctx.beginPath();
+        ctx.moveTo(0, gy);
+        ctx.lineTo(canvas.width, gy);
+        ctx.stroke();
+      }
+    }
+
+    // Draw door markers
+    drawDoors();
+
+    // Draw tokens
+    tokens.forEach(token => {
+      const tokenSize = GRID_SIZE * 0.75;
+      const tx = token.x * GRID_SIZE + GRID_SIZE / 2;
+      const ty = token.y * GRID_SIZE + GRID_SIZE / 2;
+
+      ctx.beginPath();
+      ctx.arc(tx, ty, tokenSize / 2, 0, Math.PI * 2);
+      ctx.fillStyle = token.color;
+      ctx.fill();
+      ctx.strokeStyle = '#000';
+      ctx.lineWidth = 2;
+      ctx.stroke();
+
+      ctx.fillStyle = '#fff';
+      ctx.font = 'bold 10px sans-serif';
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillText(token.name.charAt(0).toUpperCase(), tx, ty);
+    });
+
+    // Draw map symbols
+    ctx.font = '14px sans-serif';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    mapSymbols.forEach(sym => {
+      const sx = sym.x * GRID_SIZE + GRID_SIZE / 2;
+      const sy = sym.y * GRID_SIZE + GRID_SIZE / 2;
+
+      switch (sym.type) {
+        case 'stairs-up':
+          ctx.fillText('⬆️', sx, sy);
+          break;
+        case 'stairs-down':
+          ctx.fillText('⬇️', sx, sy);
+          break;
+        case 'door':
+          ctx.fillText('🚪', sx, sy);
+          break;
+        case 'secret-door':
+          ctx.fillText('🔒', sx, sy);
+          break;
+        case 'trap':
+          ctx.fillText('⚠️', sx, sy);
+          break;
+        case 'chest':
+          ctx.fillText('📦', sx, sy);
+          break;
+        case 'water':
+          ctx.fillStyle = 'rgba(0, 150, 255, 0.4)';
+          ctx.fillRect(sym.x * GRID_SIZE, sym.y * GRID_SIZE, GRID_SIZE, GRID_SIZE);
+          break;
+        case 'pillar':
+          ctx.fillStyle = '#666';
+          ctx.beginPath();
+          ctx.arc(sx, sy, GRID_SIZE / 3, 0, Math.PI * 2);
+          ctx.fill();
+          ctx.strokeStyle = '#000';
+          ctx.lineWidth = 1;
+          ctx.stroke();
+          break;
+        // Terrain symbols
+        case 'castle':
+          ctx.fillText('🏰', sx, sy);
+          break;
+        case 'forest':
+          ctx.fillText('🌲', sx, sy);
+          break;
+        case 'mountain':
+          ctx.fillText('⛰️', sx, sy);
+          break;
+        case 'river':
+          ctx.fillStyle = 'rgba(0, 100, 200, 0.5)';
+          ctx.fillRect(sym.x * GRID_SIZE, sym.y * GRID_SIZE, GRID_SIZE, GRID_SIZE);
+          ctx.fillText('🌊', sx, sy);
+          break;
+        case 'village':
+          ctx.fillText('🏘️', sx, sy);
+          break;
+        case 'bridge':
+          ctx.fillText('🌉', sx, sy);
+          break;
+        case 'road':
+          ctx.fillStyle = 'rgba(139, 119, 101, 0.6)';
+          ctx.fillRect(sym.x * GRID_SIZE + 4, sym.y * GRID_SIZE + 4, GRID_SIZE - 8, GRID_SIZE - 8);
+          break;
+        case 'cave-entrance':
+          ctx.fillText('🕳️', sx, sy);
+          break;
+        // Hazard symbols
+        case 'lava':
+          ctx.fillStyle = 'rgba(255, 69, 0, 0.6)';
+          ctx.fillRect(sym.x * GRID_SIZE, sym.y * GRID_SIZE, GRID_SIZE, GRID_SIZE);
+          ctx.fillText('🔥', sx, sy);
+          break;
+        case 'poison':
+          ctx.fillStyle = 'rgba(0, 255, 0, 0.3)';
+          ctx.fillRect(sym.x * GRID_SIZE, sym.y * GRID_SIZE, GRID_SIZE, GRID_SIZE);
+          ctx.fillText('☠️', sx, sy);
+          break;
+        case 'ice':
+          ctx.fillStyle = 'rgba(173, 216, 230, 0.6)';
+          ctx.fillRect(sym.x * GRID_SIZE, sym.y * GRID_SIZE, GRID_SIZE, GRID_SIZE);
+          ctx.fillText('❄️', sx, sy);
+          break;
+        case 'lightning':
+          ctx.fillText('⚡', sx, sy);
+          break;
+      }
+    });
+  }
+
+  // Draw room interior (white area)
+  function drawRoomInterior(room) {
+    const x = room.x * GRID_SIZE;
+    const y = room.y * GRID_SIZE;
+    const w = room.w * GRID_SIZE;
+    const h = room.h * GRID_SIZE;
+
+    ctx.fillStyle = '#fff';
+
+    if (!room.shape || room.shape.type === 'rect') {
+      ctx.fillRect(x - 2, y - 2, w + 4, h + 4);
+    } else if (room.shape.type === 'L') {
+      // L-shaped room
+      const cutW = room.shape.cutW * GRID_SIZE;
+      const cutH = room.shape.cutH * GRID_SIZE;
+
+      ctx.beginPath();
+      if (room.shape.corner === 'nw') {
+        ctx.moveTo(x + cutW, y - 2);
+        ctx.lineTo(x + w + 2, y - 2);
+        ctx.lineTo(x + w + 2, y + h + 2);
+        ctx.lineTo(x - 2, y + h + 2);
+        ctx.lineTo(x - 2, y + cutH);
+        ctx.lineTo(x + cutW, y + cutH);
+      } else if (room.shape.corner === 'ne') {
+        ctx.moveTo(x - 2, y - 2);
+        ctx.lineTo(x + w - cutW, y - 2);
+        ctx.lineTo(x + w - cutW, y + cutH);
+        ctx.lineTo(x + w + 2, y + cutH);
+        ctx.lineTo(x + w + 2, y + h + 2);
+        ctx.lineTo(x - 2, y + h + 2);
+      } else if (room.shape.corner === 'sw') {
+        ctx.moveTo(x - 2, y - 2);
+        ctx.lineTo(x + w + 2, y - 2);
+        ctx.lineTo(x + w + 2, y + h + 2);
+        ctx.lineTo(x + cutW, y + h + 2);
+        ctx.lineTo(x + cutW, y + h - cutH);
+        ctx.lineTo(x - 2, y + h - cutH);
+      } else { // se
+        ctx.moveTo(x - 2, y - 2);
+        ctx.lineTo(x + w + 2, y - 2);
+        ctx.lineTo(x + w + 2, y + h - cutH);
+        ctx.lineTo(x + w - cutW, y + h - cutH);
+        ctx.lineTo(x + w - cutW, y + h + 2);
+        ctx.lineTo(x - 2, y + h + 2);
+      }
+      ctx.closePath();
+      ctx.fill();
+    } else if (room.shape.type === 'alcove') {
+      // Room with alcove extension
+      ctx.fillRect(x - 2, y - 2, w + 4, h + 4);
+      const alcoveW = room.shape.alcoveW * GRID_SIZE;
+      const alcoveH = room.shape.alcoveH * GRID_SIZE;
+
+      if (room.shape.side === 'n') {
+        ctx.fillRect(x + w/2 - alcoveW/2, y - alcoveH - 2, alcoveW, alcoveH + 4);
+      } else if (room.shape.side === 's') {
+        ctx.fillRect(x + w/2 - alcoveW/2, y + h - 2, alcoveW, alcoveH + 4);
+      } else if (room.shape.side === 'w') {
+        ctx.fillRect(x - alcoveW - 2, y + h/2 - alcoveH/2, alcoveW + 4, alcoveH);
+      } else { // e
+        ctx.fillRect(x + w - 2, y + h/2 - alcoveH/2, alcoveW + 4, alcoveH);
+      }
+    }
+  }
+
+  // Draw room outline
+  function drawRoomOutline(room) {
+    const x = room.x * GRID_SIZE;
+    const y = room.y * GRID_SIZE;
+    const w = room.w * GRID_SIZE;
+    const h = room.h * GRID_SIZE;
+
+    ctx.strokeStyle = '#000';
+    ctx.lineWidth = 3;
+
+    if (!room.shape || room.shape.type === 'rect') {
+      ctx.strokeRect(x, y, w, h);
+    } else if (room.shape.type === 'L') {
+      const cutW = room.shape.cutW * GRID_SIZE;
+      const cutH = room.shape.cutH * GRID_SIZE;
+
+      ctx.beginPath();
+      if (room.shape.corner === 'nw') {
+        ctx.moveTo(x + cutW, y);
+        ctx.lineTo(x + w, y);
+        ctx.lineTo(x + w, y + h);
+        ctx.lineTo(x, y + h);
+        ctx.lineTo(x, y + cutH);
+        ctx.lineTo(x + cutW, y + cutH);
+        ctx.closePath();
+      } else if (room.shape.corner === 'ne') {
+        ctx.moveTo(x, y);
+        ctx.lineTo(x + w - cutW, y);
+        ctx.lineTo(x + w - cutW, y + cutH);
+        ctx.lineTo(x + w, y + cutH);
+        ctx.lineTo(x + w, y + h);
+        ctx.lineTo(x, y + h);
+        ctx.closePath();
+      } else if (room.shape.corner === 'sw') {
+        ctx.moveTo(x, y);
+        ctx.lineTo(x + w, y);
+        ctx.lineTo(x + w, y + h);
+        ctx.lineTo(x + cutW, y + h);
+        ctx.lineTo(x + cutW, y + h - cutH);
+        ctx.lineTo(x, y + h - cutH);
+        ctx.closePath();
+      } else { // se
+        ctx.moveTo(x, y);
+        ctx.lineTo(x + w, y);
+        ctx.lineTo(x + w, y + h - cutH);
+        ctx.lineTo(x + w - cutW, y + h - cutH);
+        ctx.lineTo(x + w - cutW, y + h);
+        ctx.lineTo(x, y + h);
+        ctx.closePath();
+      }
+      ctx.stroke();
+    } else if (room.shape.type === 'alcove') {
+      ctx.strokeRect(x, y, w, h);
+      const alcoveW = room.shape.alcoveW * GRID_SIZE;
+      const alcoveH = room.shape.alcoveH * GRID_SIZE;
+
+      ctx.lineWidth = 2;
+      if (room.shape.side === 'n') {
+        ctx.strokeRect(x + w/2 - alcoveW/2, y - alcoveH, alcoveW, alcoveH);
+      } else if (room.shape.side === 's') {
+        ctx.strokeRect(x + w/2 - alcoveW/2, y + h, alcoveW, alcoveH);
+      } else if (room.shape.side === 'w') {
+        ctx.strokeRect(x - alcoveW, y + h/2 - alcoveH/2, alcoveW, alcoveH);
+      } else { // e
+        ctx.strokeRect(x + w, y + h/2 - alcoveH/2, alcoveW, alcoveH);
+      }
+    }
+  }
+
+  // Dyson Logos style edge-following hatching
+  function drawCrossHatching() {
+    // First fill background with solid dark
+    ctx.fillStyle = '#2a2a2a';
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+    // Then draw edge-perpendicular hatching around each room
+    ctx.strokeStyle = '#000';
+    ctx.lineWidth = 1;
+
+    rooms.forEach(room => {
+      const x = room.x * GRID_SIZE;
+      const y = room.y * GRID_SIZE;
+      const w = room.w * GRID_SIZE;
+      const h = room.h * GRID_SIZE;
+
+      // Draw hatching perpendicular to each edge
+      const hatchLength = 25;
+      const hatchSpacing = 4;
+
+      // Top edge - hatches pointing up
+      for (let hx = x; hx <= x + w; hx += hatchSpacing) {
+        const wobble = (Math.random() - 0.5) * 2;
+        ctx.beginPath();
+        ctx.moveTo(hx + wobble, y);
+        ctx.lineTo(hx + wobble * 0.5, y - hatchLength - Math.random() * 8);
+        ctx.stroke();
+      }
+
+      // Bottom edge - hatches pointing down
+      for (let hx = x; hx <= x + w; hx += hatchSpacing) {
+        const wobble = (Math.random() - 0.5) * 2;
+        ctx.beginPath();
+        ctx.moveTo(hx + wobble, y + h);
+        ctx.lineTo(hx + wobble * 0.5, y + h + hatchLength + Math.random() * 8);
+        ctx.stroke();
+      }
+
+      // Left edge - hatches pointing left
+      for (let hy = y; hy <= y + h; hy += hatchSpacing) {
+        const wobble = (Math.random() - 0.5) * 2;
+        ctx.beginPath();
+        ctx.moveTo(x, hy + wobble);
+        ctx.lineTo(x - hatchLength - Math.random() * 8, hy + wobble * 0.5);
+        ctx.stroke();
+      }
+
+      // Right edge - hatches pointing right
+      for (let hy = y; hy <= y + h; hy += hatchSpacing) {
+        const wobble = (Math.random() - 0.5) * 2;
+        ctx.beginPath();
+        ctx.moveTo(x + w, hy + wobble);
+        ctx.lineTo(x + w + hatchLength + Math.random() * 8, hy + wobble * 0.5);
+        ctx.stroke();
+      }
+    });
+
+    // Add some random stippling/dots for texture
+    ctx.fillStyle = '#000';
+    for (let i = 0; i < 500; i++) {
+      const sx = Math.random() * canvas.width;
+      const sy = Math.random() * canvas.height;
+      // Only stipple in dark areas (not in rooms)
+      let inRoom = false;
+      for (const room of rooms) {
+        const rx = room.x * GRID_SIZE - 5;
+        const ry = room.y * GRID_SIZE - 5;
+        const rw = room.w * GRID_SIZE + 10;
+        const rh = room.h * GRID_SIZE + 10;
+        if (sx >= rx && sx <= rx + rw && sy >= ry && sy <= ry + rh) {
+          inRoom = true;
+          break;
+        }
+      }
+      if (!inRoom) {
+        ctx.fillRect(sx, sy, 1, 1);
+      }
+    }
+  }
+
+  // Draw corridors with proper width
+  function drawCorridors() {
+    const corridorWidth = GRID_SIZE * 2;
+    const hatchLen = 12;
+    const spacing = 6;
+
+    for (let i = 0; i < rooms.length - 1; i++) {
+      const r1 = rooms[i];
+      const r2 = rooms[i + 1];
+      const x1 = (r1.x + r1.w / 2) * GRID_SIZE;
+      const y1 = (r1.y + r1.h / 2) * GRID_SIZE;
+      const x2 = (r2.x + r2.w / 2) * GRID_SIZE;
+      const y2 = (r2.y + r2.h / 2) * GRID_SIZE;
+
+      // Draw white corridor path
+      ctx.fillStyle = '#fff';
+      ctx.strokeStyle = '#000';
+      ctx.lineWidth = 2.5;
+
+      // Horizontal segment
+      const hx1 = Math.min(x1, x2) - corridorWidth/2;
+      const hx2 = Math.max(x1, x2) + corridorWidth/2;
+      ctx.fillRect(hx1, y1 - corridorWidth/2, hx2 - hx1, corridorWidth);
+
+      // Vertical segment
+      const vy1 = Math.min(y1, y2) - corridorWidth/2;
+      const vy2 = Math.max(y1, y2) + corridorWidth/2;
+      ctx.fillRect(x2 - corridorWidth/2, vy1, corridorWidth, vy2 - vy1);
+
+      // Outline corridors
+      ctx.strokeRect(hx1, y1 - corridorWidth/2, hx2 - hx1, corridorWidth);
+      ctx.strokeRect(x2 - corridorWidth/2, vy1, corridorWidth, vy2 - vy1);
+
+      // Add Dyson-style hatching to corridor edges
+      ctx.lineWidth = 1;
+      // Horizontal corridor top edge
+      for (let hx = hx1 + spacing/2; hx < hx2; hx += spacing) {
+        ctx.beginPath();
+        ctx.moveTo(hx, y1 - corridorWidth/2);
+        ctx.lineTo(hx, y1 - corridorWidth/2 - hatchLen);
+        ctx.stroke();
+      }
+      // Horizontal corridor bottom edge
+      for (let hx = hx1 + spacing/2; hx < hx2; hx += spacing) {
+        ctx.beginPath();
+        ctx.moveTo(hx, y1 + corridorWidth/2);
+        ctx.lineTo(hx, y1 + corridorWidth/2 + hatchLen);
+        ctx.stroke();
+      }
+      // Vertical corridor left edge
+      for (let hy = vy1 + spacing/2; hy < vy2; hy += spacing) {
+        ctx.beginPath();
+        ctx.moveTo(x2 - corridorWidth/2, hy);
+        ctx.lineTo(x2 - corridorWidth/2 - hatchLen, hy);
+        ctx.stroke();
+      }
+      // Vertical corridor right edge
+      for (let hy = vy1 + spacing/2; hy < vy2; hy += spacing) {
+        ctx.beginPath();
+        ctx.moveTo(x2 + corridorWidth/2, hy);
+        ctx.lineTo(x2 + corridorWidth/2 + hatchLen, hy);
+        ctx.stroke();
+      }
+    }
+  }
+
+  // Draw room-specific features
+  function drawRoomFeatures(room, x, y, w, h) {
+    ctx.fillStyle = '#000';
+    ctx.strokeStyle = '#000';
+
+    switch (room.type) {
+      case 'entrance':
+        // Draw stairs symbol
+        drawStairs(x + 10, y + h - 30, 20, 20, 'up');
+        // Small label
+        ctx.font = 'italic 8px serif';
+        ctx.fillText('ENTRANCE', x + w/2, y + 12);
+        break;
+
+      case 'treasure':
+        // Draw chest symbol
+        drawChest(x + w - 25, y + 10);
+        // Coins/gems scatter
+        drawTreasureScatter(x + 10, y + 10, 3);
+        break;
+
+      case 'boss':
+        // Throne symbol
+        drawThrone(x + w/2, y + 15);
+        // Skull decorations
+        ctx.font = '12px serif';
+        ctx.fillText('☠', x + 8, y + h - 8);
+        ctx.fillText('☠', x + w - 12, y + h - 8);
+        break;
+
+      case 'trap':
+        // Trap symbol (X marks)
+        ctx.font = 'bold 10px serif';
+        ctx.fillStyle = '#c00';
+        ctx.fillText('⚠', x + w/2, y + 12);
+        ctx.fillStyle = '#000';
+        break;
+
+      case 'secret':
+        // Secret door marking
+        ctx.font = 'bold 10px serif';
+        ctx.fillText('S', x + 8, y + 12);
+        // Dotted border
+        ctx.setLineDash([3, 3]);
+        ctx.strokeRect(x + 2, y + 2, w - 4, h - 4);
+        ctx.setLineDash([]);
+        break;
+
+      default:
+        // Normal room - add some pillars for larger rooms
+        if (w > 80 && h > 80) {
+          drawPillar(x + 15, y + 15);
+          drawPillar(x + w - 15, y + 15);
+          drawPillar(x + 15, y + h - 15);
+          drawPillar(x + w - 15, y + h - 15);
+        }
+    }
+  }
+
+  // Helper drawing functions for map symbols
+  function drawStairs(x, y, w, h, direction) {
+    ctx.strokeStyle = '#000';
+    ctx.lineWidth = 1.5;
+    const steps = 4;
+    for (let i = 0; i <= steps; i++) {
+      const stepY = y + (h / steps) * i;
+      ctx.beginPath();
+      ctx.moveTo(x, stepY);
+      ctx.lineTo(x + w, stepY);
+      ctx.stroke();
+    }
+    // Arrow indicator
+    ctx.font = '10px serif';
+    ctx.fillText(direction === 'up' ? '↑' : '↓', x + w + 3, y + h/2);
+  }
+
+  function drawChest(x, y) {
+    ctx.fillStyle = '#000';
+    ctx.fillRect(x, y, 12, 8);
+    ctx.strokeStyle = '#fff';
+    ctx.lineWidth = 1;
+    ctx.strokeRect(x + 1, y + 1, 10, 6);
+    // Lock
+    ctx.fillStyle = '#fff';
+    ctx.fillRect(x + 5, y + 3, 2, 2);
+  }
+
+  function drawTreasureScatter(x, y, count) {
+    ctx.font = '8px serif';
+    for (let i = 0; i < count; i++) {
+      ctx.fillText('●', x + i * 8, y + (i % 2) * 6);
+    }
+  }
+
+  function drawThrone(cx, y) {
+    ctx.fillStyle = '#000';
+    // Seat
+    ctx.fillRect(cx - 8, y, 16, 10);
+    // Back
+    ctx.fillRect(cx - 10, y - 8, 20, 8);
+    // Armrests
+    ctx.fillRect(cx - 12, y, 4, 8);
+    ctx.fillRect(cx + 8, y, 4, 8);
+  }
+
+  function drawPillar(cx, cy) {
+    ctx.fillStyle = '#888';
+    ctx.beginPath();
+    ctx.arc(cx, cy, 4, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.strokeStyle = '#000';
+    ctx.lineWidth = 1;
+    ctx.stroke();
+  }
+
+  function drawDoors() {
+    if (rooms.length < 2) return;
+
+    ctx.fillStyle = '#000';
+    ctx.strokeStyle = '#000';
+    ctx.lineWidth = 2;
+
+    // Add doors at corridor connections
+    for (let i = 0; i < rooms.length - 1; i++) {
+      const r1 = rooms[i];
+      const r2 = rooms[i + 1];
+
+      // Find connection point on r1's edge
+      const x1 = (r1.x + r1.w / 2) * GRID_SIZE;
+      const y1 = (r1.y + r1.h / 2) * GRID_SIZE;
+      const x2 = (r2.x + r2.w / 2) * GRID_SIZE;
+
+      // Door on horizontal corridor
+      const doorX = (x1 + x2) / 2;
+      const doorY = y1;
+
+      // Draw door symbol (rectangle with swing arc)
+      ctx.fillRect(doorX - 5, doorY - 8, 10, 3);
+
+      // Door swing arc
+      ctx.beginPath();
+      ctx.arc(doorX - 5, doorY - 8, 10, 0, Math.PI / 2);
+      ctx.stroke();
+    }
+  }
+
+  // Fog of war state
+  let revealedAreas = []; // Array of {x, y, radius} circles
+  let revealMode = true; // true = reveal, false = hide
+  let brushSize = 50;
+  let isDrawing = false;
+
+  // Track revealed rooms (already declared at top)
+  // revealedRoomIds is declared at top before saveUndoState()
+
+  // Drag state for moving rooms
+  let isDragging = false;
+  let draggedRoomIndex = -1;
+  let dragOffsetX = 0;
+  let dragOffsetY = 0;
+  let editMode = 'fog'; // 'fog', 'move', or 'resize'
+
+  // Resize state
+  let isResizing = false;
+  let resizeRoomIndex = -1;
+  let resizeHandle = ''; // 'nw', 'ne', 'sw', 'se', 'n', 's', 'e', 'w'
+  let resizeStartX = 0;
+  let resizeStartY = 0;
+  let resizeOrigRoom = null;
+
+  // Token state (tokens already declared at top)
+  // tokens is declared at top before saveUndoState()
+  let nextTokenId = 1;
+  let placingToken = null; // 'player' or 'creature' or null
+  let draggingToken = -1;
+  let tokenDragOffsetX = 0;
+  let tokenDragOffsetY = 0;
+  let pendingTokenPlacement = null; // {type, x, y} for modal
+
+  const playerColors = ['#4ecdc4', '#45b7d1', '#96ceb4', '#88d8b0', '#ffeaa7'];
+  const creatureColors = ['#e74c3c', '#c0392b', '#d63031', '#ff7675', '#fab1a0'];
+
+  // Save/Load functionality
+  document.getElementById('saveDungeonBtn').addEventListener('click', () => {
+    const dungeonData = {
+      version: 1,
+      areas: areas,
+      currentAreaIndex: currentAreaIndex,
+      tokens: tokens,
+      mapSymbols: mapSymbols,
+      fogGrid: fogGrid,
+      revealedRoomIds: revealedRoomIds
+    };
+    const blob = new Blob([JSON.stringify(dungeonData, null, 2)], { type: 'application/json' });
+    const link = document.createElement('a');
+    link.download = `dungeon-${Date.now()}.json`;
+    link.href = URL.createObjectURL(blob);
+    link.click();
+    URL.revokeObjectURL(link.href);
+    showStatus('Dungeon saved!');
+  });
+
+  document.getElementById('loadDungeonBtn').addEventListener('click', () => {
+    document.getElementById('loadFileInput').click();
+  });
+
+  document.getElementById('loadFileInput').addEventListener('change', (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = (evt) => {
+      try {
+        const data = JSON.parse(evt.target.result);
+        if (data.areas) areas = data.areas;
+        if (data.currentAreaIndex !== undefined) currentAreaIndex = data.currentAreaIndex;
+        if (data.tokens) tokens = data.tokens;
+        if (data.mapSymbols) mapSymbols = data.mapSymbols;
+        if (data.fogGrid) fogGrid = data.fogGrid;
+        if (data.revealedRoomIds) revealedRoomIds = data.revealedRoomIds;
+
+        // Load current area
+        rooms = areas[currentAreaIndex].rooms;
+        revealedRoomIds = areas[currentAreaIndex].revealedRoomIds || [];
+
+        renderAreaTabs();
+        renderMap();
+        updateRoomList();
+        syncToPlayer();
+        showStatus('Dungeon loaded successfully!');
+      } catch (err) {
+        showStatus('Error loading dungeon file!');
+        console.error(err);
+      }
+    };
+    reader.readAsText(file);
+    e.target.value = ''; // Reset for re-loading same file
+  });
+
+  // Undo/Redo functionality
+  document.getElementById('undoBtn').addEventListener('click', () => {
+    if (undoStack.length === 0) {
+      showStatus('Nothing to undo');
+      return;
+    }
+    // Save current state to redo
+    const currentState = {
+      rooms: JSON.parse(JSON.stringify(rooms)),
+      tokens: JSON.parse(JSON.stringify(tokens)),
+      mapSymbols: JSON.parse(JSON.stringify(mapSymbols)),
+      fogGrid: JSON.parse(JSON.stringify(fogGrid)),
+      revealedRoomIds: [...revealedRoomIds]
+    };
+    redoStack.push(currentState);
+
+    // Restore previous state
+    const prevState = undoStack.pop();
+    rooms = prevState.rooms;
+    tokens = prevState.tokens;
+    mapSymbols = prevState.mapSymbols;
+    fogGrid = prevState.fogGrid;
+    revealedRoomIds = prevState.revealedRoomIds;
+
+    renderMap();
+    updateRoomList();
+    syncToPlayer();
+    showStatus('Undone');
+  });
+
+  document.getElementById('redoBtn').addEventListener('click', () => {
+    if (redoStack.length === 0) {
+      showStatus('Nothing to redo');
+      return;
+    }
+    // Save current state to undo
+    const currentState = {
+      rooms: JSON.parse(JSON.stringify(rooms)),
+      tokens: JSON.parse(JSON.stringify(tokens)),
+      mapSymbols: JSON.parse(JSON.stringify(mapSymbols)),
+      fogGrid: JSON.parse(JSON.stringify(fogGrid)),
+      revealedRoomIds: [...revealedRoomIds]
+    };
+    undoStack.push(currentState);
+
+    // Restore redo state
+    const nextState = redoStack.pop();
+    rooms = nextState.rooms;
+    tokens = nextState.tokens;
+    mapSymbols = nextState.mapSymbols;
+    fogGrid = nextState.fogGrid;
+    revealedRoomIds = nextState.revealedRoomIds;
+
+    renderMap();
+    updateRoomList();
+    syncToPlayer();
+    showStatus('Redone');
+  });
+
+  // Keyboard shortcuts for undo/redo
+  document.addEventListener('keydown', (e) => {
+    if (e.ctrlKey || e.metaKey) {
+      if (e.key === 'z' && !e.shiftKey) {
+        e.preventDefault();
+        document.getElementById('undoBtn').click();
+      } else if ((e.key === 'z' && e.shiftKey) || e.key === 'y') {
+        e.preventDefault();
+        document.getElementById('redoBtn').click();
+      }
+    }
+  });
+
+  // Clear All Symbols button
+  document.getElementById('clearAllSymbolsBtn').addEventListener('click', () => {
+    if (mapSymbols.length === 0) {
+      showStatus('No symbols to clear');
+      return;
+    }
+    saveUndoState();
+    const count = mapSymbols.length;
+    mapSymbols = [];
+    renderMap();
+    showStatus(`Cleared ${count} symbols from the map`);
+  });
+
+  // Room Template Generator
+  const roomTemplates = {
+    'prison-cells': {
+      rooms: [
+        { x: 5, y: 5, w: 3, h: 3, type: 'normal', desc: 'Cell 1' },
+        { x: 9, y: 5, w: 3, h: 3, type: 'normal', desc: 'Cell 2' },
+        { x: 13, y: 5, w: 3, h: 3, type: 'normal', desc: 'Cell 3' },
+        { x: 5, y: 9, w: 3, h: 3, type: 'normal', desc: 'Cell 4' },
+        { x: 9, y: 9, w: 3, h: 3, type: 'normal', desc: 'Cell 5' },
+        { x: 13, y: 9, w: 3, h: 3, type: 'normal', desc: 'Cell 6' },
+        { x: 17, y: 5, w: 6, h: 7, type: 'normal', desc: 'Guard Room' }
+      ],
+      symbols: [
+        { type: 'door', x: 6, y: 7 }, { type: 'door', x: 10, y: 7 }, { type: 'door', x: 14, y: 7 },
+        { type: 'door', x: 6, y: 11 }, { type: 'door', x: 10, y: 11 }, { type: 'door', x: 14, y: 11 }
+      ]
+    },
+    'tavern': {
+      rooms: [
+        { x: 5, y: 5, w: 10, h: 8, type: 'normal', desc: 'Common Room' },
+        { x: 16, y: 5, w: 5, h: 4, type: 'normal', desc: 'Kitchen' },
+        { x: 16, y: 10, w: 5, h: 3, type: 'normal', desc: 'Storage' },
+        { x: 5, y: 14, w: 4, h: 4, type: 'normal', desc: 'Room 1' },
+        { x: 10, y: 14, w: 4, h: 4, type: 'normal', desc: 'Room 2' },
+        { x: 15, y: 14, w: 4, h: 4, type: 'normal', desc: 'Room 3' }
+      ],
+      symbols: [
+        { type: 'door', x: 9, y: 12 }, { type: 'stairs-up', x: 19, y: 14 },
+        { type: 'chest', x: 17, y: 11 }
+      ]
+    },
+    'throne-room': {
+      rooms: [
+        { x: 8, y: 5, w: 14, h: 12, type: 'boss', desc: 'Throne Room' },
+        { x: 5, y: 8, w: 3, h: 6, type: 'normal', desc: 'Antechamber' },
+        { x: 22, y: 8, w: 3, h: 6, type: 'normal', desc: 'Guard Post' }
+      ],
+      symbols: [
+        { type: 'pillar', x: 10, y: 7 }, { type: 'pillar', x: 10, y: 14 },
+        { type: 'pillar', x: 19, y: 7 }, { type: 'pillar', x: 19, y: 14 },
+        { type: 'door', x: 7, y: 10 }, { type: 'door', x: 22, y: 10 },
+        { type: 'chest', x: 14, y: 6 }
+      ]
+    },
+    'crypt': {
+      rooms: [
+        { x: 10, y: 5, w: 10, h: 4, type: 'normal', desc: 'Entry Hall' },
+        { x: 10, y: 10, w: 10, h: 8, type: 'treasure', desc: 'Main Tomb' },
+        { x: 5, y: 10, w: 4, h: 4, type: 'normal', desc: 'Side Tomb 1' },
+        { x: 21, y: 10, w: 4, h: 4, type: 'normal', desc: 'Side Tomb 2' }
+      ],
+      symbols: [
+        { type: 'stairs-down', x: 14, y: 6 }, { type: 'trap', x: 14, y: 13 },
+        { type: 'chest', x: 14, y: 15 }, { type: 'chest', x: 6, y: 12 }, { type: 'chest', x: 22, y: 12 }
+      ]
+    },
+    'blacksmith': {
+      rooms: [
+        { x: 8, y: 8, w: 8, h: 6, type: 'normal', desc: 'Forge Area' },
+        { x: 17, y: 8, w: 5, h: 6, type: 'normal', desc: 'Storage' },
+        { x: 8, y: 15, w: 6, h: 4, type: 'normal', desc: 'Shop Front' }
+      ],
+      symbols: [
+        { type: 'lava', x: 10, y: 10 }, { type: 'lava', x: 11, y: 10 },
+        { type: 'chest', x: 18, y: 10 }, { type: 'chest', x: 19, y: 10 },
+        { type: 'door', x: 10, y: 14 }
+      ]
+    },
+    'sewer-junction': {
+      rooms: [
+        { x: 12, y: 10, w: 6, h: 6, type: 'normal', desc: 'Central Junction' },
+        { x: 5, y: 11, w: 6, h: 4, type: 'normal', desc: 'West Tunnel' },
+        { x: 19, y: 11, w: 6, h: 4, type: 'normal', desc: 'East Tunnel' },
+        { x: 13, y: 5, w: 4, h: 4, type: 'normal', desc: 'North Tunnel' },
+        { x: 13, y: 17, w: 4, h: 4, type: 'normal', desc: 'South Tunnel' }
+      ],
+      symbols: [
+        { type: 'water', x: 14, y: 12 }, { type: 'water', x: 15, y: 12 },
+        { type: 'water', x: 14, y: 13 }, { type: 'water', x: 15, y: 13 },
+        { type: 'poison', x: 7, y: 12 }, { type: 'poison', x: 22, y: 12 }
+      ]
+    },
+    'chapel': {
+      rooms: [
+        { x: 10, y: 5, w: 10, h: 12, type: 'normal', desc: 'Nave' },
+        { x: 12, y: 18, w: 6, h: 4, type: 'normal', desc: 'Altar' }
+      ],
+      symbols: [
+        { type: 'pillar', x: 12, y: 8 }, { type: 'pillar', x: 17, y: 8 },
+        { type: 'pillar', x: 12, y: 12 }, { type: 'pillar', x: 17, y: 12 },
+        { type: 'door', x: 14, y: 16 }
+      ]
+    },
+    'mine-shaft': {
+      rooms: [
+        { x: 5, y: 10, w: 8, h: 4, type: 'normal', desc: 'Mine Entrance' },
+        { x: 14, y: 8, w: 6, h: 8, type: 'normal', desc: 'Mining Chamber' },
+        { x: 21, y: 10, w: 4, h: 4, type: 'treasure', desc: 'Ore Deposit' }
+      ],
+      symbols: [
+        { type: 'stairs-down', x: 7, y: 11 }, { type: 'pillar', x: 16, y: 10 },
+        { type: 'pillar', x: 16, y: 13 }, { type: 'chest', x: 22, y: 11 }
+      ]
+    },
+    'wizard-tower': {
+      rooms: [
+        { x: 12, y: 12, w: 6, h: 6, type: 'normal', desc: 'Ground Floor' },
+        { x: 11, y: 6, w: 8, h: 5, type: 'normal', desc: 'Laboratory' },
+        { x: 13, y: 19, w: 4, h: 3, type: 'treasure', desc: 'Vault' }
+      ],
+      symbols: [
+        { type: 'stairs-up', x: 16, y: 14 }, { type: 'stairs-down', x: 14, y: 19 },
+        { type: 'chest', x: 13, y: 7 }, { type: 'trap', x: 14, y: 20 }
+      ]
+    },
+    'forest-clearing': {
+      rooms: [
+        { x: 10, y: 8, w: 12, h: 10, type: 'normal', desc: 'Clearing' }
+      ],
+      symbols: [
+        { type: 'forest', x: 8, y: 8 }, { type: 'forest', x: 8, y: 12 }, { type: 'forest', x: 8, y: 16 },
+        { type: 'forest', x: 22, y: 8 }, { type: 'forest', x: 22, y: 12 }, { type: 'forest', x: 22, y: 16 },
+        { type: 'forest', x: 12, y: 6 }, { type: 'forest', x: 16, y: 6 }, { type: 'forest', x: 20, y: 6 },
+        { type: 'forest', x: 12, y: 18 }, { type: 'forest', x: 16, y: 18 }, { type: 'forest', x: 20, y: 18 }
+      ]
+    },
+    'river-crossing': {
+      rooms: [
+        { x: 5, y: 10, w: 8, h: 6, type: 'normal', desc: 'West Bank' },
+        { x: 17, y: 10, w: 8, h: 6, type: 'normal', desc: 'East Bank' }
+      ],
+      symbols: [
+        { type: 'river', x: 13, y: 8 }, { type: 'river', x: 14, y: 9 }, { type: 'river', x: 15, y: 10 },
+        { type: 'river', x: 14, y: 11 }, { type: 'river', x: 15, y: 12 }, { type: 'river', x: 14, y: 13 },
+        { type: 'river', x: 15, y: 14 }, { type: 'river', x: 14, y: 15 }, { type: 'river', x: 15, y: 16 },
+        { type: 'bridge', x: 14, y: 12 }
+      ]
+    },
+    'guard-barracks': {
+      rooms: [
+        { x: 5, y: 5, w: 12, h: 8, type: 'normal', desc: 'Sleeping Quarters' },
+        { x: 18, y: 5, w: 6, h: 8, type: 'normal', desc: 'Armory' },
+        { x: 5, y: 14, w: 8, h: 5, type: 'normal', desc: 'Mess Hall' },
+        { x: 14, y: 14, w: 10, h: 5, type: 'normal', desc: 'Training Room' }
+      ],
+      symbols: [
+        { type: 'door', x: 16, y: 8 }, { type: 'door', x: 12, y: 14 },
+        { type: 'chest', x: 20, y: 7 }, { type: 'chest', x: 21, y: 7 }
+      ]
+    },
+    // ========== DUNGEONS & UNDERGROUND ==========
+    'torture-chamber': {
+      rooms: [
+        { x: 8, y: 8, w: 10, h: 10, type: 'boss', desc: 'Torture Chamber' },
+        { x: 5, y: 10, w: 3, h: 6, type: 'normal', desc: 'Tool Storage' },
+        { x: 18, y: 10, w: 4, h: 6, type: 'normal', desc: 'Holding Cell' },
+        { x: 10, y: 19, w: 6, h: 3, type: 'normal', desc: 'Interrogation' }
+      ],
+      symbols: [
+        { type: 'trap', x: 12, y: 12 }, { type: 'trap', x: 14, y: 12 },
+        { type: 'chest', x: 6, y: 12 }, { type: 'door', x: 7, y: 12 },
+        { type: 'door', x: 18, y: 12 }, { type: 'pillar', x: 10, y: 10 },
+        { type: 'pillar', x: 15, y: 10 }
+      ]
+    },
+    'underground-lake': {
+      rooms: [
+        { x: 5, y: 5, w: 20, h: 16, type: 'normal', desc: 'Cavern' },
+        { x: 8, y: 8, w: 14, h: 10, type: 'normal', desc: 'Lake' }
+      ],
+      symbols: [
+        { type: 'water', x: 10, y: 10 }, { type: 'water', x: 11, y: 10 }, { type: 'water', x: 12, y: 10 },
+        { type: 'water', x: 13, y: 10 }, { type: 'water', x: 14, y: 10 }, { type: 'water', x: 15, y: 10 },
+        { type: 'water', x: 10, y: 11 }, { type: 'water', x: 11, y: 11 }, { type: 'water', x: 12, y: 11 },
+        { type: 'water', x: 13, y: 11 }, { type: 'water', x: 14, y: 11 }, { type: 'water', x: 15, y: 11 },
+        { type: 'water', x: 10, y: 12 }, { type: 'water', x: 11, y: 12 }, { type: 'water', x: 12, y: 12 },
+        { type: 'water', x: 13, y: 12 }, { type: 'water', x: 14, y: 12 }, { type: 'water', x: 15, y: 12 },
+        { type: 'water', x: 11, y: 13 }, { type: 'water', x: 12, y: 13 }, { type: 'water', x: 13, y: 13 },
+        { type: 'water', x: 14, y: 13 }, { type: 'water', x: 15, y: 13 },
+        { type: 'chest', x: 19, y: 15 }, { type: 'stairs-down', x: 6, y: 6 }
+      ]
+    },
+    'mushroom-cavern': {
+      rooms: [
+        { x: 6, y: 6, w: 18, h: 14, type: 'normal', desc: 'Mushroom Forest' },
+        { x: 10, y: 21, w: 10, h: 4, type: 'normal', desc: 'Spore Chamber' }
+      ],
+      symbols: [
+        { type: 'forest', x: 8, y: 8 }, { type: 'forest', x: 12, y: 9 }, { type: 'forest', x: 16, y: 8 },
+        { type: 'forest', x: 20, y: 10 }, { type: 'forest', x: 10, y: 12 }, { type: 'forest', x: 14, y: 14 },
+        { type: 'forest', x: 18, y: 13 }, { type: 'forest', x: 8, y: 16 }, { type: 'forest', x: 22, y: 16 },
+        { type: 'poison', x: 12, y: 22 }, { type: 'poison', x: 14, y: 22 }, { type: 'poison', x: 16, y: 22 },
+        { type: 'trap', x: 15, y: 11 }
+      ]
+    },
+    'spider-nest': {
+      rooms: [
+        { x: 10, y: 8, w: 12, h: 12, type: 'boss', desc: 'Spider Queen Lair' },
+        { x: 6, y: 10, w: 4, h: 4, type: 'normal', desc: 'Web Tunnel West' },
+        { x: 22, y: 10, w: 4, h: 4, type: 'normal', desc: 'Web Tunnel East' },
+        { x: 14, y: 4, w: 4, h: 4, type: 'normal', desc: 'Egg Chamber' }
+      ],
+      symbols: [
+        { type: 'trap', x: 14, y: 12 }, { type: 'trap', x: 16, y: 14 }, { type: 'trap', x: 12, y: 16 },
+        { type: 'trap', x: 18, y: 10 }, { type: 'chest', x: 15, y: 5 }, { type: 'chest', x: 16, y: 5 },
+        { type: 'pillar', x: 12, y: 10 }, { type: 'pillar', x: 19, y: 10 },
+        { type: 'pillar', x: 12, y: 17 }, { type: 'pillar', x: 19, y: 17 }
+      ]
+    },
+    'treasure-vault': {
+      rooms: [
+        { x: 10, y: 10, w: 10, h: 8, type: 'treasure', desc: 'Main Vault' },
+        { x: 6, y: 11, w: 4, h: 6, type: 'normal', desc: 'Antechamber' },
+        { x: 20, y: 11, w: 4, h: 6, type: 'normal', desc: 'Guard Room' },
+        { x: 12, y: 5, w: 6, h: 4, type: 'normal', desc: 'Entry Hall' }
+      ],
+      symbols: [
+        { type: 'chest', x: 12, y: 12 }, { type: 'chest', x: 14, y: 12 }, { type: 'chest', x: 16, y: 12 },
+        { type: 'chest', x: 12, y: 14 }, { type: 'chest', x: 14, y: 14 }, { type: 'chest', x: 16, y: 14 },
+        { type: 'trap', x: 13, y: 13 }, { type: 'trap', x: 15, y: 13 },
+        { type: 'door', x: 9, y: 13 }, { type: 'door', x: 20, y: 13 },
+        { type: 'pillar', x: 11, y: 11 }, { type: 'pillar', x: 18, y: 11 }
+      ]
+    },
+    'alchemy-lab': {
+      rooms: [
+        { x: 8, y: 8, w: 12, h: 10, type: 'normal', desc: 'Main Laboratory' },
+        { x: 21, y: 8, w: 5, h: 5, type: 'normal', desc: 'Reagent Storage' },
+        { x: 21, y: 14, w: 5, h: 4, type: 'normal', desc: 'Experiment Room' },
+        { x: 8, y: 19, w: 8, h: 4, type: 'normal', desc: 'Library' }
+      ],
+      symbols: [
+        { type: 'poison', x: 12, y: 11 }, { type: 'poison', x: 14, y: 11 },
+        { type: 'lava', x: 16, y: 11 }, { type: 'chest', x: 22, y: 10 },
+        { type: 'chest', x: 23, y: 10 }, { type: 'trap', x: 22, y: 15 },
+        { type: 'pillar', x: 10, y: 10 }, { type: 'pillar', x: 17, y: 10 }
+      ]
+    },
+    // ========== RELIGIOUS & SACRED ==========
+    'cathedral': {
+      rooms: [
+        { x: 8, y: 5, w: 14, h: 16, type: 'normal', desc: 'Grand Nave' },
+        { x: 10, y: 22, w: 10, h: 4, type: 'boss', desc: 'High Altar' },
+        { x: 4, y: 10, w: 4, h: 6, type: 'normal', desc: 'West Chapel' },
+        { x: 22, y: 10, w: 4, h: 6, type: 'normal', desc: 'East Chapel' }
+      ],
+      symbols: [
+        { type: 'pillar', x: 10, y: 8 }, { type: 'pillar', x: 19, y: 8 },
+        { type: 'pillar', x: 10, y: 12 }, { type: 'pillar', x: 19, y: 12 },
+        { type: 'pillar', x: 10, y: 16 }, { type: 'pillar', x: 19, y: 16 },
+        { type: 'door', x: 14, y: 4 }, { type: 'chest', x: 14, y: 23 }
+      ]
+    },
+    'shrine': {
+      rooms: [
+        { x: 12, y: 10, w: 8, h: 8, type: 'normal', desc: 'Shrine Chamber' },
+        { x: 14, y: 19, w: 4, h: 3, type: 'treasure', desc: 'Reliquary' }
+      ],
+      symbols: [
+        { type: 'pillar', x: 13, y: 11 }, { type: 'pillar', x: 18, y: 11 },
+        { type: 'pillar', x: 13, y: 16 }, { type: 'pillar', x: 18, y: 16 },
+        { type: 'chest', x: 15, y: 20 }, { type: 'trap', x: 15, y: 14 }
+      ]
+    },
+    'monastery': {
+      rooms: [
+        { x: 5, y: 5, w: 8, h: 6, type: 'normal', desc: 'Dormitory' },
+        { x: 14, y: 5, w: 8, h: 6, type: 'normal', desc: 'Library' },
+        { x: 5, y: 12, w: 8, h: 6, type: 'normal', desc: 'Refectory' },
+        { x: 14, y: 12, w: 8, h: 6, type: 'normal', desc: 'Chapel' },
+        { x: 9, y: 19, w: 10, h: 4, type: 'normal', desc: 'Cloister' }
+      ],
+      symbols: [
+        { type: 'door', x: 12, y: 7 }, { type: 'door', x: 12, y: 14 },
+        { type: 'chest', x: 16, y: 7 }, { type: 'chest', x: 17, y: 7 },
+        { type: 'pillar', x: 16, y: 14 }, { type: 'pillar', x: 19, y: 14 }
+      ]
+    },
+    'bell-tower': {
+      rooms: [
+        { x: 12, y: 14, w: 6, h: 6, type: 'normal', desc: 'Ground Floor' },
+        { x: 12, y: 8, w: 6, h: 5, type: 'normal', desc: 'Second Floor' },
+        { x: 12, y: 3, w: 6, h: 4, type: 'normal', desc: 'Bell Chamber' }
+      ],
+      symbols: [
+        { type: 'stairs-up', x: 16, y: 17 }, { type: 'stairs-up', x: 16, y: 11 },
+        { type: 'pillar', x: 14, y: 4 }, { type: 'pillar', x: 16, y: 4 },
+        { type: 'door', x: 14, y: 19 }
+      ]
+    },
+    'graveyard': {
+      rooms: [
+        { x: 5, y: 5, w: 20, h: 16, type: 'normal', desc: 'Graveyard' },
+        { x: 12, y: 22, w: 6, h: 4, type: 'normal', desc: 'Caretaker Shed' }
+      ],
+      symbols: [
+        { type: 'chest', x: 8, y: 8 }, { type: 'chest', x: 12, y: 8 }, { type: 'chest', x: 16, y: 8 },
+        { type: 'chest', x: 20, y: 8 }, { type: 'chest', x: 8, y: 12 }, { type: 'chest', x: 12, y: 12 },
+        { type: 'chest', x: 16, y: 12 }, { type: 'chest', x: 20, y: 12 }, { type: 'chest', x: 10, y: 16 },
+        { type: 'chest', x: 14, y: 16 }, { type: 'chest', x: 18, y: 16 },
+        { type: 'stairs-down', x: 14, y: 23 }
+      ]
+    },
+    // ========== CASTLE & MILITARY ==========
+    'armory': {
+      rooms: [
+        { x: 8, y: 8, w: 14, h: 10, type: 'normal', desc: 'Main Armory' },
+        { x: 5, y: 10, w: 3, h: 6, type: 'normal', desc: 'Sword Rack' },
+        { x: 22, y: 10, w: 3, h: 6, type: 'normal', desc: 'Shield Wall' }
+      ],
+      symbols: [
+        { type: 'chest', x: 10, y: 10 }, { type: 'chest', x: 12, y: 10 }, { type: 'chest', x: 14, y: 10 },
+        { type: 'chest', x: 16, y: 10 }, { type: 'chest', x: 18, y: 10 },
+        { type: 'chest', x: 10, y: 14 }, { type: 'chest', x: 12, y: 14 }, { type: 'chest', x: 14, y: 14 },
+        { type: 'chest', x: 16, y: 14 }, { type: 'chest', x: 18, y: 14 },
+        { type: 'door', x: 14, y: 7 }
+      ]
+    },
+    'war-room': {
+      rooms: [
+        { x: 8, y: 8, w: 14, h: 10, type: 'boss', desc: 'War Council Chamber' },
+        { x: 5, y: 10, w: 3, h: 6, type: 'normal', desc: 'Map Storage' },
+        { x: 22, y: 10, w: 4, h: 6, type: 'normal', desc: 'Scribe Room' }
+      ],
+      symbols: [
+        { type: 'pillar', x: 10, y: 10 }, { type: 'pillar', x: 19, y: 10 },
+        { type: 'pillar', x: 10, y: 15 }, { type: 'pillar', x: 19, y: 15 },
+        { type: 'chest', x: 6, y: 12 }, { type: 'chest', x: 23, y: 12 },
+        { type: 'door', x: 7, y: 12 }, { type: 'door', x: 22, y: 12 }
+      ]
+    },
+    'castle-gate': {
+      rooms: [
+        { x: 10, y: 5, w: 10, h: 6, type: 'normal', desc: 'Gatehouse' },
+        { x: 12, y: 12, w: 6, h: 10, type: 'normal', desc: 'Gate Passage' },
+        { x: 6, y: 6, w: 4, h: 4, type: 'normal', desc: 'West Tower' },
+        { x: 20, y: 6, w: 4, h: 4, type: 'normal', desc: 'East Tower' }
+      ],
+      symbols: [
+        { type: 'door', x: 14, y: 11 }, { type: 'door', x: 14, y: 21 },
+        { type: 'stairs-up', x: 7, y: 7 }, { type: 'stairs-up', x: 21, y: 7 },
+        { type: 'trap', x: 14, y: 15 }, { type: 'trap', x: 14, y: 18 }
+      ]
+    },
+    'tower-top': {
+      rooms: [
+        { x: 11, y: 11, w: 8, h: 8, type: 'normal', desc: 'Tower Chamber' },
+        { x: 9, y: 9, w: 12, h: 12, type: 'normal', desc: 'Battlements' }
+      ],
+      symbols: [
+        { type: 'stairs-down', x: 13, y: 13 }, { type: 'chest', x: 16, y: 13 },
+        { type: 'pillar', x: 10, y: 10 }, { type: 'pillar', x: 19, y: 10 },
+        { type: 'pillar', x: 10, y: 19 }, { type: 'pillar', x: 19, y: 19 }
+      ]
+    },
+    'great-hall': {
+      rooms: [
+        { x: 6, y: 6, w: 18, h: 14, type: 'boss', desc: 'Great Hall' },
+        { x: 8, y: 21, w: 6, h: 4, type: 'normal', desc: 'Kitchen' },
+        { x: 16, y: 21, w: 6, h: 4, type: 'normal', desc: 'Pantry' }
+      ],
+      symbols: [
+        { type: 'pillar', x: 9, y: 9 }, { type: 'pillar', x: 20, y: 9 },
+        { type: 'pillar', x: 9, y: 16 }, { type: 'pillar', x: 20, y: 16 },
+        { type: 'door', x: 14, y: 5 }, { type: 'door', x: 13, y: 20 },
+        { type: 'lava', x: 10, y: 22 }, { type: 'chest', x: 18, y: 22 }
+      ]
+    },
+    'castle-kitchen': {
+      rooms: [
+        { x: 8, y: 8, w: 12, h: 10, type: 'normal', desc: 'Main Kitchen' },
+        { x: 21, y: 8, w: 5, h: 5, type: 'normal', desc: 'Cold Storage' },
+        { x: 21, y: 14, w: 5, h: 4, type: 'normal', desc: 'Dry Storage' },
+        { x: 8, y: 19, w: 8, h: 4, type: 'normal', desc: 'Scullery' }
+      ],
+      symbols: [
+        { type: 'lava', x: 11, y: 11 }, { type: 'lava', x: 12, y: 11 }, { type: 'lava', x: 13, y: 11 },
+        { type: 'water', x: 10, y: 20 }, { type: 'water', x: 11, y: 20 },
+        { type: 'chest', x: 22, y: 10 }, { type: 'chest', x: 22, y: 15 },
+        { type: 'door', x: 20, y: 10 }, { type: 'door', x: 20, y: 15 }
+      ]
+    },
+    // ========== VILLAGE & TOWN ==========
+    'market-square': {
+      rooms: [
+        { x: 8, y: 8, w: 14, h: 10, type: 'normal', desc: 'Market Square' },
+        { x: 5, y: 10, w: 3, h: 6, type: 'normal', desc: 'Stall 1' },
+        { x: 22, y: 10, w: 3, h: 6, type: 'normal', desc: 'Stall 2' },
+        { x: 10, y: 19, w: 4, h: 3, type: 'normal', desc: 'Stall 3' },
+        { x: 16, y: 19, w: 4, h: 3, type: 'normal', desc: 'Stall 4' }
+      ],
+      symbols: [
+        { type: 'chest', x: 6, y: 12 }, { type: 'chest', x: 23, y: 12 },
+        { type: 'chest', x: 11, y: 20 }, { type: 'chest', x: 17, y: 20 },
+        { type: 'pillar', x: 14, y: 12 }
+      ]
+    },
+    'town-hall': {
+      rooms: [
+        { x: 8, y: 5, w: 14, h: 10, type: 'normal', desc: 'Council Chamber' },
+        { x: 5, y: 7, w: 3, h: 6, type: 'normal', desc: 'Clerk Office' },
+        { x: 22, y: 7, w: 3, h: 6, type: 'normal', desc: 'Records Room' },
+        { x: 10, y: 16, w: 10, h: 6, type: 'normal', desc: 'Public Hall' }
+      ],
+      symbols: [
+        { type: 'pillar', x: 10, y: 8 }, { type: 'pillar', x: 19, y: 8 },
+        { type: 'pillar', x: 10, y: 12 }, { type: 'pillar', x: 19, y: 12 },
+        { type: 'chest', x: 6, y: 9 }, { type: 'chest', x: 23, y: 9 },
+        { type: 'door', x: 14, y: 14 }
+      ]
+    },
+    'stable': {
+      rooms: [
+        { x: 6, y: 8, w: 18, h: 10, type: 'normal', desc: 'Main Stable' },
+        { x: 10, y: 19, w: 10, h: 4, type: 'normal', desc: 'Tack Room' }
+      ],
+      symbols: [
+        { type: 'door', x: 8, y: 7 }, { type: 'door', x: 14, y: 7 }, { type: 'door', x: 20, y: 7 },
+        { type: 'chest', x: 12, y: 20 }, { type: 'chest', x: 14, y: 20 }, { type: 'chest', x: 16, y: 20 },
+        { type: 'water', x: 22, y: 10 }, { type: 'water', x: 22, y: 12 }
+      ]
+    },
+    'mill': {
+      rooms: [
+        { x: 10, y: 10, w: 10, h: 10, type: 'normal', desc: 'Mill Floor' },
+        { x: 6, y: 12, w: 4, h: 6, type: 'normal', desc: 'Storage' },
+        { x: 20, y: 12, w: 4, h: 6, type: 'normal', desc: 'Grinding Room' }
+      ],
+      symbols: [
+        { type: 'pillar', x: 14, y: 14 }, { type: 'river', x: 6, y: 10 },
+        { type: 'river', x: 6, y: 11 }, { type: 'river', x: 6, y: 12 },
+        { type: 'river', x: 6, y: 13 }, { type: 'river', x: 6, y: 14 },
+        { type: 'chest', x: 7, y: 14 }, { type: 'chest', x: 21, y: 14 },
+        { type: 'door', x: 9, y: 14 }, { type: 'door', x: 20, y: 14 }
+      ]
+    },
+    'farmhouse': {
+      rooms: [
+        { x: 10, y: 8, w: 10, h: 8, type: 'normal', desc: 'Main House' },
+        { x: 6, y: 10, w: 4, h: 4, type: 'normal', desc: 'Kitchen' },
+        { x: 20, y: 10, w: 4, h: 4, type: 'normal', desc: 'Storage' },
+        { x: 12, y: 17, w: 6, h: 5, type: 'normal', desc: 'Bedroom' }
+      ],
+      symbols: [
+        { type: 'door', x: 9, y: 11 }, { type: 'door', x: 20, y: 11 },
+        { type: 'lava', x: 7, y: 11 }, { type: 'chest', x: 21, y: 11 },
+        { type: 'stairs-up', x: 18, y: 10 }
+      ]
+    },
+    'library': {
+      rooms: [
+        { x: 8, y: 6, w: 14, h: 12, type: 'normal', desc: 'Main Reading Room' },
+        { x: 5, y: 8, w: 3, h: 8, type: 'normal', desc: 'West Stacks' },
+        { x: 22, y: 8, w: 3, h: 8, type: 'normal', desc: 'East Stacks' },
+        { x: 12, y: 19, w: 6, h: 4, type: 'treasure', desc: 'Rare Books' }
+      ],
+      symbols: [
+        { type: 'chest', x: 6, y: 10 }, { type: 'chest', x: 6, y: 12 }, { type: 'chest', x: 6, y: 14 },
+        { type: 'chest', x: 23, y: 10 }, { type: 'chest', x: 23, y: 12 }, { type: 'chest', x: 23, y: 14 },
+        { type: 'pillar', x: 10, y: 10 }, { type: 'pillar', x: 19, y: 10 },
+        { type: 'trap', x: 14, y: 20 }
+      ]
+    },
+    'apothecary': {
+      rooms: [
+        { x: 10, y: 8, w: 10, h: 10, type: 'normal', desc: 'Shop Floor' },
+        { x: 6, y: 10, w: 4, h: 6, type: 'normal', desc: 'Herb Storage' },
+        { x: 20, y: 10, w: 4, h: 6, type: 'normal', desc: 'Brewing Room' }
+      ],
+      symbols: [
+        { type: 'poison', x: 7, y: 12 }, { type: 'poison', x: 8, y: 12 },
+        { type: 'poison', x: 21, y: 12 }, { type: 'poison', x: 22, y: 12 },
+        { type: 'chest', x: 12, y: 10 }, { type: 'chest', x: 14, y: 10 }, { type: 'chest', x: 16, y: 10 },
+        { type: 'door', x: 14, y: 7 }
+      ]
+    },
+    // ========== NATURAL & WILDERNESS ==========
+    'mountain-pass': {
+      rooms: [
+        { x: 5, y: 10, w: 8, h: 6, type: 'normal', desc: 'Western Approach' },
+        { x: 14, y: 8, w: 6, h: 10, type: 'normal', desc: 'Pass' },
+        { x: 21, y: 10, w: 8, h: 6, type: 'normal', desc: 'Eastern Descent' }
+      ],
+      symbols: [
+        { type: 'mountain', x: 10, y: 8 }, { type: 'mountain', x: 12, y: 7 },
+        { type: 'mountain', x: 14, y: 6 }, { type: 'mountain', x: 16, y: 6 },
+        { type: 'mountain', x: 18, y: 7 }, { type: 'mountain', x: 20, y: 8 },
+        { type: 'mountain', x: 10, y: 16 }, { type: 'mountain', x: 12, y: 17 },
+        { type: 'mountain', x: 14, y: 18 }, { type: 'mountain', x: 16, y: 18 },
+        { type: 'mountain', x: 18, y: 17 }, { type: 'mountain', x: 20, y: 16 }
+      ]
+    },
+    'ancient-ruins': {
+      rooms: [
+        { x: 8, y: 8, w: 14, h: 12, type: 'normal', desc: 'Ruined Temple' },
+        { x: 5, y: 10, w: 3, h: 4, type: 'normal', desc: 'Collapsed Wing' },
+        { x: 22, y: 10, w: 3, h: 4, type: 'normal', desc: 'Fallen Tower' }
+      ],
+      symbols: [
+        { type: 'pillar', x: 10, y: 10 }, { type: 'pillar', x: 19, y: 10 },
+        { type: 'pillar', x: 10, y: 17 }, { type: 'pillar', x: 19, y: 17 },
+        { type: 'trap', x: 14, y: 12 }, { type: 'chest', x: 14, y: 16 },
+        { type: 'stairs-down', x: 6, y: 11 }
+      ]
+    },
+    'druid-grove': {
+      rooms: [
+        { x: 10, y: 10, w: 10, h: 10, type: 'normal', desc: 'Sacred Grove' },
+        { x: 14, y: 6, w: 4, h: 4, type: 'treasure', desc: 'Stone Circle' }
+      ],
+      symbols: [
+        { type: 'forest', x: 8, y: 10 }, { type: 'forest', x: 8, y: 14 }, { type: 'forest', x: 8, y: 18 },
+        { type: 'forest', x: 20, y: 10 }, { type: 'forest', x: 20, y: 14 }, { type: 'forest', x: 20, y: 18 },
+        { type: 'forest', x: 12, y: 8 }, { type: 'forest', x: 16, y: 8 },
+        { type: 'forest', x: 12, y: 20 }, { type: 'forest', x: 16, y: 20 },
+        { type: 'pillar', x: 15, y: 7 }, { type: 'pillar', x: 17, y: 7 },
+        { type: 'pillar', x: 15, y: 9 }, { type: 'pillar', x: 17, y: 9 },
+        { type: 'water', x: 14, y: 14 }
+      ]
+    },
+    'bandit-camp': {
+      rooms: [
+        { x: 10, y: 10, w: 12, h: 8, type: 'normal', desc: 'Camp Clearing' },
+        { x: 6, y: 12, w: 4, h: 4, type: 'normal', desc: 'Leader Tent' },
+        { x: 22, y: 12, w: 4, h: 4, type: 'normal', desc: 'Loot Storage' },
+        { x: 14, y: 19, w: 6, h: 3, type: 'normal', desc: 'Prisoner Cage' }
+      ],
+      symbols: [
+        { type: 'forest', x: 8, y: 10 }, { type: 'forest', x: 22, y: 10 },
+        { type: 'forest', x: 8, y: 17 }, { type: 'forest', x: 22, y: 17 },
+        { type: 'lava', x: 14, y: 13 }, { type: 'lava', x: 15, y: 13 },
+        { type: 'chest', x: 7, y: 13 }, { type: 'chest', x: 23, y: 13 }, { type: 'chest', x: 24, y: 13 },
+        { type: 'trap', x: 16, y: 20 }
+      ]
+    }
+  };
+
+  document.getElementById('placeTemplateBtn').addEventListener('click', () => {
+    const templateId = document.getElementById('templateSelect').value;
+    if (!templateId) {
+      showStatus('Please select a template first');
+      return;
+    }
+
+    const template = roomTemplates[templateId];
+    if (!template) {
+      showStatus('Template not yet implemented - coming soon!');
+      return;
+    }
+
+    saveUndoState();
+
+    // Add template rooms
+    template.rooms.forEach(r => {
+      const room = {
+        id: rooms.length + 1,
+        x: r.x,
+        y: r.y,
+        w: r.w,
+        h: r.h,
+        type: r.type || 'normal',
+        description: r.desc || '',
+        shape: { type: 'rect' }
+      };
+      rooms.push(room);
+    });
+
+    // Add template symbols
+    template.symbols.forEach(s => {
+      mapSymbols.push({ type: s.type, x: s.x, y: s.y });
+    });
+
+    renderMap();
+    updateRoomList();
+    showStatus(`Placed ${templateId.replace(/-/g, ' ')} template with ${template.rooms.length} rooms`);
+  });
+
+  // Grid toggle
+  document.getElementById('gridToggle').addEventListener('change', (e) => {
+    showGrid = e.target.checked;
+    renderMap();
+  });
+
+  // Room label functionality
+  let labelingRoomId = null;
+  const roomLabelModal = document.getElementById('roomLabelModal');
+  const roomLabelInput = document.getElementById('roomLabelInput');
+
+  canvas.addEventListener('dblclick', (e) => {
+    const rect = canvas.getBoundingClientRect();
+    const x = e.clientX - rect.left;
+    const y = e.clientY - rect.top;
+
+    // Find room at click position
+    for (let i = rooms.length - 1; i >= 0; i--) {
+      const room = rooms[i];
+      const rx = room.x * GRID_SIZE;
+      const ry = room.y * GRID_SIZE;
+      const rw = room.w * GRID_SIZE;
+      const rh = room.h * GRID_SIZE;
+
+      if (x >= rx && x <= rx + rw && y >= ry && y <= ry + rh) {
+        labelingRoomId = room.id;
+        roomLabelInput.value = room.label || '';
+        roomLabelModal.style.display = 'flex';
+        roomLabelInput.focus();
+        return;
+      }
+    }
+  });
+
+  document.getElementById('confirmRoomLabelBtn').addEventListener('click', () => {
+    if (labelingRoomId !== null) {
+      saveUndoState();
+      const room = rooms.find(r => r.id === labelingRoomId);
+      if (room) {
+        room.label = roomLabelInput.value.trim();
+        renderMap();
+        updateRoomList();
+        showStatus(`Room ${labelingRoomId} labeled: ${room.label || '(cleared)'}`);
+      }
+    }
+    roomLabelModal.style.display = 'none';
+    labelingRoomId = null;
+  });
+
+  document.getElementById('cancelRoomLabelBtn').addEventListener('click', () => {
+    roomLabelModal.style.display = 'none';
+    labelingRoomId = null;
+  });
+
+  roomLabelInput.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter') document.getElementById('confirmRoomLabelBtn').click();
+    if (e.key === 'Escape') document.getElementById('cancelRoomLabelBtn').click();
+  });
+
+  // Encounter Generator
+  const encounterModal = document.getElementById('encounterModal');
+  const encounterResult = document.getElementById('encounterResult');
+
+  document.getElementById('encounterBtn').addEventListener('click', () => {
+    encounterModal.style.display = 'flex';
+    encounterResult.style.display = 'none';
+  });
+
+  document.getElementById('closeEncounterBtn').addEventListener('click', () => {
+    encounterModal.style.display = 'none';
+  });
+
+  document.getElementById('generateEncounterBtn').addEventListener('click', () => {
+    const level = parseInt(document.getElementById('partyLevel').value) || 3;
+    const size = parseInt(document.getElementById('partySize').value) || 4;
+    const difficulty = document.getElementById('encounterDifficulty').value;
+
+    // XP thresholds per character level
+    const xpThresholds = {
+      easy: [25, 50, 75, 125, 250, 300, 350, 450, 550, 600, 800, 1000, 1100, 1250, 1400, 1600, 2000, 2100, 2400, 2800],
+      medium: [50, 100, 150, 250, 500, 600, 750, 900, 1100, 1200, 1600, 2000, 2200, 2500, 2800, 3200, 3900, 4200, 4900, 5700],
+      hard: [75, 150, 225, 375, 750, 900, 1100, 1400, 1600, 1900, 2400, 3000, 3400, 3800, 4300, 4800, 5900, 6300, 7300, 8500],
+      deadly: [100, 200, 400, 500, 1100, 1400, 1700, 2100, 2400, 2800, 3600, 4500, 5100, 5700, 6400, 7200, 8800, 9500, 10900, 12700]
+    };
+
+    const xpBudget = (xpThresholds[difficulty][level - 1] || 100) * size;
+
+    // Monster database (simplified)
+    const monsters = {
+      1: [
+        { name: 'Goblin', cr: '1/4', xp: 50 },
+        { name: 'Skeleton', cr: '1/4', xp: 50 },
+        { name: 'Zombie', cr: '1/4', xp: 50 },
+        { name: 'Giant Rat', cr: '1/8', xp: 25 }
+      ],
+      2: [
+        { name: 'Hobgoblin', cr: '1/2', xp: 100 },
+        { name: 'Orc', cr: '1/2', xp: 100 },
+        { name: 'Shadow', cr: '1/2', xp: 100 }
+      ],
+      3: [
+        { name: 'Bugbear', cr: '1', xp: 200 },
+        { name: 'Ghoul', cr: '1', xp: 200 },
+        { name: 'Specter', cr: '1', xp: 200 }
+      ],
+      4: [
+        { name: 'Ogre', cr: '2', xp: 450 },
+        { name: 'Gelatinous Cube', cr: '2', xp: 450 },
+        { name: 'Mimic', cr: '2', xp: 450 }
+      ],
+      5: [
+        { name: 'Owlbear', cr: '3', xp: 700 },
+        { name: 'Mummy', cr: '3', xp: 700 },
+        { name: 'Phase Spider', cr: '3', xp: 700 }
+      ]
+    };
+
+    // Pick appropriate tier
+    let tier = Math.min(5, Math.ceil(level / 4));
+    if (xpBudget < 200) tier = 1;
+    else if (xpBudget < 400) tier = 2;
+    else if (xpBudget < 800) tier = 3;
+    else if (xpBudget < 1500) tier = 4;
+    else tier = 5;
+
+    const availableMonsters = monsters[tier] || monsters[1];
+    const selectedMonster = availableMonsters[Math.floor(Math.random() * availableMonsters.length)];
+
+    // Calculate how many monsters
+    let count = Math.max(1, Math.floor(xpBudget / selectedMonster.xp));
+    // Apply multiplier for multiple monsters
+    if (count >= 11) count = Math.floor(count / 4);
+    else if (count >= 7) count = Math.floor(count / 3);
+    else if (count >= 3) count = Math.floor(count / 2.5);
+    else if (count >= 2) count = Math.floor(count / 1.5);
+
+    count = Math.max(1, count);
+
+    // Generate treasure
+    const treasures = [
+      '2d6 gold pieces',
+      'Potion of Healing',
+      'Spell Scroll (1st level)',
+      'Bag of 50 silver pieces',
+      'Gemstone worth 25gp',
+      'Magic weapon (+1)',
+      'Ring of Protection',
+      'Wand of Magic Missiles'
+    ];
+    const treasure = treasures[Math.floor(Math.random() * (level > 5 ? treasures.length : 5))];
+
+    // Display result
+    encounterResult.innerHTML = `
+      <h3 style="color:#ffd700; margin:0 0 10px 0;">Generated Encounter</h3>
+      <p><strong>Monsters:</strong> ${count}x ${selectedMonster.name} (CR ${selectedMonster.cr})</p>
+      <p><strong>Total XP:</strong> ${count * selectedMonster.xp} XP</p>
+      <p><strong>Difficulty:</strong> ${difficulty.charAt(0).toUpperCase() + difficulty.slice(1)}</p>
+      <p style="margin-top:10px;"><strong>Treasure:</strong> ${treasure}</p>
+      <p style="font-size:0.8rem; color:#888; margin-top:10px;">
+        Tactics: ${selectedMonster.name === 'Goblin' ? 'Hit and run, use cover' :
+                   selectedMonster.name === 'Skeleton' ? 'Mindless assault' :
+                   selectedMonster.name === 'Ogre' ? 'Charges strongest target' :
+                   'Standard combat tactics'}
+      </p>
+    `;
+    encounterResult.style.display = 'block';
+  });
+
+  // PNG Export functionality
+  document.getElementById('exportPngBtn').addEventListener('click', () => {
+    const link = document.createElement('a');
+    link.download = `dungeon-map-${Date.now()}.png`;
+    link.href = canvas.toDataURL('image/png');
+    link.click();
+    showStatus('Map exported as PNG!');
+  });
+
+  // Map symbol buttons
+  document.querySelectorAll('[data-symbol]').forEach(btn => {
+    btn.addEventListener('click', () => {
+      placingSymbol = btn.dataset.symbol;
+      canvas.style.cursor = 'crosshair';
+      showStatus(`Click on map to place ${btn.title}`);
+    });
+  });
+
+  // Show generation modal
+  document.getElementById('generateBtn').addEventListener('click', () => {
+    document.getElementById('genModal').classList.add('show');
+  });
+
+  // Modal range sliders - update display values
+  document.getElementById('optLevel').addEventListener('input', (e) => {
+    document.getElementById('levelVal').textContent = e.target.value;
+  });
+  document.getElementById('optMinRooms').addEventListener('input', (e) => {
+    document.getElementById('minRoomsVal').textContent = e.target.value;
+  });
+  document.getElementById('optMaxRooms').addEventListener('input', (e) => {
+    document.getElementById('maxRoomsVal').textContent = e.target.value;
+  });
+  document.getElementById('optMinSize').addEventListener('input', (e) => {
+    document.getElementById('minSizeVal').textContent = e.target.value;
+  });
+
+  // Toggle themed/prebaked fields based on generation type
+  document.getElementById('optGenType').addEventListener('change', (e) => {
+    const themedField = document.getElementById('themedDungeonField');
+    const prebakedField = document.getElementById('prebakedField');
+
+    themedField.style.display = e.target.value === 'themed' ? 'block' : 'none';
+    prebakedField.style.display = e.target.value === 'prebaked' ? 'block' : 'none';
+  });
+  document.getElementById('optMaxSize').addEventListener('input', (e) => {
+    document.getElementById('maxSizeVal').textContent = e.target.value;
+  });
+
+  // Cancel generation modal
+  document.getElementById('cancelGenBtn').addEventListener('click', () => {
+    document.getElementById('genModal').classList.remove('show');
+  });
+
+  // Confirm generation - apply settings and generate
+  document.getElementById('confirmGenBtn').addEventListener('click', () => {
+    // Read settings from modal
+    genSettings.genType = document.getElementById('optGenType').value;
+    genSettings.theme = document.getElementById('optTheme').value;
+    genSettings.level = parseInt(document.getElementById('optLevel').value);
+    genSettings.minRooms = parseInt(document.getElementById('optMinRooms').value);
+    genSettings.maxRooms = parseInt(document.getElementById('optMaxRooms').value);
+    genSettings.minSize = parseInt(document.getElementById('optMinSize').value);
+    genSettings.maxSize = parseInt(document.getElementById('optMaxSize').value);
+    genSettings.hasEntrance = document.getElementById('optEntrance').checked;
+    genSettings.hasBoss = document.getElementById('optBoss').checked;
+    genSettings.hasTreasure = document.getElementById('optTreasure').checked;
+
+    // Validate
+    if (genSettings.maxRooms < genSettings.minRooms) {
+      genSettings.maxRooms = genSettings.minRooms;
+    }
+    if (genSettings.maxSize < genSettings.minSize) {
+      genSettings.maxSize = genSettings.minSize;
+    }
+
+    // Hide modal and generate
+    document.getElementById('genModal').classList.remove('show');
+    generateDungeon();
+    revealedRoomIds = []; // Reset visibility
+    updateRoomList();
+    syncToPlayer();
+    showStatus(`Generated ${rooms.length} rooms (${genSettings.theme} theme, level ${genSettings.level})`);
+  });
+
+  // Open player window
+  document.getElementById('openPlayerBtn').addEventListener('click', () => {
+    if (window.electronAPI) {
+      window.electronAPI.openPlayerWindow();
+      showStatus('Player window opened');
+    }
+  });
+
+  // Reveal/Hide all
+  document.getElementById('revealAllBtn').addEventListener('click', () => {
+    const rooms = getRooms();
+    revealedRoomIds = rooms.map(r => r.id);
+    updateRoomList();
+    if (window.electronAPI) window.electronAPI.revealAll();
+    showStatus('All rooms revealed!');
+  });
+
+  document.getElementById('hideAllBtn').addEventListener('click', () => {
+    revealedRoomIds = [];
+    updateRoomList();
+    if (window.electronAPI) window.electronAPI.hideAll();
+    showStatus('All rooms hidden');
+  });
+
+  // Brush size
+  document.getElementById('brushSize').addEventListener('input', (e) => {
+    brushSize = parseInt(e.target.value);
+    document.getElementById('brushSizeLabel').textContent = brushSize + 'px';
+  });
+
+  // Mode toggle (Fog vs Move)
+  document.getElementById('fogModeBtn').addEventListener('click', () => {
+    editMode = 'fog';
+    document.getElementById('fogModeBtn').classList.add('active');
+    document.getElementById('moveModeBtn').classList.remove('active');
+    document.getElementById('resizeModeBtn').classList.remove('active');
+    document.getElementById('tokenModeBtn').classList.remove('active');
+    document.getElementById('fogOptions').style.display = 'block';
+    document.getElementById('moveOptions').style.display = 'none';
+    document.getElementById('resizeOptions').style.display = 'none';
+    document.getElementById('tokenOptions').style.display = 'none';
+    placingToken = null;
+    canvas.style.cursor = 'crosshair';
+  });
+
+  document.getElementById('moveModeBtn').addEventListener('click', () => {
+    editMode = 'move';
+    document.getElementById('moveModeBtn').classList.add('active');
+    document.getElementById('fogModeBtn').classList.remove('active');
+    document.getElementById('resizeModeBtn').classList.remove('active');
+    document.getElementById('tokenModeBtn').classList.remove('active');
+    document.getElementById('moveOptions').style.display = 'block';
+    document.getElementById('fogOptions').style.display = 'none';
+    document.getElementById('resizeOptions').style.display = 'none';
+    document.getElementById('tokenOptions').style.display = 'none';
+    placingToken = null;
+    canvas.style.cursor = 'grab';
+  });
+
+  document.getElementById('resizeModeBtn').addEventListener('click', () => {
+    editMode = 'resize';
+    document.getElementById('resizeModeBtn').classList.add('active');
+    document.getElementById('fogModeBtn').classList.remove('active');
+    document.getElementById('moveModeBtn').classList.remove('active');
+    document.getElementById('tokenModeBtn').classList.remove('active');
+    document.getElementById('resizeOptions').style.display = 'block';
+    document.getElementById('fogOptions').style.display = 'none';
+    document.getElementById('moveOptions').style.display = 'none';
+    document.getElementById('tokenOptions').style.display = 'none';
+    placingToken = null;
+    canvas.style.cursor = 'crosshair';
+  });
+
+  document.getElementById('tokenModeBtn').addEventListener('click', () => {
+    editMode = 'token';
+    document.getElementById('tokenModeBtn').classList.add('active');
+    document.getElementById('fogModeBtn').classList.remove('active');
+    document.getElementById('moveModeBtn').classList.remove('active');
+    document.getElementById('resizeModeBtn').classList.remove('active');
+    document.getElementById('tokenOptions').style.display = 'block';
+    document.getElementById('fogOptions').style.display = 'none';
+    document.getElementById('moveOptions').style.display = 'none';
+    document.getElementById('resizeOptions').style.display = 'none';
+    canvas.style.cursor = 'pointer';
+  });
+
+  // Add player token button
+  document.getElementById('addPlayerBtn').addEventListener('click', () => {
+    placingToken = 'player';
+    canvas.style.cursor = 'cell';
+    showStatus('Click on map to place player token');
+  });
+
+  // Add creature token button
+  document.getElementById('addCreatureBtn').addEventListener('click', () => {
+    placingToken = 'creature';
+    canvas.style.cursor = 'cell';
+    showStatus('Click on map to place creature token');
+  });
+
+  // Token modal handlers
+  document.getElementById('confirmTokenBtn').addEventListener('click', () => {
+    const name = document.getElementById('tokenNameInput').value.trim();
+    if (name && pendingTokenPlacement) {
+      const { type, x, y } = pendingTokenPlacement;
+      const colors = type === 'player' ? playerColors : creatureColors;
+      const colorIndex = tokens.filter(t => t.type === type).length % colors.length;
+
+      const newToken = {
+        id: nextTokenId++,
+        type: type,
+        name: name,
+        x: x,
+        y: y,
+        color: colors[colorIndex]
+      };
+
+      tokens.push(newToken);
+      console.log('Token added:', newToken, 'Total tokens:', tokens.length);
+      updateTokenList();
+      renderMap();
+      showStatus(`${type} "${name}" placed at (${x}, ${y})`);
+    }
+    pendingTokenPlacement = null;
+    document.getElementById('tokenModal').classList.remove('show');
+  });
+
+  document.getElementById('cancelTokenBtn').addEventListener('click', () => {
+    pendingTokenPlacement = null;
+    document.getElementById('tokenModal').classList.remove('show');
+    showStatus('Token placement cancelled');
+  });
+
+  // Allow Enter key to confirm token
+  document.getElementById('tokenNameInput').addEventListener('keydown', (e) => {
+    if (e.key === 'Enter') {
+      document.getElementById('confirmTokenBtn').click();
+    } else if (e.key === 'Escape') {
+      document.getElementById('cancelTokenBtn').click();
+    }
+  });
+
+  function updateTokenList() {
+    const tokenListDiv = document.getElementById('tokenList');
+    if (tokens.length === 0) {
+      tokenListDiv.innerHTML = 'No tokens placed yet';
+      return;
+    }
+
+    tokenListDiv.innerHTML = tokens.map(token => `
+      <div style="display:flex; align-items:center; margin-bottom:0.3rem;">
+        <span style="width:12px; height:12px; border-radius:50%; background:${token.color}; display:inline-block; margin-right:0.3rem;"></span>
+        <span style="flex:1;">${token.name}</span>
+        <button style="background:#c0392b; color:white; border:none; border-radius:2px; padding:0.1rem 0.3rem; font-size:0.6rem; cursor:pointer;" onclick="removeToken(${token.id})">×</button>
+      </div>
+    `).join('');
+  }
+
+  window.removeToken = function(tokenId) {
+    tokens = tokens.filter(t => t.id !== tokenId);
+    updateTokenList();
+    renderMap();
+    showStatus('Token removed');
+  };
+
+  function getTokenAtPosition(x, y) {
+    const gridX = Math.floor(x / GRID_SIZE);
+    const gridY = Math.floor(y / GRID_SIZE);
+    for (let i = tokens.length - 1; i >= 0; i--) {
+      if (tokens[i].x === gridX && tokens[i].y === gridY) {
+        return i;
+      }
+    }
+    return -1;
+  }
+
+  function getSymbolAtPosition(x, y) {
+    const gridX = Math.floor(x / GRID_SIZE);
+    const gridY = Math.floor(y / GRID_SIZE);
+    for (let i = mapSymbols.length - 1; i >= 0; i--) {
+      if (mapSymbols[i].x === gridX && mapSymbols[i].y === gridY) {
+        return i;
+      }
+    }
+    return -1;
+  }
+
+  // Add new area
+  document.getElementById('addAreaBtn').addEventListener('click', () => {
+    syncCurrentArea();
+    const newIndex = areas.length;
+    areas.push({ name: `Area ${newIndex + 1}`, rooms: [], revealedRoomIds: [] });
+    currentAreaIndex = newIndex;
+    loadCurrentArea();
+    updateAreaTabs();
+    renderMap();
+    updateRoomList();
+    showStatus(`Added Area ${newIndex + 1}`);
+  });
+
+  function updateAreaTabs() {
+    const tabsContainer = document.getElementById('areaTabs');
+    tabsContainer.innerHTML = areas.map((area, i) => `
+      <button class="area-tab ${i === currentAreaIndex ? 'active' : ''}" data-area="${i}">
+        ${area.name}
+        ${areas.length > 1 ? `<span class="close-tab" data-close="${i}">×</span>` : ''}
+      </button>
+    `).join('');
+
+    // Tab click handlers
+    tabsContainer.querySelectorAll('.area-tab').forEach(tab => {
+      tab.addEventListener('click', (e) => {
+        if (e.target.classList.contains('close-tab')) {
+          const closeIndex = parseInt(e.target.dataset.close);
+          if (areas.length > 1) {
+            syncCurrentArea();
+            areas.splice(closeIndex, 1);
+            if (currentAreaIndex >= areas.length) currentAreaIndex = areas.length - 1;
+            loadCurrentArea();
+            updateAreaTabs();
+            renderMap();
+            updateRoomList();
+            showStatus('Area removed');
+          }
+          return;
+        }
+        const areaIndex = parseInt(tab.dataset.area);
+        if (areaIndex !== currentAreaIndex) {
+          syncCurrentArea();
+          currentAreaIndex = areaIndex;
+          loadCurrentArea();
+          updateAreaTabs();
+          renderMap();
+          updateRoomList();
+          syncToPlayer();
+        }
+      });
+    });
+  }
+
+  // Reveal/Hide mode toggle
+  document.getElementById('revealModeBtn').addEventListener('click', () => {
+    revealMode = true;
+    document.getElementById('revealModeBtn').classList.add('active');
+    document.getElementById('hideModeBtn').classList.remove('active');
+    canvas.style.cursor = 'crosshair';
+  });
+
+  document.getElementById('hideModeBtn').addEventListener('click', () => {
+    revealMode = false;
+    document.getElementById('hideModeBtn').classList.add('active');
+    document.getElementById('revealModeBtn').classList.remove('active');
+    canvas.style.cursor = 'not-allowed';
+  });
+
+  // Find room at position
+  function getRoomAtPosition(x, y) {
+    for (let i = rooms.length - 1; i >= 0; i--) {
+      const room = rooms[i];
+      const rx = room.x * GRID_SIZE;
+      const ry = room.y * GRID_SIZE;
+      const rw = room.w * GRID_SIZE;
+      const rh = room.h * GRID_SIZE;
+      if (x >= rx && x <= rx + rw && y >= ry && y <= ry + rh) {
+        return i;
+      }
+    }
+    return -1;
+  }
+
+  // Find resize handle at position
+  function getResizeHandle(x, y) {
+    const handleSize = 10;
+    for (let i = rooms.length - 1; i >= 0; i--) {
+      const room = rooms[i];
+      const rx = room.x * GRID_SIZE;
+      const ry = room.y * GRID_SIZE;
+      const rw = room.w * GRID_SIZE;
+      const rh = room.h * GRID_SIZE;
+
+      // Check corners first
+      if (Math.abs(x - rx) < handleSize && Math.abs(y - ry) < handleSize) return { index: i, handle: 'nw' };
+      if (Math.abs(x - (rx + rw)) < handleSize && Math.abs(y - ry) < handleSize) return { index: i, handle: 'ne' };
+      if (Math.abs(x - rx) < handleSize && Math.abs(y - (ry + rh)) < handleSize) return { index: i, handle: 'sw' };
+      if (Math.abs(x - (rx + rw)) < handleSize && Math.abs(y - (ry + rh)) < handleSize) return { index: i, handle: 'se' };
+
+      // Check edges
+      if (x >= rx && x <= rx + rw) {
+        if (Math.abs(y - ry) < handleSize) return { index: i, handle: 'n' };
+        if (Math.abs(y - (ry + rh)) < handleSize) return { index: i, handle: 's' };
+      }
+      if (y >= ry && y <= ry + rh) {
+        if (Math.abs(x - rx) < handleSize) return { index: i, handle: 'w' };
+        if (Math.abs(x - (rx + rw)) < handleSize) return { index: i, handle: 'e' };
+      }
+    }
+    return null;
+  }
+
+  // Canvas event handlers
+  canvas.addEventListener('mousedown', (e) => {
+    const rect = canvas.getBoundingClientRect();
+    const x = e.clientX - rect.left;
+    const y = e.clientY - rect.top;
+
+    // Handle symbol placement first
+    if (placingSymbol) {
+      const gridX = Math.floor(x / GRID_SIZE);
+      const gridY = Math.floor(y / GRID_SIZE);
+
+      // Check if this cell already has this symbol type (avoid duplicates)
+      const existingSymbol = mapSymbols.find(s => s.x === gridX && s.y === gridY && s.type === placingSymbol);
+      if (!existingSymbol) {
+        mapSymbols.push({ type: placingSymbol, x: gridX, y: gridY });
+      }
+
+      lastPaintedCell = { x: gridX, y: gridY };
+      paintingSymbol = true; // Enable drag painting
+      renderMap();
+      showStatus(`Painting ${placingSymbol} - drag to fill area, release to stop`);
+      // Don't clear placingSymbol yet - allow drag painting
+      return;
+    }
+
+    // Check for symbol dragging (right-click or move mode)
+    if (editMode === 'move') {
+      const symbolIndex = getSymbolAtPosition(x, y);
+      if (symbolIndex !== -1) {
+        draggingSymbolIndex = symbolIndex;
+        canvas.style.cursor = 'grabbing';
+        return;
+      }
+    }
+
+    if (editMode === 'token') {
+      if (placingToken) {
+        // Place new token - show modal for naming
+        const gridX = Math.floor(x / GRID_SIZE);
+        const gridY = Math.floor(y / GRID_SIZE);
+        const tokenType = placingToken;
+
+        // Store pending placement
+        pendingTokenPlacement = { type: tokenType, x: gridX, y: gridY };
+
+        // Clear placing state
+        placingToken = null;
+        canvas.style.cursor = 'pointer';
+
+        // Set up and show token modal
+        const defaultName = tokenType === 'player'
+          ? `Player ${tokens.filter(t => t.type === 'player').length + 1}`
+          : `Monster ${tokens.filter(t => t.type === 'creature').length + 1}`;
+
+        document.getElementById('tokenModalTitle').textContent =
+          tokenType === 'player' ? '🎭 Name Player Token' : '⚔️ Name Creature Token';
+        document.getElementById('tokenNameInput').value = defaultName;
+        document.getElementById('tokenModal').classList.add('show');
+
+        // Focus the input
+        setTimeout(() => {
+          document.getElementById('tokenNameInput').focus();
+          document.getElementById('tokenNameInput').select();
+        }, 100);
+      } else {
+        // Check for token drag
+        const tokenIndex = getTokenAtPosition(x, y);
+        if (tokenIndex !== -1) {
+          draggingToken = tokenIndex;
+          canvas.style.cursor = 'grabbing';
+        }
+      }
+    } else if (editMode === 'resize') {
+      const handle = getResizeHandle(x, y);
+      if (handle) {
+        isResizing = true;
+        resizeRoomIndex = handle.index;
+        resizeHandle = handle.handle;
+        resizeStartX = x;
+        resizeStartY = y;
+        resizeOrigRoom = { ...rooms[handle.index] };
+      }
+    } else if (editMode === 'move') {
+      const roomIndex = getRoomAtPosition(x, y);
+      if (roomIndex !== -1) {
+        isDragging = true;
+        draggedRoomIndex = roomIndex;
+        const room = rooms[roomIndex];
+        dragOffsetX = x - (room.x * GRID_SIZE);
+        dragOffsetY = y - (room.y * GRID_SIZE);
+        canvas.style.cursor = 'grabbing';
+      }
+    } else {
+      isDrawing = true;
+      handleFogDraw(e);
+    }
+  });
+
+  canvas.addEventListener('mousemove', (e) => {
+    const rect = canvas.getBoundingClientRect();
+    const x = e.clientX - rect.left;
+    const y = e.clientY - rect.top;
+
+    // Handle drag-painting symbols (water, forest, etc.)
+    if (paintingSymbol && placingSymbol) {
+      const gridX = Math.floor(x / GRID_SIZE);
+      const gridY = Math.floor(y / GRID_SIZE);
+
+      // Only paint if moved to a new cell
+      if (!lastPaintedCell || lastPaintedCell.x !== gridX || lastPaintedCell.y !== gridY) {
+        if (placingSymbol === 'eraser') {
+          // Eraser mode - remove all symbols at this cell
+          const beforeCount = mapSymbols.length;
+          mapSymbols = mapSymbols.filter(s => !(s.x === gridX && s.y === gridY));
+          if (mapSymbols.length !== beforeCount) {
+            renderMap();
+          }
+        } else {
+          // Check if this cell already has this symbol type
+          const existingSymbol = mapSymbols.find(s => s.x === gridX && s.y === gridY && s.type === placingSymbol);
+          if (!existingSymbol) {
+            mapSymbols.push({ type: placingSymbol, x: gridX, y: gridY });
+            renderMap();
+          }
+        }
+        lastPaintedCell = { x: gridX, y: gridY };
+      }
+      return;
+    }
+
+    // Handle symbol dragging
+    if (draggingSymbolIndex !== -1) {
+      const gridX = Math.floor(x / GRID_SIZE);
+      const gridY = Math.floor(y / GRID_SIZE);
+      mapSymbols[draggingSymbolIndex].x = Math.max(0, Math.min(GRID_COLS - 1, gridX));
+      mapSymbols[draggingSymbolIndex].y = Math.max(0, Math.min(GRID_ROWS - 1, gridY));
+      renderMap();
+      return;
+    }
+
+    if (editMode === 'token' && draggingToken !== -1) {
+      // Drag token
+      const gridX = Math.floor(x / GRID_SIZE);
+      const gridY = Math.floor(y / GRID_SIZE);
+      tokens[draggingToken].x = Math.max(0, Math.min(GRID_COLS - 1, gridX));
+      tokens[draggingToken].y = Math.max(0, Math.min(GRID_ROWS - 1, gridY));
+      renderMap();
+    } else if (editMode === 'resize') {
+      if (isResizing && resizeRoomIndex !== -1) {
+        const room = rooms[resizeRoomIndex];
+        const dx = Math.round((x - resizeStartX) / GRID_SIZE);
+        const dy = Math.round((y - resizeStartY) / GRID_SIZE);
+
+        // Apply resize based on handle
+        if (resizeHandle.includes('w')) {
+          room.x = Math.max(0, resizeOrigRoom.x + dx);
+          room.w = Math.max(2, resizeOrigRoom.w - dx);
+        }
+        if (resizeHandle.includes('e')) {
+          room.w = Math.max(2, resizeOrigRoom.w + dx);
+        }
+        if (resizeHandle.includes('n')) {
+          room.y = Math.max(0, resizeOrigRoom.y + dy);
+          room.h = Math.max(2, resizeOrigRoom.h - dy);
+        }
+        if (resizeHandle.includes('s')) {
+          room.h = Math.max(2, resizeOrigRoom.h + dy);
+        }
+
+        renderMap();
+      } else {
+        // Update cursor based on handle
+        const handle = getResizeHandle(x, y);
+        if (handle) {
+          canvas.style.cursor = handle.handle + '-resize';
+        } else {
+          canvas.style.cursor = 'crosshair';
+        }
+      }
+    } else if (editMode === 'move' && isDragging && draggedRoomIndex !== -1) {
+      // Snap to grid
+      const newX = Math.round((x - dragOffsetX) / GRID_SIZE);
+      const newY = Math.round((y - dragOffsetY) / GRID_SIZE);
+
+      // Keep room within bounds
+      const room = rooms[draggedRoomIndex];
+      room.x = Math.max(0, Math.min(GRID_COLS - room.w, newX));
+      room.y = Math.max(0, Math.min(GRID_ROWS - room.h, newY));
+
+      renderMap();
+    } else if (editMode === 'fog' && isDrawing) {
+      handleFogDraw(e);
+    }
+  });
+
+  canvas.addEventListener('mouseup', () => {
+    // Stop drag-painting symbols
+    if (paintingSymbol) {
+      paintingSymbol = false;
+      lastPaintedCell = null;
+      const paintedType = placingSymbol;
+      placingSymbol = null;
+      canvas.style.cursor = editMode === 'move' ? 'grab' : 'crosshair';
+      showStatus(`Finished painting ${paintedType}`);
+    }
+    if (draggingSymbolIndex !== -1) {
+      draggingSymbolIndex = -1;
+      canvas.style.cursor = editMode === 'move' ? 'grab' : 'crosshair';
+      showStatus('Symbol moved');
+    }
+    if (draggingToken !== -1) {
+      draggingToken = -1;
+      canvas.style.cursor = 'pointer';
+      showStatus('Token moved');
+    }
+    if (isResizing) {
+      isResizing = false;
+      resizeRoomIndex = -1;
+      syncToPlayer();
+      updateRoomList(); // Update description with new size
+      showStatus('Room resized');
+    }
+    if (isDragging) {
+      isDragging = false;
+      draggedRoomIndex = -1;
+      canvas.style.cursor = 'grab';
+      syncToPlayer();
+      showStatus('Room repositioned');
+    }
+    isDrawing = false;
+  });
+
+  canvas.addEventListener('mouseleave', () => {
+    isDragging = false;
+    isResizing = false;
+    draggingToken = -1;
+    draggingSymbolIndex = -1;
+    isDrawing = false;
+    if (editMode === 'move') canvas.style.cursor = 'grab';
+  });
+
+  // Right-click to delete symbols
+  canvas.addEventListener('contextmenu', (e) => {
+    e.preventDefault();
+    const rect = canvas.getBoundingClientRect();
+    const x = e.clientX - rect.left;
+    const y = e.clientY - rect.top;
+
+    const symbolIndex = getSymbolAtPosition(x, y);
+    if (symbolIndex !== -1) {
+      const symbolType = mapSymbols[symbolIndex].type;
+      mapSymbols.splice(symbolIndex, 1);
+      renderMap();
+      showStatus(`Removed ${symbolType} symbol`);
+    }
+  });
+
+  function handleFogDraw(e) {
+    const rect = canvas.getBoundingClientRect();
+    const x = e.clientX - rect.left;
+    const y = e.clientY - rect.top;
+
+    // Check which rooms are under the brush
+    const rooms = getRooms();
+    rooms.forEach(room => {
+      const roomCenterX = (room.x + room.w / 2) * 20; // GRID_SIZE = 20
+      const roomCenterY = (room.y + room.h / 2) * 20;
+
+      const distance = Math.sqrt((x - roomCenterX) ** 2 + (y - roomCenterY) ** 2);
+
+      if (distance < brushSize) {
+        if (revealMode && !revealedRoomIds.includes(room.id)) {
+          revealedRoomIds.push(room.id);
+          if (window.electronAPI) window.electronAPI.revealRoom(room.id);
+        } else if (!revealMode && revealedRoomIds.includes(room.id)) {
+          revealedRoomIds = revealedRoomIds.filter(id => id !== room.id);
+          if (window.electronAPI) window.electronAPI.hideRoom(room.id);
+        }
+      }
+    });
+
+    updateRoomList();
+  }
+
+  function updateRoomList() {
+    const rooms = getRooms();
+    const roomList = document.getElementById('roomList');
+
+    if (rooms.length === 0) {
+      roomList.innerHTML = '<li style="color:#888; font-size:0.85rem;">Generate a dungeon to see rooms</li>';
+      return;
+    }
+
+    const sorted = [...rooms].sort((a, b) => a.id - b.id);
+
+    roomList.innerHTML = sorted.map(room => {
+      const isRevealed = revealedRoomIds.includes(room.id);
+      return `
+        <li class="room-item" data-room-index="${rooms.indexOf(room)}">
+          <div class="room-header">
+            <span class="room-number" data-room-index="${rooms.indexOf(room)}" title="Double-click to edit">${room.id}.</span>
+            <select class="room-type-select" data-room-index="${rooms.indexOf(room)}">
+              <option value="entrance" ${room.type === 'entrance' ? 'selected' : ''}>entrance</option>
+              <option value="normal" ${room.type === 'normal' ? 'selected' : ''}>normal</option>
+              <option value="treasure" ${room.type === 'treasure' ? 'selected' : ''}>treasure</option>
+              <option value="boss" ${room.type === 'boss' ? 'selected' : ''}>boss</option>
+              <option value="trap" ${room.type === 'trap' ? 'selected' : ''}>trap</option>
+              <option value="secret" ${room.type === 'secret' ? 'selected' : ''}>secret</option>
+            </select>
+            <button class="reveal-btn ${isRevealed ? 'revealed' : 'hidden'}" data-room-id="${room.id}">
+              ${isRevealed ? '👁️ Visible' : '🚫 Hidden'}
+            </button>
+          </div>
+          <div class="room-desc" data-room-index="${rooms.indexOf(room)}" title="Click to edit">${room.description || 'No description'}</div>
+        </li>
+      `;
+    }).join('');
+
+    // Add click handlers for reveal buttons
+    roomList.querySelectorAll('.reveal-btn').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const roomId = parseInt(btn.dataset.roomId);
+        if (revealedRoomIds.includes(roomId)) {
+          revealedRoomIds = revealedRoomIds.filter(id => id !== roomId);
+          if (window.electronAPI) window.electronAPI.hideRoom(roomId);
+        } else {
+          revealedRoomIds.push(roomId);
+          if (window.electronAPI) window.electronAPI.revealRoom(roomId);
+        }
+        updateRoomList();
+      });
+    });
+
+    // Add double-click handlers for room numbers
+    roomList.querySelectorAll('.room-number').forEach(span => {
+      span.addEventListener('dblclick', (e) => {
+        const roomIndex = parseInt(span.dataset.roomIndex);
+        const currentId = rooms[roomIndex].id;
+
+        const input = document.createElement('input');
+        input.type = 'number';
+        input.className = 'room-number-input';
+        input.value = currentId;
+        input.min = 1;
+
+        const finishEdit = () => {
+          const newId = parseInt(input.value) || currentId;
+          rooms[roomIndex].id = newId;
+
+          // Update revealed status if ID changed
+          if (revealedRoomIds.includes(currentId) && currentId !== newId) {
+            revealedRoomIds = revealedRoomIds.filter(id => id !== currentId);
+            revealedRoomIds.push(newId);
+          }
+
+          renderMap();
+          updateRoomList();
+          syncToPlayer();
+          showStatus(`Room number changed to ${newId}`);
+        };
+
+        input.addEventListener('blur', finishEdit);
+        input.addEventListener('keydown', (ev) => {
+          if (ev.key === 'Enter') finishEdit();
+          if (ev.key === 'Escape') updateRoomList();
+        });
+
+        span.replaceWith(input);
+        input.focus();
+        input.select();
+      });
+    });
+
+    // Add change handlers for room type selects
+    roomList.querySelectorAll('.room-type-select').forEach(select => {
+      select.addEventListener('change', (e) => {
+        const roomIndex = parseInt(select.dataset.roomIndex);
+        rooms[roomIndex].type = select.value;
+        renderMap();
+        syncToPlayer();
+        showStatus(`Room type changed to ${select.value}`);
+      });
+    });
+
+    // Add click handlers for editable descriptions
+    roomList.querySelectorAll('.room-desc').forEach(div => {
+      div.addEventListener('click', (e) => {
+        const roomIndex = parseInt(div.dataset.roomIndex);
+        const currentDesc = rooms[roomIndex].description || '';
+
+        const textarea = document.createElement('textarea');
+        textarea.className = 'room-desc-textarea';
+        textarea.value = currentDesc;
+
+        const finishEdit = () => {
+          rooms[roomIndex].description = textarea.value;
+          updateRoomList();
+          syncToPlayer();
+          showStatus('Description updated');
+        };
+
+        textarea.addEventListener('blur', finishEdit);
+        textarea.addEventListener('keydown', (ev) => {
+          if (ev.key === 'Escape') {
+            updateRoomList();
+          }
+        });
+
+        div.replaceWith(textarea);
+        textarea.focus();
+        textarea.select();
+      });
+    });
+  }
+
+  function syncToPlayer() {
+    if (window.electronAPI) {
+      const rooms = getRooms();
+      window.electronAPI.updateDungeon({
+        rooms: rooms,
+        renderStyle: 'dyson'
+      });
+    }
+  }
+
+  function showStatus(msg) {
+    const status = document.getElementById('statusText');
+    status.textContent = msg;
+    status.classList.add('show');
+    setTimeout(() => status.classList.remove('show'), 2000);
+  }
+
+  // Initial setup
+  setTimeout(() => {
+    updateRoomList();
+  }, 100);
+</script>
+
+</body>
+</html>

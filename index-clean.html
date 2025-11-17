@@ -1,0 +1,631 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>One-Page Dungeon Generator</title>
+  <style>
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      background: #fafafa;
+      color: #333;
+      line-height: 1.6;
+    }
+
+    /* HEADER - Clean & Minimal */
+    header {
+      background: #fff;
+      border-bottom: 1px solid #e0e0e0;
+      padding: 1rem 2rem;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    header h1 {
+      font-size: 1.5rem;
+      font-weight: 600;
+      color: #222;
+    }
+
+    .status {
+      font-size: 0.85rem;
+      color: #888;
+    }
+
+    /* MAIN LAYOUT - Two Column */
+    main {
+      display: grid;
+      grid-template-columns: 1fr 400px;
+      gap: 2rem;
+      padding: 2rem;
+      max-width: 1400px;
+      margin: 0 auto;
+    }
+
+    /* LEFT COLUMN - Map */
+    .map-section {
+      background: #fff;
+      border-radius: 8px;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+      padding: 1.5rem;
+    }
+
+    .canvas-wrapper {
+      background: #f5f5dc;
+      border-radius: 4px;
+      padding: 1rem;
+      display: flex;
+      justify-content: center;
+    }
+
+    canvas {
+      background: #fff;
+      border: 1px solid #ddd;
+    }
+
+    /* PRIMARY ACTIONS - Clean Button Group */
+    .actions {
+      display: flex;
+      gap: 0.75rem;
+      margin-top: 1.5rem;
+    }
+
+    .btn {
+      padding: 0.75rem 1.5rem;
+      border: none;
+      border-radius: 6px;
+      font-size: 0.95rem;
+      font-weight: 500;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+
+    .btn-primary {
+      background: #2563eb;
+      color: white;
+    }
+
+    .btn-primary:hover {
+      background: #1d4ed8;
+    }
+
+    .btn-secondary {
+      background: #f3f4f6;
+      color: #374151;
+      border: 1px solid #d1d5db;
+    }
+
+    .btn-secondary:hover {
+      background: #e5e7eb;
+    }
+
+    /* SETTINGS - Minimal & Hidden by Default */
+    .settings {
+      margin-top: 1.5rem;
+      padding-top: 1.5rem;
+      border-top: 1px solid #e5e7eb;
+    }
+
+    .settings summary {
+      font-size: 0.9rem;
+      color: #6b7280;
+      cursor: pointer;
+      user-select: none;
+    }
+
+    .settings-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 1rem;
+      margin-top: 1rem;
+    }
+
+    .setting-item {
+      display: flex;
+      flex-direction: column;
+      gap: 0.25rem;
+    }
+
+    .setting-item label {
+      font-size: 0.8rem;
+      color: #6b7280;
+      font-weight: 500;
+    }
+
+    .setting-item select,
+    .setting-item input {
+      padding: 0.5rem;
+      border: 1px solid #d1d5db;
+      border-radius: 4px;
+      font-size: 0.9rem;
+      background: #fff;
+    }
+
+    /* RIGHT COLUMN - Room Key */
+    .room-key-section {
+      background: #fff;
+      border-radius: 8px;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+      padding: 1.5rem;
+      max-height: calc(100vh - 6rem);
+      overflow-y: auto;
+    }
+
+    .room-key-section h2 {
+      font-size: 1.1rem;
+      font-weight: 600;
+      margin-bottom: 1rem;
+      color: #222;
+    }
+
+    .room-list {
+      list-style: none;
+    }
+
+    .room-item {
+      margin-bottom: 1rem;
+      padding-bottom: 1rem;
+      border-bottom: 1px solid #f3f4f6;
+    }
+
+    .room-item:last-child {
+      border-bottom: none;
+    }
+
+    .room-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 0.5rem;
+    }
+
+    .room-number {
+      font-weight: 700;
+      font-size: 1rem;
+      color: #1f2937;
+    }
+
+    .room-type {
+      font-size: 0.75rem;
+      padding: 0.2rem 0.5rem;
+      border-radius: 3px;
+      background: #f3f4f6;
+      color: #6b7280;
+      text-transform: uppercase;
+      font-weight: 600;
+    }
+
+    .room-type.entrance { background: #dbeafe; color: #1e40af; }
+    .room-type.treasure { background: #fef3c7; color: #92400e; }
+    .room-type.boss { background: #fee2e2; color: #991b1b; }
+    .room-type.trap { background: #ffedd5; color: #9a3412; }
+
+    .room-description {
+      width: 100%;
+      min-height: 80px;
+      padding: 0.5rem;
+      border: 1px solid #e5e7eb;
+      border-radius: 4px;
+      font-size: 0.85rem;
+      font-family: Georgia, serif;
+      line-height: 1.5;
+      resize: vertical;
+    }
+
+    .room-description:focus {
+      outline: none;
+      border-color: #2563eb;
+      box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.1);
+    }
+
+    /* EMPTY STATE */
+    .empty-state {
+      text-align: center;
+      padding: 3rem 1rem;
+      color: #9ca3af;
+    }
+
+    .empty-state p {
+      margin-top: 0.5rem;
+      font-size: 0.9rem;
+    }
+
+    /* FOOTER INFO */
+    .info {
+      margin-top: 1rem;
+      padding: 0.75rem;
+      background: #f0f9ff;
+      border-radius: 4px;
+      font-size: 0.8rem;
+      color: #0369a1;
+    }
+  </style>
+</head>
+<body>
+
+<header>
+  <h1>One-Page Dungeon Generator</h1>
+  <div class="status" id="statusText"></div>
+</header>
+
+<main>
+  <!-- LEFT: Map Display -->
+  <section class="map-section">
+    <div class="canvas-wrapper">
+      <canvas id="mapCanvas" width="800" height="600"></canvas>
+    </div>
+
+    <div class="actions">
+      <button class="btn btn-primary" id="newDungeonBtn">Generate Dungeon</button>
+      <button class="btn btn-secondary" id="renumberBtn">Reorder Numbers</button>
+      <button class="btn btn-secondary" id="exportPngBtn">Export PNG</button>
+    </div>
+
+    <!-- Hidden Settings - Progressive Disclosure -->
+    <details class="settings">
+      <summary>⚙️ Generation Settings</summary>
+      <div class="settings-grid">
+        <div class="setting-item">
+          <label>Theme</label>
+          <select id="themeSelect">
+            <option value="classic">Classic Dungeon</option>
+            <option value="undead">Undead Crypt</option>
+            <option value="cavern">Caverns</option>
+            <option value="arcane">Arcane Ruin</option>
+          </select>
+        </div>
+        <div class="setting-item">
+          <label>Size</label>
+          <select id="sizeSelect">
+            <option value="small">Small (5-10 rooms)</option>
+            <option value="medium" selected>Medium (8-15 rooms)</option>
+            <option value="large">Large (12-22 rooms)</option>
+          </select>
+        </div>
+        <div class="setting-item">
+          <label>Style</label>
+          <select id="renderStyleSelect">
+            <option value="dyson" selected>Hand-Drawn</option>
+            <option value="modern">Clean Digital</option>
+            <option value="vintage">TSR Vintage</option>
+          </select>
+        </div>
+        <div class="setting-item">
+          <label>Algorithm</label>
+          <select id="algorithmSelect">
+            <option value="rooms">Classic Rooms</option>
+            <option value="bsp">BSP Dungeon</option>
+            <option value="caves">Cellular Caves</option>
+          </select>
+        </div>
+        <div class="setting-item">
+          <label>Dungeon Name</label>
+          <input type="text" id="dungeonNameInput" value="The Lost Crypt" placeholder="Dungeon name...">
+        </div>
+        <div class="setting-item">
+          <label>Room Count</label>
+          <input id="densityRange" type="range" min="1" max="10" value="5">
+        </div>
+        <div class="setting-item">
+          <label>Min Room Size</label>
+          <input id="minRoomSize" type="range" min="2" max="6" value="3">
+          <span id="minSizeLabel" style="font-size:0.8rem;color:#666;">3 grids</span>
+        </div>
+        <div class="setting-item">
+          <label>Max Room Size</label>
+          <input id="maxRoomSize" type="range" min="4" max="10" value="7">
+          <span id="maxSizeLabel" style="font-size:0.8rem;color:#666;">7 grids</span>
+        </div>
+      </div>
+    </details>
+
+    <div class="info">
+      💡 Click "Generate Dungeon" to create a random map. Edit room descriptions on the right. Export as PNG for a one-page dungeon.
+    </div>
+  </section>
+
+  <!-- RIGHT: Room Key -->
+  <section class="room-key-section">
+    <h2>Room Key</h2>
+    <ul class="room-list" id="roomList">
+      <li class="empty-state">
+        <strong>No rooms yet</strong>
+        <p>Click "Generate Dungeon" to create your map</p>
+      </li>
+    </ul>
+  </section>
+</main>
+
+<!-- Hidden elements needed for JS compatibility -->
+<div style="display:none;">
+  <input type="file" id="mapFileInput">
+  <input type="file" id="jsonFileInput">
+  <button id="placeMarkerBtn"></button>
+  <button id="exportJsonBtn"></button>
+  <button id="zoomOutBtn"></button>
+  <button id="zoomInBtn"></button>
+  <button id="zoomResetBtn"></button>
+  <span id="zoomLabel">100%</span>
+  <button id="undoBtn"></button>
+  <button id="redoBtn"></button>
+  <button id="renumberBtn"></button>
+  <input type="text" id="dmNameInput" value="DM">
+  <input type="checkbox" id="chkTitleBlock">
+  <input type="checkbox" id="chkCompass">
+  <input type="checkbox" id="chkCoffeeStains">
+  <input type="checkbox" id="chkAgeSpots">
+  <button id="btnRefreshEffects"></button>
+  <select id="templateSelect"></select>
+  <button id="loadTemplateBtn"></button>
+  <button id="clearStorageBtn"></button>
+  <select id="symbolCategorySelect"></select>
+  <select id="symbolTypeSelect"></select>
+  <select id="symbolSubtypeSelect"></select>
+  <button id="btnPlaceSymbol"></button>
+  <button id="btnAutoDetectDoors"></button>
+  <button id="btnDeleteSymbol"></button>
+  <button id="btnClearSymbols"></button>
+  <div id="symbolHint"></div>
+  <button id="btnRulerMode"></button>
+  <div id="rulerHint"></div>
+  <button id="btnAddAnnotation"></button>
+  <button id="btnClearAnnotations"></button>
+  <select id="trapTypeSelect"></select>
+  <button id="btnPlaceTrap"></button>
+  <button id="btnClearTraps"></button>
+  <select id="monsterTypeSelect"></select>
+  <input id="monsterCountInput" value="1">
+  <button id="btnPlaceEncounter"></button>
+  <button id="btnClearEncounters"></button>
+  <input type="checkbox" id="chkShowDmNotes">
+  <button id="btnAddDmNote"></button>
+  <button id="btnClearDmNotes"></button>
+  <div id="levelTabs"></div>
+  <button id="btnAddLevel"></button>
+  <input id="levelNameInput" value="Level 1">
+  <button id="btnDeleteLevel"></button>
+  <select id="terrainTypeSelect"></select>
+  <input id="brushSizeRange" value="2">
+  <span id="brushSizeLabel">2</span>
+  <button id="btnPaintTerrain"></button>
+  <button id="btnEraseTerrain"></button>
+  <button id="btnClearTerrain"></button>
+  <button id="btnGenerateTreasure"></button>
+  <input id="treasureCRInput" value="5">
+  <div id="densityValue">5</div>
+  <span id="stylePreview"></span>
+</div>
+
+<!-- Export Modal (simplified) -->
+<div id="exportModal" style="display:none; position:fixed; top:0; left:0; right:0; bottom:0; background:rgba(0,0,0,0.5); z-index:1000;">
+  <div style="background:#fff; margin:5% auto; padding:2rem; border-radius:8px; max-width:600px;">
+    <h3 style="margin-bottom:1rem;">Export Options</h3>
+
+    <div style="margin-bottom:1rem;">
+      <label style="display:block; margin-bottom:0.5rem; font-weight:500;">Layout</label>
+      <select id="exportLayoutSelect" style="width:100%; padding:0.5rem;">
+        <option value="map-with-key">Map + Room Key (One-Page Dungeon)</option>
+        <option value="map-only">Map Only</option>
+      </select>
+    </div>
+
+    <div style="margin-bottom:1rem;">
+      <label style="display:block; margin-bottom:0.5rem; font-weight:500;">Resolution</label>
+      <select id="exportResolutionSelect" style="width:100%; padding:0.5rem;">
+        <option value="1">Standard (1x)</option>
+        <option value="2">High DPI (2x)</option>
+        <option value="4">Print Quality (4x)</option>
+      </select>
+    </div>
+
+    <div style="display:flex; gap:1rem; margin-top:1.5rem;">
+      <button class="btn btn-primary" id="downloadPngBtn">Download PNG</button>
+      <button class="btn btn-secondary" id="closeExportModal">Cancel</button>
+    </div>
+  </div>
+</div>
+
+<script type="module">
+  import './js/main.js';
+  import { DungeonExporter } from './js/exporter.js';
+  import { getRooms, setRooms, setSelectedRoomId } from './js/state.js';
+  import { render } from './js/renderer.js';
+
+  // Make available globally
+  window.getRooms = getRooms;
+  window.DungeonExporter = DungeonExporter;
+  window.setRooms = setRooms;
+  window.setSelectedRoomId = setSelectedRoomId;
+  window.render = render;
+
+  // Simplified room list rebuild for clean UI
+  window.rebuildRoomListClean = function() {
+    const roomList = document.getElementById('roomList');
+    const rooms = getRooms();
+
+    if (rooms.length === 0) {
+      roomList.innerHTML = `
+        <li class="empty-state">
+          <strong>No rooms yet</strong>
+          <p>Click "Generate Dungeon" to create your map</p>
+        </li>
+      `;
+      return;
+    }
+
+    // Sort rooms by ID for logical ordering
+    const sortedRooms = [...rooms].sort((a, b) => a.id - b.id);
+
+    roomList.innerHTML = sortedRooms.map(room => `
+      <li class="room-item" data-room-id="${room.id}">
+        <div class="room-header">
+          <span class="room-number" data-room-id="${room.id}" title="Double-click to edit">${room.id}.</span>
+          <span class="room-type ${room.type}">${room.type}</span>
+        </div>
+        <textarea class="room-description" data-room-id="${room.id}">${room.description || ''}</textarea>
+      </li>
+    `).join('');
+
+    // Add event listeners for description editing
+    roomList.querySelectorAll('.room-description').forEach(textarea => {
+      textarea.addEventListener('input', (e) => {
+        const roomId = parseInt(e.target.dataset.roomId);
+        const room = sortedRooms.find(r => r.id === roomId);
+        if (room) {
+          room.description = e.target.value;
+          if (window.saveToLocalStorage) window.saveToLocalStorage();
+        }
+      });
+    });
+
+    // Double-click to edit room number
+    roomList.querySelectorAll('.room-number').forEach(span => {
+      span.style.cursor = 'pointer';
+      span.addEventListener('dblclick', (e) => {
+        const oldId = parseInt(e.target.dataset.roomId);
+        const currentText = e.target.textContent;
+
+        // Create input field
+        const input = document.createElement('input');
+        input.type = 'number';
+        input.value = oldId;
+        input.min = 1;
+        input.max = 99;
+        input.style.cssText = 'width:50px; font-weight:700; font-size:1rem; border:2px solid #2563eb; border-radius:3px; padding:0.2rem; text-align:center;';
+
+        // Replace span with input
+        e.target.replaceWith(input);
+        input.focus();
+        input.select();
+
+        // Handle blur (clicking away) or enter
+        const commitChange = () => {
+          const newId = parseInt(input.value);
+          const room = sortedRooms.find(r => r.id === oldId);
+
+          if (room && newId > 0 && newId !== oldId) {
+            // Check if new ID already exists
+            const existing = sortedRooms.find(r => r.id === newId);
+            if (existing) {
+              existing.id = oldId; // Swap
+            }
+            room.id = newId;
+          }
+
+          // Re-render everything
+          render();
+          window.rebuildRoomListClean();
+          if (window.saveToLocalStorage) window.saveToLocalStorage();
+        };
+
+        input.addEventListener('blur', commitChange);
+        input.addEventListener('keydown', (ev) => {
+          if (ev.key === 'Enter') {
+            input.blur();
+          } else if (ev.key === 'Escape') {
+            // Cancel - just rebuild without changes
+            window.rebuildRoomListClean();
+          }
+        });
+      });
+    });
+  };
+
+  // Override default room list rebuild
+  const originalRebuild = window.rebuildRoomList;
+  window.rebuildRoomList = function() {
+    if (document.getElementById('roomList')) {
+      window.rebuildRoomListClean();
+    } else if (originalRebuild) {
+      originalRebuild();
+    }
+  };
+
+  // Export modal handling
+  document.getElementById('exportPngBtn').addEventListener('click', () => {
+    document.getElementById('exportModal').style.display = 'block';
+  });
+
+  document.getElementById('closeExportModal').addEventListener('click', () => {
+    document.getElementById('exportModal').style.display = 'none';
+  });
+
+  document.getElementById('downloadPngBtn').addEventListener('click', () => {
+    const layout = document.getElementById('exportLayoutSelect').value;
+    const resolution = parseInt(document.getElementById('exportResolutionSelect').value);
+
+    if (window.DungeonExporter) {
+      const exporter = new window.DungeonExporter();
+      exporter.options.layout = layout;
+      exporter.options.resolution = resolution;
+      exporter.options.style = document.getElementById('renderStyleSelect').value;
+      exporter.downloadPNG();
+    }
+
+    document.getElementById('exportModal').style.display = 'none';
+  });
+
+  // Size slider labels
+  const minSizeSlider = document.getElementById('minRoomSize');
+  const maxSizeSlider = document.getElementById('maxRoomSize');
+  const minSizeLabel = document.getElementById('minSizeLabel');
+  const maxSizeLabel = document.getElementById('maxSizeLabel');
+
+  if (minSizeSlider && minSizeLabel) {
+    minSizeSlider.addEventListener('input', () => {
+      minSizeLabel.textContent = minSizeSlider.value + ' grids';
+      window.customMinSize = parseInt(minSizeSlider.value);
+    });
+  }
+
+  if (maxSizeSlider && maxSizeLabel) {
+    maxSizeSlider.addEventListener('input', () => {
+      maxSizeLabel.textContent = maxSizeSlider.value + ' grids';
+      window.customMaxSize = parseInt(maxSizeSlider.value);
+    });
+  }
+
+  // Reorder rooms spatially (top-left to bottom-right)
+  document.getElementById('renumberBtn').addEventListener('click', () => {
+    const rooms = getRooms();
+    if (rooms.length === 0) return;
+
+    // Sort rooms by position: top-to-bottom, then left-to-right
+    const sorted = [...rooms].sort((a, b) => {
+      const rowA = Math.floor(a.y / 3); // Group by rough rows
+      const rowB = Math.floor(b.y / 3);
+      if (rowA !== rowB) return rowA - rowB;
+      return a.x - b.x;
+    });
+
+    // Reassign IDs sequentially
+    sorted.forEach((room, index) => {
+      room.id = index + 1;
+    });
+
+    setRooms(sorted);
+    setSelectedRoomId(sorted[0]?.id || null);
+    render();
+    window.rebuildRoomListClean();
+
+    // Show status
+    const status = document.getElementById('statusText');
+    if (status) {
+      status.textContent = 'Rooms renumbered!';
+      setTimeout(() => { status.textContent = ''; }, 2000);
+    }
+  });
+
+  // Store custom sizes for generator to use
+  window.customMinSize = 3;
+  window.customMaxSize = 7;
+</script>
+
+</body>
+</html>
