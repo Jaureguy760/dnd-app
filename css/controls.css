@@ -1,0 +1,165 @@
+/* Toolbar & Options */
+.toolbar, .options {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  align-items: center;
+  font-size: 0.85rem;
+}
+
+/* Buttons & Inputs */
+button, select, input[type="range"], label.file-label {
+  font-size: 0.85rem;
+  background: #2a2a2a;
+  color: #eee;
+  border: 1px solid #444;
+  border-radius: 4px;
+  padding: 0.25rem 0.5rem;
+  cursor: pointer;
+}
+
+button:hover, label.file-label:hover {
+  background: #3a3a3a;
+}
+
+button.primary {
+  background: #345;
+  border-color: #567;
+}
+
+button.primary:hover {
+  background: #456;
+}
+
+button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+input[type="file"] {
+  display: none;
+}
+
+/* Right Panel */
+.right h2 {
+  margin: 0 0 0.25rem;
+  font-size: 1rem;
+}
+
+.right small {
+  color: #aaa;
+  font-size: 0.75rem;
+}
+
+/* Room List */
+#roomList {
+  list-style: decimal;
+  padding-left: 1.2rem;
+  margin: 0.5rem 0 0;
+  overflow-y: auto;
+  flex: 1;
+  border: 1px solid #333;
+  border-radius: 4px;
+  padding: 0.5rem;
+  background: #181818;
+}
+
+#roomList li {
+  margin-bottom: 0.5rem;
+  padding: 0.25rem;
+  border-radius: 4px;
+  cursor: pointer;
+  border: 1px solid transparent;
+}
+
+#roomList li.selected {
+  background: #273445;
+  border: 1px solid #4b7abf;
+}
+
+#roomList li.room-entrance { border-left: 3px solid #4a9eff; }
+#roomList li.room-treasure { border-left: 3px solid #ffd700; }
+#roomList li.room-boss { border-left: 3px solid #ff4444; }
+#roomList li.room-trap { border-left: 3px solid #ff8800; }
+
+#roomList textarea {
+  width: 100%;
+  min-height: 3rem;
+  margin-top: 0.25rem;
+  background: #111;
+  color: #eee;
+  border-radius: 4px;
+  border: 1px solid #444;
+  resize: vertical;
+  font-size: 0.8rem;
+  font-family: inherit;
+  padding: 0.25rem 0.35rem;
+}
+
+/* Room Controls */
+.room-controls {
+  display: flex;
+  gap: 0.25rem;
+  margin-top: 0.25rem;
+  align-items: center;
+}
+
+.room-type-selector {
+  flex: 1;
+  font-size: 0.75rem;
+}
+
+.delete-room-btn {
+  font-size: 0.7rem;
+  padding: 0.15rem 0.4rem;
+  background: #5a2a2a;
+  border-color: #844;
+}
+
+.delete-room-btn:hover {
+  background: #6a3a3a;
+}
+
+/* Utility Classes */
+.hint {
+  font-size: 0.75rem;
+  color: #aaa;
+}
+
+.status {
+  font-size: 0.7rem;
+  color: #888;
+  font-style: italic;
+}
+
+.density-value {
+  font-weight: bold;
+  color: #4a9eff;
+  min-width: 1.5rem;
+  text-align: center;
+}
+
+/* Zoom Controls */
+.zoom-controls {
+  display: flex;
+  gap: 0.25rem;
+  align-items: center;
+}
+
+.style-preview {
+  font-size: 0.7rem;
+  color: #888;
+  font-style: italic;
+}
+
+/* Symbol Buttons */
+.symbol-btn {
+  font-size: 0.75rem;
+  padding: 0.2rem 0.4rem;
+}
+
+.symbol-btn.active {
+  background: #456;
+  border-color: #89a;
+  box-shadow: 0 0 5px #89a;
+}

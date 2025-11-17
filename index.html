@@ -1,0 +1,280 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Dungeon Maker - Dyson Style</title>
+  <link rel="stylesheet" href="css/main.css">
+  <link rel="stylesheet" href="css/controls.css">
+  <link rel="stylesheet" href="css/modal.css">
+</head>
+<body>
+<header>
+  <div>
+    <h1>Dungeon Maker - Dyson Style</h1>
+    <small>Hand-drawn D&D maps | Drag rooms | Delete key to remove | Ctrl+Z to undo</small>
+  </div>
+  <div class="status" id="statusText">Auto-saved</div>
+</header>
+
+<main class="layout">
+  <!-- LEFT: MAP -->
+  <section class="left">
+    <div class="canvas-container" id="canvasContainer">
+      <canvas id="mapCanvas" width="800" height="600"></canvas>
+    </div>
+
+    <div class="toolbar">
+      <button id="newDungeonBtn" class="primary">New Random Dungeon</button>
+
+      <label class="file-label">
+        Load Map Image
+        <input type="file" id="mapFileInput" accept="image/*">
+      </label>
+
+      <button id="placeMarkerBtn">Add Numbered Location</button>
+
+      <label class="file-label">
+        Import JSON
+        <input type="file" id="jsonFileInput" accept="application/json">
+      </label>
+
+      <button id="exportPngBtn">Export Map PNG</button>
+      <button id="exportJsonBtn">Export JSON</button>
+
+      <div class="zoom-controls">
+        <button id="zoomOutBtn">-</button>
+        <span id="zoomLabel">100%</span>
+        <button id="zoomInBtn">+</button>
+        <button id="zoomResetBtn">Reset</button>
+      </div>
+
+      <button id="undoBtn" disabled>↶ Undo</button>
+      <button id="redoBtn" disabled>↷ Redo</button>
+      <button id="renumberBtn">Renumber Rooms</button>
+    </div>
+
+    <div class="options">
+      <span>Render Style:</span>
+      <select id="renderStyleSelect">
+        <option value="modern">Modern Clean</option>
+        <option value="dyson" selected>Hand-Drawn (Dyson)</option>
+        <option value="vintage">TSR Vintage</option>
+      </select>
+      <span class="style-preview" id="stylePreview">✨ Sketchy lines + cross-hatching</span>
+
+      <span>Algorithm:</span>
+      <select id="algorithmSelect">
+        <option value="rooms">Classic Rooms</option>
+        <option value="bsp">BSP Dungeon</option>
+        <option value="caves">Cellular Caves</option>
+      </select>
+
+      <span>Size:</span>
+      <select id="sizeSelect">
+        <option value="small">Small</option>
+        <option value="medium" selected>Medium</option>
+        <option value="large">Large</option>
+      </select>
+
+      <span>Density:</span>
+      <input id="densityRange" type="range" min="1" max="10" value="5">
+      <span class="density-value" id="densityValue">5</span>
+
+      <span>Theme:</span>
+      <select id="themeSelect">
+        <option value="classic">Classic Dungeon</option>
+        <option value="undead">Undead Crypt</option>
+        <option value="cavern">Caverns</option>
+        <option value="arcane">Arcane Ruin</option>
+      </select>
+    </div>
+
+    <div class="options">
+      <span>Templates:</span>
+      <select id="templateSelect">
+        <option value="">-- Choose Template --</option>
+        <option value="starter">Starter Cave</option>
+        <option value="tower">Wizard's Tower</option>
+        <option value="crypt">Ancient Crypt</option>
+        <option value="mine">Abandoned Mine</option>
+        <option value="castle">Castle Ruins</option>
+      </select>
+      <button id="loadTemplateBtn">Load Template</button>
+      <button id="clearStorageBtn">Clear Auto-Save</button>
+    </div>
+
+    <div class="hint">
+      🎨 Dyson Mode: Hand-drawn lines + cross-hatched walls + organic shapes. Switch to Modern for clean digital look.
+    </div>
+
+    <!-- SYMBOL PALETTE (Phase 2) -->
+    <details style="margin-top: 0.5rem; background: #1a1a1a; padding: 0.5rem; border-radius: 4px; border: 1px solid #333;">
+      <summary style="cursor: pointer; font-weight: bold; font-size: 0.9rem;">🔨 Map Symbols</summary>
+
+      <div style="display: flex; flex-direction: column; gap: 0.5rem; margin-top: 0.5rem;">
+        <div style="font-size: 0.85rem; color: #aaa;">Doors:</div>
+        <div style="display: flex; flex-wrap: wrap; gap: 0.25rem;">
+          <button class="symbol-btn" data-symbol="door" data-subtype="normal">🚪 Door</button>
+          <button class="symbol-btn" data-symbol="secret_door" data-subtype="secret">🔒 Secret</button>
+          <button class="symbol-btn" data-symbol="locked_door" data-subtype="locked">🔑 Locked</button>
+          <button class="symbol-btn" data-symbol="portcullis" data-subtype="portcullis">⛩️ Portcullis</button>
+          <button id="btnAutoDetectDoors">🔍 Auto-Detect</button>
+        </div>
+
+        <div style="font-size: 0.85rem; color: #aaa; margin-top: 0.25rem;">Stairs:</div>
+        <div style="display: flex; flex-wrap: wrap; gap: 0.25rem;">
+          <button class="symbol-btn" data-symbol="stairs_up" data-subtype="normal">⬆️ Up</button>
+          <button class="symbol-btn" data-symbol="stairs_down" data-subtype="normal">⬇️ Down</button>
+          <button class="symbol-btn" data-symbol="stairs_spiral" data-subtype="spiral">🌀 Spiral</button>
+        </div>
+
+        <div style="font-size: 0.85rem; color: #aaa; margin-top: 0.25rem;">Features:</div>
+        <div style="display: flex; flex-wrap: wrap; gap: 0.25rem;">
+          <button class="symbol-btn" data-symbol="pillar" data-subtype="round">⚫ Pillar</button>
+          <button class="symbol-btn" data-symbol="chest" data-subtype="">📦 Chest</button>
+          <button class="symbol-btn" data-symbol="table" data-subtype="">🪑 Table</button>
+          <button class="symbol-btn" data-symbol="altar" data-subtype="">⛪ Altar</button>
+          <button class="symbol-btn" data-symbol="statue" data-subtype="">🗿 Statue</button>
+        </div>
+
+        <div style="display: flex; gap: 0.25rem; margin-top: 0.25rem;">
+          <button id="btnDeleteSymbol" disabled style="background: #5a2a2a; border-color: #844;">❌ Delete Selected</button>
+          <button id="btnClearSymbols">🗑️ Clear All</button>
+        </div>
+
+        <div id="symbolHint" style="font-size: 0.75rem; color: #888; font-style: italic;">
+          Click a symbol button, then click on the map to place it.
+        </div>
+      </div>
+    </details>
+
+    <!-- MAP EFFECTS (Phase 3) -->
+    <details style="margin-top: 0.5rem; background: #1a1a1a; padding: 0.5rem; border-radius: 4px; border: 1px solid #333;">
+      <summary style="cursor: pointer; font-weight: bold; font-size: 0.9rem;">🎨 Map Effects</summary>
+
+      <div style="display: flex; flex-direction: column; gap: 0.5rem; margin-top: 0.5rem; font-size: 0.85rem;">
+        <label style="display: flex; gap: 0.5rem; align-items: center;">
+          <input type="checkbox" id="chkTitleBlock" checked>
+          📜 Title Block
+        </label>
+        <div style="display: flex; flex-direction: column; gap: 0.25rem; margin-left: 1.5rem;">
+          <input type="text" id="dungeonNameInput" placeholder="Dungeon Name" value="The Lost Crypt" style="font-size: 0.8rem; padding: 0.25rem;">
+          <input type="text" id="dmNameInput" placeholder="DM Name" value="DM" style="font-size: 0.8rem; padding: 0.25rem;">
+        </div>
+
+        <label style="display: flex; gap: 0.5rem; align-items: center;">
+          <input type="checkbox" id="chkCompass" checked>
+          🧭 Compass Rose
+        </label>
+
+        <label style="display: flex; gap: 0.5rem; align-items: center;">
+          <input type="checkbox" id="chkCoffeeStains">
+          ☕ Coffee Stains
+        </label>
+
+        <label style="display: flex; gap: 0.5rem; align-items: center;">
+          <input type="checkbox" id="chkAgeSpots">
+          🟤 Age Spots
+        </label>
+
+        <button id="btnRefreshEffects" style="margin-top: 0.25rem;">🔄 Regenerate Effects</button>
+      </div>
+    </details>
+  </section>
+
+  <!-- RIGHT: ROOM LIST -->
+  <section class="right">
+    <h2>Numbered Locations</h2>
+    <small>Click a room on the map or in the list to edit its text.</small>
+    <ol id="roomList"></ol>
+  </section>
+</main>
+
+<!-- EXPORT MODAL (Phase 4) -->
+<div id="exportModal" class="modal">
+  <div class="modal-content">
+    <div class="modal-header">
+      <h2>📤 Export Dungeon</h2>
+      <button class="modal-close" id="btnCloseExport">×</button>
+    </div>
+
+    <div class="export-grid">
+      <!-- Left: Options -->
+      <div>
+        <div class="export-section">
+          <h3>🎨 Visual Style</h3>
+          <label>
+            <input type="radio" name="exportStyle" value="modern"> Modern Clean
+            <span class="style-desc">Crisp digital lines, solid colors</span>
+          </label>
+          <label>
+            <input type="radio" name="exportStyle" value="dyson" checked> Hand-Drawn (Dyson)
+            <span class="style-desc">Sketchy lines, cross-hatched walls</span>
+          </label>
+          <label>
+            <input type="radio" name="exportStyle" value="vintage"> TSR Vintage
+            <span class="style-desc">Classic blue grid style</span>
+          </label>
+        </div>
+
+        <div class="export-section">
+          <h3>📐 Layout</h3>
+          <label>
+            <input type="radio" name="exportLayout" value="map-only" checked> Map Only
+            <span class="style-desc">Just the dungeon map</span>
+          </label>
+          <label>
+            <input type="radio" name="exportLayout" value="map-key"> Map + Room Key
+            <span class="style-desc">Map on left, descriptions on right</span>
+          </label>
+        </div>
+
+        <div class="export-section">
+          <h3>🔍 Resolution</h3>
+          <label>
+            <input type="radio" name="exportRes" value="1" checked> Standard (800×600)
+            <span class="style-desc">Screen viewing, web sharing</span>
+          </label>
+          <label>
+            <input type="radio" name="exportRes" value="2"> High Quality (1600×1200)
+            <span class="style-desc">High-DPI screens, VTTs</span>
+          </label>
+          <label>
+            <input type="radio" name="exportRes" value="4"> Print Quality (3200×2400)
+            <span class="style-desc">Physical printing, large displays</span>
+          </label>
+        </div>
+
+        <div class="export-section">
+          <h3>⚙️ Options</h3>
+          <label>
+            <input type="checkbox" id="exportIncludeEffects" checked> Include visual effects
+          </label>
+          <label>
+            <input type="checkbox" id="exportShowGrid"> Show grid overlay
+          </label>
+        </div>
+      </div>
+
+      <!-- Right: Preview -->
+      <div>
+        <div class="export-section">
+          <h3>👁️ Preview</h3>
+        </div>
+        <div class="export-preview">
+          <canvas id="exportPreviewCanvas" width="400" height="300"></canvas>
+          <p class="export-info" id="exportInfo">800×600 @ 1x | ~120 KB</p>
+        </div>
+      </div>
+    </div>
+
+    <div class="modal-footer">
+      <button id="btnExecuteExport" class="btn-large primary">📥 Download PNG</button>
+      <button id="btnCancelExport" class="btn-large">Cancel</button>
+    </div>
+  </div>
+</div>
+
+<script type="module" src="js/main.js"></script>
+</body>
+</html>
