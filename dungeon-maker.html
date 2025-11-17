@@ -102,11 +102,16 @@
       padding: 0.25rem;
       border-radius: 4px;
       cursor: pointer;
+      border: 1px solid transparent;
     }
     #roomList li.selected {
       background: #273445;
       border: 1px solid #4b7abf;
     }
+    #roomList li.room-entrance { border-left: 3px solid #4a9eff; }
+    #roomList li.room-treasure { border-left: 3px solid #ffd700; }
+    #roomList li.room-boss { border-left: 3px solid #ff4444; }
+    #roomList li.room-trap { border-left: 3px solid #ff8800; }
     #roomList textarea {
       width: 100%;
       min-height: 3rem;
@@ -120,9 +125,18 @@
       font-family: inherit;
       padding: 0.25rem 0.35rem;
     }
+    .room-type-selector {
+      margin-top: 0.25rem;
+      font-size: 0.75rem;
+    }
     .hint {
       font-size: 0.75rem;
       color: #aaa;
+    }
+    .status {
+      font-size: 0.7rem;
+      color: #888;
+      font-style: italic;
     }
   </style>
 </head>
@@ -132,6 +146,7 @@
     <h1>Dungeon Maker</h1>
     <small>Random D&D dungeons + editable numbered locations</small>
   </div>
+  <div class="status" id="statusText">Auto-saved</div>
 </header>
 
 <main class="layout">
@@ -148,11 +163,24 @@
       </label>
 
       <button id="placeMarkerBtn">Add Numbered Location</button>
+
+      <label class="file-label">
+        Import JSON
+        <input type="file" id="jsonFileInput" accept="application/json">
+      </label>
+
       <button id="exportPngBtn">Export Map PNG</button>
       <button id="exportJsonBtn">Export JSON</button>
     </div>
 
     <div class="options">
+      <span>Algorithm:</span>
+      <select id="algorithmSelect">
+        <option value="rooms">Classic Rooms</option>
+        <option value="bsp">BSP Dungeon</option>
+        <option value="caves">Cellular Caves</option>
+      </select>
+
       <span>Size:</span>
       <select id="sizeSelect">
         <option value="small">Small</option>
@@ -172,8 +200,22 @@
       </select>
     </div>
 
+    <div class="options">
+      <span>Templates:</span>
+      <select id="templateSelect">
+        <option value="">-- Choose Template --</option>
+        <option value="starter">Starter Cave</option>
+        <option value="tower">Wizard's Tower</option>
+        <option value="crypt">Ancient Crypt</option>
+        <option value="mine">Abandoned Mine</option>
+        <option value="castle">Castle Ruins</option>
+      </select>
+      <button id="loadTemplateBtn">Load Template</button>
+      <button id="clearStorageBtn">Clear Auto-Save</button>
+    </div>
+
     <div class="hint">
-      Tip: Load a custom map image, then use "Add Numbered Location" and click on the map to drop markers.
+      Tip: Load a custom map image, then use "Add Numbered Location" and click on the map to drop markers. Your work auto-saves!
     </div>
   </section>
 
@@ -193,12 +235,18 @@
   const roomListEl = document.getElementById('roomList');
   const newDungeonBtn = document.getElementById('newDungeonBtn');
   const mapFileInput = document.getElementById('mapFileInput');
+  const jsonFileInput = document.getElementById('jsonFileInput');
   const placeMarkerBtn = document.getElementById('placeMarkerBtn');
   const exportPngBtn = document.getElementById('exportPngBtn');
   const exportJsonBtn = document.getElementById('exportJsonBtn');
   const sizeSelect = document.getElementById('sizeSelect');
   const densityRange = document.getElementById('densityRange');
   const themeSelect = document.getElementById('themeSelect');
+  const algorithmSelect = document.getElementById('algorithmSelect');
+  const templateSelect = document.getElementById('templateSelect');
+  const loadTemplateBtn = document.getElementById('loadTemplateBtn');
+  const clearStorageBtn = document.getElementById('clearStorageBtn');
+  const statusText = document.getElementById('statusText');
 
   const GRID_SIZE = 20;
   const GRID_COLS = canvas.width / GRID_SIZE;
@@ -208,6 +256,69 @@
   let selectedRoomId = null;
   let placingMarker = false;
   let backgroundImg = null;
+
+  // --- TEMPLATES ---
+  const TEMPLATES = {
+    starter: {
+      name: "Starter Cave",
+      rooms: [
+        {id: 1, x: 5, y: 5, w: 6, h: 5, type: "entrance", description: "Cave entrance. A narrow passage leads into darkness. You hear dripping water echoing from deep within."},
+        {id: 2, x: 12, y: 4, w: 5, h: 4, type: "normal", description: "Guard post. Two goblin sentries patrol this chamber. Crude weapons lean against the walls."},
+        {id: 3, x: 18, y: 6, w: 6, h: 6, type: "normal", description: "Sleeping quarters. Filthy bedrolls and scattered bones suggest this is where the goblins rest."},
+        {id: 4, x: 10, y: 11, w: 7, h: 5, type: "trap", description: "Trapped corridor. A tripwire stretches across the passage (DC 12 to spot). Triggers a rockfall (2d6 damage)."},
+        {id: 5, x: 20, y: 14, w: 8, h: 7, type: "treasure", description: "Treasure cache. A locked chest (DC 15) contains 200gp, a +1 dagger, and a scroll of Identify."},
+        {id: 6, x: 5, y: 14, w: 4, h: 5, type: "normal", description: "Food storage. Crates of stolen provisions and a barrel of questionable ale."},
+        {id: 7, x: 14, y: 18, w: 9, h: 7, type: "boss", description: "Chieftain's lair. The goblin boss sits on a makeshift throne, flanked by two wolf companions."}
+      ]
+    },
+    tower: {
+      name: "Wizard's Tower",
+      rooms: [
+        {id: 1, x: 17, y: 24, w: 6, h: 5, type: "entrance", description: "Ground floor entrance. Dusty floor shows recent footprints. Arcane symbols glow faintly on the walls."},
+        {id: 2, x: 16, y: 18, w: 8, h: 5, type: "normal", description: "Library (Floor 2). Shelves line the walls, filled with moldy tomes. A reading desk holds an open spellbook."},
+        {id: 3, x: 15, y: 12, w: 9, h: 5, type: "trap", description: "Laboratory (Floor 3). Bubbling potions and strange apparatus. A failed experiment has created a toxic gas (CON save DC 13)."},
+        {id: 4, x: 14, y: 6, w: 10, h: 5, type: "treasure", description: "Vault (Floor 4). Magical wards protect a chest containing a Wand of Magic Missiles and three spell scrolls."},
+        {id: 5, x: 16, y: 1, w: 7, h: 4, type: "boss", description: "Sanctum (Floor 5). The rogue wizard performs a ritual. Teleportation circle active. Final confrontation."}
+      ]
+    },
+    crypt: {
+      name: "Ancient Crypt",
+      rooms: [
+        {id: 1, x: 15, y: 2, w: 8, h: 5, type: "entrance", description: "Crypt entrance. Stone doors carved with warnings. A cold draft flows from within."},
+        {id: 2, x: 10, y: 8, w: 6, h: 6, type: "normal", description: "Hall of ancestors. Stone sarcophagi line the walls. Undisturbed for centuries."},
+        {id: 3, x: 17, y: 9, w: 6, h: 5, type: "normal", description: "Offering chamber. Ancient coins and rotted flowers surround a central altar."},
+        {id: 4, x: 24, y: 8, w: 5, h: 6, type: "trap", description: "Cursed passage. Those who pass must make a WIS save (DC 14) or be frightened for 1 minute."},
+        {id: 5, x: 5, y: 15, w: 7, h: 6, type: "normal", description: "Burial vault. 2d4 skeletons animate when anyone enters. Attacking from alcoves."},
+        {id: 6, x: 14, y: 16, w: 8, h: 7, type: "treasure", description: "Priest's tomb. A golden chalice (500gp) and ceremonial mace rest on the sarcophagus."},
+        {id: 7, x: 24, y: 15, w: 9, h: 8, type: "boss", description: "Tomb of the death knight. The ancient warrior rises from his throne. Fights to protect his eternal rest."}
+      ]
+    },
+    mine: {
+      name: "Abandoned Mine",
+      rooms: [
+        {id: 1, x: 3, y: 10, w: 7, h: 6, type: "entrance", description: "Mine entrance. Old cart tracks lead into the mountain. Support beams look unstable."},
+        {id: 2, x: 11, y: 9, w: 6, h: 8, type: "normal", description: "First shaft. Pickaxes and tools scattered about. Signs of a hasty evacuation."},
+        {id: 3, x: 18, y: 8, w: 7, h: 5, type: "trap", description: "Unstable tunnel. Weakened supports. STR check (DC 13) or trigger cave-in (3d6 damage)."},
+        {id: 4, x: 18, y: 14, w: 8, h: 7, type: "normal", description: "Storage cavern. Crates of supplies and mining equipment. A few uncut gems glitter in a corner."},
+        {id: 5, x: 11, y: 18, w: 6, h: 6, type: "normal", description: "Flooded section. Knee-deep water. Strange echoes suggest something lurks below."},
+        {id: 6, x: 4, y: 18, w: 6, h: 7, type: "treasure", description: "Rich vein. Exposed gold and mithril ore worth 800gp if properly extracted."},
+        {id: 7, x: 27, y: 16, w: 8, h: 9, type: "boss", description: "Deep cavern. The reason the miners fled: an umber hulk has made this its lair."}
+      ]
+    },
+    castle: {
+      name: "Castle Ruins",
+      rooms: [
+        {id: 1, x: 8, y: 22, w: 8, h: 6, type: "entrance", description: "Gatehouse. Portcullis rusted open. Defensive positions along the walls."},
+        {id: 2, x: 3, y: 15, w: 6, h: 6, type: "normal", description: "Guardroom. Weapon racks empty. A card game abandoned mid-play on a table."},
+        {id: 3, x: 10, y: 15, w: 7, h: 6, type: "normal", description: "Courtyard. Overgrown with vines. A dry fountain stands in the center."},
+        {id: 4, x: 18, y: 16, w: 6, h: 5, type: "trap", description: "Armory. Trapped chest (DC 15). Poisoned needle (2d4 poison damage and poisoned condition)."},
+        {id: 5, x: 6, y: 8, w: 8, h: 6, type: "normal", description: "Great hall. Long tables and a raised dais. Tattered banners hang from the ceiling."},
+        {id: 6, x: 15, y: 9, w: 7, h: 6, type: "treasure", description: "Lord's chamber. Hidden compartment (Investigation DC 14) contains the family signet ring and 300gp."},
+        {id: 7, x: 23, y: 8, w: 8, h: 7, type: "normal", description: "Chapel. Defaced religious symbols. An unholy presence lingers here."},
+        {id: 8, x: 20, y: 2, w: 9, h: 5, type: "boss", description: "Throne room. The vampire lord who claimed this castle awaits in the shadows."}
+      ]
+    }
+  };
 
   // --- UTILS ---
   function randInt(min, max) {
@@ -223,8 +334,20 @@
     }
   }
 
-  // --- DUNGEON GENERATION ---
-  function generateDungeon() {
+  function getRoomColor(type) {
+    switch(type) {
+      case 'entrance': return '#4a9eff';
+      case 'treasure': return '#ffd700';
+      case 'boss': return '#ff4444';
+      case 'trap': return '#ff8800';
+      default: return '#aaa';
+    }
+  }
+
+  // --- DUNGEON GENERATION ALGORITHMS ---
+
+  // Classic room-based generation
+  function generateRoomsDungeon() {
     const size = sizeSelect.value;
     const density = parseInt(densityRange.value, 10);
 
@@ -251,7 +374,6 @@
       const x = randInt(1, GRID_COLS - w - 1);
       const y = randInt(1, GRID_ROWS - h - 1);
 
-      // basic overlap check to keep it clean-ish
       let overlaps = false;
       for (const r of newRooms) {
         if (x < r.x + r.w + 1 && x + w + 1 > r.x &&
@@ -265,30 +387,277 @@
       newRooms.push({
         id: id,
         x, y, w, h,
+        type: 'normal',
         description: '',
       });
       id++;
     }
 
+    // Mark special rooms
+    if (newRooms.length > 0) {
+      newRooms[0].type = 'entrance';
+      if (newRooms.length > 2) {
+        newRooms[newRooms.length - 1].type = 'boss';
+      }
+      if (newRooms.length > 4) {
+        newRooms[Math.floor(newRooms.length / 2)].type = 'treasure';
+      }
+      if (newRooms.length > 6) {
+        newRooms[Math.floor(newRooms.length / 3)].type = 'trap';
+      }
+    }
+
     rooms = newRooms;
     selectedRoomId = rooms[0]?.id ?? null;
     autoFillDescriptions();
+  }
+
+  // BSP (Binary Space Partitioning) algorithm
+  function generateBSPDungeon() {
+    const size = sizeSelect.value;
+    const density = parseInt(densityRange.value, 10);
+
+    let minRoomSize = size === 'small' ? 4 : size === 'large' ? 6 : 5;
+    let splits = size === 'small' ? 3 : size === 'large' ? 5 : 4;
+    splits += Math.floor(density / 3);
+
+    class BSPNode {
+      constructor(x, y, w, h) {
+        this.x = x; this.y = y; this.w = w; this.h = h;
+        this.left = null; this.right = null;
+        this.room = null;
+      }
+
+      split(depth) {
+        if (depth === 0) return;
+
+        const horizontal = Math.random() > 0.5;
+
+        if (horizontal) {
+          if (this.h < minRoomSize * 2) return;
+          const splitPos = randInt(minRoomSize, this.h - minRoomSize);
+          this.left = new BSPNode(this.x, this.y, this.w, splitPos);
+          this.right = new BSPNode(this.x, this.y + splitPos, this.w, this.h - splitPos);
+        } else {
+          if (this.w < minRoomSize * 2) return;
+          const splitPos = randInt(minRoomSize, this.w - minRoomSize);
+          this.left = new BSPNode(this.x, this.y, splitPos, this.h);
+          this.right = new BSPNode(this.x + splitPos, this.y, this.w - splitPos, this.h);
+        }
+
+        if (this.left) this.left.split(depth - 1);
+        if (this.right) this.right.split(depth - 1);
+      }
+
+      createRoom() {
+        if (this.left || this.right) {
+          if (this.left) this.left.createRoom();
+          if (this.right) this.right.createRoom();
+        } else {
+          const roomW = randInt(Math.floor(this.w * 0.5), Math.max(Math.floor(this.w * 0.9), Math.floor(this.w * 0.5) + 1));
+          const roomH = randInt(Math.floor(this.h * 0.5), Math.max(Math.floor(this.h * 0.9), Math.floor(this.h * 0.5) + 1));
+          const roomX = this.x + randInt(0, this.w - roomW);
+          const roomY = this.y + randInt(0, this.h - roomH);
+          this.room = { x: roomX, y: roomY, w: roomW, h: roomH };
+        }
+      }
+
+      getRooms() {
+        if (this.room) return [this.room];
+        const rooms = [];
+        if (this.left) rooms.push(...this.left.getRooms());
+        if (this.right) rooms.push(...this.right.getRooms());
+        return rooms;
+      }
+    }
+
+    const root = new BSPNode(1, 1, GRID_COLS - 2, GRID_ROWS - 2);
+    root.split(splits);
+    root.createRoom();
+
+    const bspRooms = root.getRooms();
+    rooms = bspRooms.map((r, i) => ({
+      id: i + 1,
+      x: r.x,
+      y: r.y,
+      w: r.w,
+      h: r.h,
+      type: 'normal',
+      description: ''
+    }));
+
+    // Mark special rooms
+    if (rooms.length > 0) {
+      rooms[0].type = 'entrance';
+      if (rooms.length > 2) {
+        rooms[rooms.length - 1].type = 'boss';
+      }
+      if (rooms.length > 4) {
+        rooms[Math.floor(rooms.length / 2)].type = 'treasure';
+      }
+      if (rooms.length > 6) {
+        rooms[Math.floor(rooms.length / 3)].type = 'trap';
+      }
+    }
+
+    selectedRoomId = rooms[0]?.id ?? null;
+    autoFillDescriptions();
+  }
+
+  // Cellular Automata cave generation
+  function generateCavesDungeon() {
+    const density = parseInt(densityRange.value, 10);
+    const fillProbability = 0.45 - (density * 0.02);
+
+    // Create grid
+    let grid = Array(GRID_ROWS).fill(0).map(() => Array(GRID_COLS).fill(0));
+
+    // Random fill
+    for (let y = 1; y < GRID_ROWS - 1; y++) {
+      for (let x = 1; x < GRID_COLS - 1; x++) {
+        grid[y][x] = Math.random() < fillProbability ? 1 : 0;
+      }
+    }
+
+    // Cellular automata iterations
+    for (let iter = 0; iter < 4; iter++) {
+      const newGrid = grid.map(row => [...row]);
+      for (let y = 1; y < GRID_ROWS - 1; y++) {
+        for (let x = 1; x < GRID_COLS - 1; x++) {
+          let neighbors = 0;
+          for (let dy = -1; dy <= 1; dy++) {
+            for (let dx = -1; dx <= 1; dx++) {
+              if (dx === 0 && dy === 0) continue;
+              neighbors += grid[y + dy][x + dx];
+            }
+          }
+          newGrid[y][x] = neighbors >= 5 ? 1 : 0;
+        }
+      }
+      grid = newGrid;
+    }
+
+    // Convert to rooms (find open areas)
+    const visited = Array(GRID_ROWS).fill(0).map(() => Array(GRID_COLS).fill(false));
+    const foundRooms = [];
+    let roomId = 1;
+
+    function floodFill(startX, startY) {
+      const cells = [];
+      const queue = [[startX, startY]];
+      visited[startY][startX] = true;
+
+      while (queue.length > 0) {
+        const [x, y] = queue.shift();
+        cells.push([x, y]);
+
+        for (const [dx, dy] of [[-1,0], [1,0], [0,-1], [0,1]]) {
+          const nx = x + dx, ny = y + dy;
+          if (nx >= 0 && nx < GRID_COLS && ny >= 0 && ny < GRID_ROWS &&
+              !visited[ny][nx] && grid[ny][nx] === 0) {
+            visited[ny][nx] = true;
+            queue.push([nx, ny]);
+          }
+        }
+      }
+      return cells;
+    }
+
+    for (let y = 1; y < GRID_ROWS - 1; y++) {
+      for (let x = 1; x < GRID_COLS - 1; x++) {
+        if (grid[y][x] === 0 && !visited[y][x]) {
+          const cells = floodFill(x, y);
+          if (cells.length > 15) {
+            const xs = cells.map(c => c[0]);
+            const ys = cells.map(c => c[1]);
+            const minX = Math.min(...xs);
+            const maxX = Math.max(...xs);
+            const minY = Math.min(...ys);
+            const maxY = Math.max(...ys);
+
+            foundRooms.push({
+              id: roomId++,
+              x: minX,
+              y: minY,
+              w: maxX - minX + 1,
+              h: maxY - minY + 1,
+              type: 'normal',
+              description: ''
+            });
+          }
+        }
+      }
+    }
+
+    rooms = foundRooms.slice(0, 15);
+
+    if (rooms.length > 0) {
+      rooms[0].type = 'entrance';
+      if (rooms.length > 2) {
+        rooms[rooms.length - 1].type = 'boss';
+      }
+      if (rooms.length > 4) {
+        rooms[Math.floor(rooms.length / 2)].type = 'treasure';
+      }
+    }
+
+    selectedRoomId = rooms[0]?.id ?? null;
+    autoFillDescriptions();
+  }
+
+  function generateDungeon() {
+    const algorithm = algorithmSelect.value;
+
+    switch(algorithm) {
+      case 'bsp':
+        generateBSPDungeon();
+        break;
+      case 'caves':
+        generateCavesDungeon();
+        break;
+      default:
+        generateRoomsDungeon();
+    }
+
     render();
     rebuildRoomList();
+    saveToLocalStorage();
   }
 
   function autoFillDescriptions() {
     const themeText = getThemePrompt(themeSelect.value);
     rooms.forEach((room, idx) => {
       if (!room.description) {
-        room.description =
-          `Area ${room.id}. ${themeText} This room has a notable feature or encounter tailored by the DM.`;
-        if (idx === 0) {
-          room.description =
-            `Entrance (${room.id}). Players arrive here. Describe how they enter the dungeon and any immediate threats.`;
+        if (room.type === 'entrance') {
+          room.description = `Entrance (${room.id}). Players arrive here. Describe how they enter the dungeon and any immediate threats.`;
+        } else if (room.type === 'boss') {
+          room.description = `Boss chamber (${room.id}). The final challenge awaits. A formidable opponent guards this area.`;
+        } else if (room.type === 'treasure') {
+          room.description = `Treasure room (${room.id}). Valuable items hidden here. Perhaps guarded or trapped.`;
+        } else if (room.type === 'trap') {
+          room.description = `Trapped area (${room.id}). Danger lurks here. Describe the trap and its trigger mechanism.`;
+        } else {
+          room.description = `Area ${room.id}. ${themeText} This room has a notable feature or encounter tailored by the DM.`;
         }
       }
     });
+  }
+
+  // --- CORRIDOR GENERATION (L-SHAPED) ---
+  function createLCorridor(x1, y1, x2, y2) {
+    const paths = [];
+
+    if (Math.random() > 0.5) {
+      // Horizontal first, then vertical
+      paths.push({ x1: x1, y1: y1, x2: x2, y2: y1 });
+      paths.push({ x1: x2, y1: y1, x2: x2, y2: y2 });
+    } else {
+      // Vertical first, then horizontal
+      paths.push({ x1: x1, y1: y1, x2: x1, y2: y2 });
+      paths.push({ x1: x1, y1: y2, x2: x2, y2: y2 });
+    }
+
+    return paths;
   }
 
   // --- RENDERING ---
@@ -310,7 +679,7 @@
   }
 
   function drawRooms() {
-    // corridors between room centers
+    // Draw L-shaped corridors between room centers
     ctx.strokeStyle = '#555';
     ctx.lineWidth = 2;
     for (let i = 1; i < rooms.length; i++) {
@@ -320,18 +689,22 @@
       const y1 = (r1.y + r1.h / 2) * GRID_SIZE;
       const x2 = (r2.x + r2.w / 2) * GRID_SIZE;
       const y2 = (r2.y + r2.h / 2) * GRID_SIZE;
-      ctx.beginPath();
-      ctx.moveTo(x1, y1);
-      ctx.lineTo(x2, y2);
-      ctx.stroke();
+
+      const corridors = createLCorridor(x1, y1, x2, y2);
+      corridors.forEach(c => {
+        ctx.beginPath();
+        ctx.moveTo(c.x1, c.y1);
+        ctx.lineTo(c.x2, c.y2);
+        ctx.stroke();
+      });
     }
 
+    // Draw rooms
     rooms.forEach(room => {
       const isSelected = room.id === selectedRoomId;
 
-      // room rectangle
       ctx.lineWidth = isSelected ? 3 : 2;
-      ctx.strokeStyle = isSelected ? '#4b7abf' : '#aaa';
+      ctx.strokeStyle = isSelected ? '#4b7abf' : getRoomColor(room.type);
       ctx.fillStyle = '#222';
 
       const x = room.x * GRID_SIZE;
@@ -342,7 +715,7 @@
       ctx.fillRect(x, y, w, h);
       ctx.strokeRect(x, y, w, h);
 
-      // room number
+      // Room number
       ctx.fillStyle = '#fff';
       ctx.font = '16px system-ui';
       ctx.textAlign = 'center';
@@ -350,6 +723,13 @@
       const cx = x + w / 2;
       const cy = y + h / 2;
       ctx.fillText(String(room.id), cx, cy);
+
+      // Room type indicator
+      if (room.type !== 'normal') {
+        ctx.font = '10px system-ui';
+        ctx.fillStyle = getRoomColor(room.type);
+        ctx.fillText(room.type.toUpperCase(), cx, cy + 12);
+      }
     });
   }
 
@@ -382,20 +762,41 @@
       .forEach(room => {
         const li = document.createElement('li');
         li.dataset.id = room.id;
+        li.className = `room-${room.type}`;
         if (room.id === selectedRoomId) li.classList.add('selected');
 
         const title = document.createElement('div');
         title.textContent = `Location ${room.id}`;
         li.appendChild(title);
 
+        // Room type selector
+        const typeSelector = document.createElement('select');
+        typeSelector.className = 'room-type-selector';
+        ['normal', 'entrance', 'treasure', 'boss', 'trap'].forEach(type => {
+          const opt = document.createElement('option');
+          opt.value = type;
+          opt.textContent = type.charAt(0).toUpperCase() + type.slice(1);
+          if (room.type === type) opt.selected = true;
+          typeSelector.appendChild(opt);
+        });
+        typeSelector.addEventListener('change', (e) => {
+          room.type = e.target.value;
+          render();
+          rebuildRoomList();
+          saveToLocalStorage();
+        });
+        li.appendChild(typeSelector);
+
         const textarea = document.createElement('textarea');
         textarea.value = room.description || '';
         textarea.addEventListener('input', (e) => {
           room.description = e.target.value;
+          saveToLocalStorage();
         });
         li.appendChild(textarea);
 
-        li.addEventListener('click', () => {
+        li.addEventListener('click', (e) => {
+          if (e.target === textarea || e.target === typeSelector) return;
           selectedRoomId = room.id;
           render();
           rebuildRoomList();
@@ -435,6 +836,7 @@
         y: gy - 1,
         w: 3,
         h: 3,
+        type: 'normal',
         description: `Location ${id}. Describe what is here.`
       };
       rooms.push(newRoom);
@@ -443,6 +845,7 @@
       placeMarkerBtn.textContent = 'Add Numbered Location';
       render();
       rebuildRoomList();
+      saveToLocalStorage();
       return;
     }
 
@@ -454,9 +857,47 @@
     }
   });
 
+  // --- LOCAL STORAGE ---
+  function saveToLocalStorage() {
+    const data = {
+      size: sizeSelect.value,
+      density: densityRange.value,
+      theme: themeSelect.value,
+      algorithm: algorithmSelect.value,
+      rooms: rooms,
+      timestamp: Date.now()
+    };
+    localStorage.setItem('dungeonMaker_autoSave', JSON.stringify(data));
+    statusText.textContent = 'Auto-saved';
+    setTimeout(() => { statusText.textContent = ''; }, 2000);
+  }
+
+  function loadFromLocalStorage() {
+    const saved = localStorage.getItem('dungeonMaker_autoSave');
+    if (saved) {
+      try {
+        const data = JSON.parse(saved);
+        sizeSelect.value = data.size || 'medium';
+        densityRange.value = data.density || 5;
+        themeSelect.value = data.theme || 'classic';
+        algorithmSelect.value = data.algorithm || 'rooms';
+        rooms = data.rooms || [];
+        selectedRoomId = rooms[0]?.id ?? null;
+        render();
+        rebuildRoomList();
+        statusText.textContent = 'Loaded from auto-save';
+        setTimeout(() => { statusText.textContent = ''; }, 3000);
+        return true;
+      } catch(e) {
+        console.error('Failed to load from localStorage', e);
+      }
+    }
+    return false;
+  }
+
   // --- BUTTON HANDLERS ---
   newDungeonBtn.addEventListener('click', () => {
-    backgroundImg = null; // clear custom map
+    backgroundImg = null;
     generateDungeon();
   });
 
@@ -482,6 +923,32 @@
     reader.readAsDataURL(file);
   });
 
+  // JSON Import
+  jsonFileInput.addEventListener('change', (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = function(ev) {
+      try {
+        const data = JSON.parse(ev.target.result);
+        sizeSelect.value = data.size || 'medium';
+        densityRange.value = data.density || 5;
+        themeSelect.value = data.theme || 'classic';
+        algorithmSelect.value = data.algorithm || 'rooms';
+        rooms = data.rooms || [];
+        selectedRoomId = rooms[0]?.id ?? null;
+        render();
+        rebuildRoomList();
+        saveToLocalStorage();
+        statusText.textContent = 'Imported from JSON';
+        setTimeout(() => { statusText.textContent = ''; }, 3000);
+      } catch(err) {
+        alert('Failed to import JSON: ' + err.message);
+      }
+    };
+    reader.readAsText(file);
+  });
+
   exportPngBtn.addEventListener('click', () => {
     const dataUrl = canvas.toDataURL('image/png');
     const a = document.createElement('a');
@@ -495,9 +962,11 @@
       size: sizeSelect.value,
       density: densityRange.value,
       theme: themeSelect.value,
+      algorithm: algorithmSelect.value,
       rooms: rooms.map(r => ({
         id: r.id,
         gridRect: { x: r.x, y: r.y, w: r.w, h: r.h },
+        type: r.type,
         description: r.description
       }))
     };
@@ -510,8 +979,38 @@
     URL.revokeObjectURL(url);
   });
 
-  // initial dungeon
-  generateDungeon();
+  // Template loading
+  loadTemplateBtn.addEventListener('click', () => {
+    const templateName = templateSelect.value;
+    if (!templateName || !TEMPLATES[templateName]) {
+      alert('Please select a template');
+      return;
+    }
+
+    const template = TEMPLATES[templateName];
+    rooms = JSON.parse(JSON.stringify(template.rooms)); // Deep clone
+    selectedRoomId = rooms[0]?.id ?? null;
+    backgroundImg = null;
+    render();
+    rebuildRoomList();
+    saveToLocalStorage();
+    statusText.textContent = `Loaded template: ${template.name}`;
+    setTimeout(() => { statusText.textContent = ''; }, 3000);
+  });
+
+  clearStorageBtn.addEventListener('click', () => {
+    if (confirm('Clear auto-saved data? This cannot be undone.')) {
+      localStorage.removeItem('dungeonMaker_autoSave');
+      statusText.textContent = 'Auto-save cleared';
+      setTimeout(() => { statusText.textContent = ''; }, 3000);
+    }
+  });
+
+  // --- INITIALIZATION ---
+  // Try to load from localStorage, otherwise generate initial dungeon
+  if (!loadFromLocalStorage()) {
+    generateDungeon();
+  }
 </script>
 </body>
 </html>
