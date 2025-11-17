@@ -1,4 +1,4 @@
-import { GRID_SIZE, rooms, titleBlockData } from './state.js';
+import { GRID_SIZE, rooms, titleBlockData, traps, encounters, dmNotes, showDmNotes } from './state.js';
 import { render } from './renderer.js';
 
 // --- PHASE 4: EXPORT SYSTEM ---
@@ -10,7 +10,8 @@ export class DungeonExporter {
       layout: 'map-only',
       resolution: 1,
       includeEffects: true,
-      showGrid: false
+      showGrid: false,
+      includeDmNotes: false
     };
   }
 
@@ -20,6 +21,7 @@ export class DungeonExporter {
     this.options.resolution = parseInt(document.querySelector('input[name="exportRes"]:checked')?.value || '1');
     this.options.includeEffects = document.getElementById('exportIncludeEffects')?.checked ?? true;
     this.options.showGrid = document.getElementById('exportShowGrid')?.checked ?? false;
+    this.options.includeDmNotes = document.getElementById('exportIncludeDmNotes')?.checked ?? false;
   }
 
   createExportCanvas() {
@@ -47,6 +49,7 @@ export class DungeonExporter {
     const oldCtx = window.ctx;
     const oldStyle = window.renderStyle;
     const oldEffects = {...window.effectsEnabled};
+    const oldShowDmNotes = window.showDmNotes;
 
     // Set export context
     window.ctx = exportCtx;
@@ -60,6 +63,11 @@ export class DungeonExporter {
         titleBlock: false,
         compass: false
       };
+    }
+
+    // Hide DM notes if not included
+    if (!this.options.includeDmNotes) {
+      window.showDmNotes = false;
     }
 
     // Render full map
@@ -89,6 +97,7 @@ export class DungeonExporter {
     window.ctx = oldCtx;
     window.renderStyle = oldStyle;
     window.effectsEnabled = oldEffects;
+    window.showDmNotes = oldShowDmNotes;
 
     exportCtx.setTransform(1, 0, 0, 1, 0, 0);
   }
@@ -122,6 +131,7 @@ export class DungeonExporter {
     const oldCtx = window.ctx;
     const oldStyle = window.renderStyle;
     const oldEffects = {...window.effectsEnabled};
+    const oldShowDmNotes = window.showDmNotes;
 
     window.ctx = exportCtx;
     window.renderStyle = this.options.style;
@@ -136,11 +146,17 @@ export class DungeonExporter {
       };
     }
 
+    // Hide DM notes if not included
+    if (!this.options.includeDmNotes) {
+      window.showDmNotes = false;
+    }
+
     render();
 
     window.ctx = oldCtx;
     window.renderStyle = oldStyle;
     window.effectsEnabled = oldEffects;
+    window.showDmNotes = oldShowDmNotes;
 
     exportCtx.restore();
 
@@ -178,6 +194,41 @@ export class DungeonExporter {
           ctx.fillText(line, x + 15, currentY);
           currentY += lineHeight - 2;
         });
+      }
+
+      // Add trap info
+      const roomTraps = traps.filter(t => {
+        // Check if trap is within this room's bounds
+        return t.x >= room.x && t.x < room.x + room.w &&
+               t.y >= room.y && t.y < room.y + room.h;
+      });
+
+      if (roomTraps.length > 0) {
+        ctx.font = 'italic 12px Georgia, serif';
+        ctx.fillStyle = '#ff6600';
+        roomTraps.forEach(trap => {
+          const trapText = `⚠️ Trap: ${trap.trapType} (DC ${trap.detectionDC || '?'})`;
+          ctx.fillText(trapText, x + 15, currentY);
+          currentY += lineHeight - 4;
+        });
+        ctx.fillStyle = '#000';
+      }
+
+      // Add encounter info
+      const roomEncounters = encounters.filter(e => {
+        return e.x >= room.x && e.x < room.x + room.w &&
+               e.y >= room.y && e.y < room.y + room.h;
+      });
+
+      if (roomEncounters.length > 0) {
+        ctx.font = 'italic 12px Georgia, serif';
+        ctx.fillStyle = '#cc0000';
+        roomEncounters.forEach(enc => {
+          const encText = `👹 ${enc.count || 1}x ${enc.monsterType || 'Monster'} (AC ${enc.ac || '?'}, HP ${enc.hp || '?'})`;
+          ctx.fillText(encText, x + 15, currentY);
+          currentY += lineHeight - 4;
+        });
+        ctx.fillStyle = '#000';
       }
 
       currentY += 10; // Spacing

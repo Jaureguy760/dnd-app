@@ -180,6 +180,56 @@
         <button id="btnRefreshEffects" style="margin-top: 0.25rem;">🔄 Regenerate Effects</button>
       </div>
     </details>
+
+    <!-- PHASE 5: DM TOOLS -->
+    <details style="margin-top: 0.5rem; background: #1a1a1a; padding: 0.5rem; border-radius: 4px; border: 1px solid #333;">
+      <summary style="cursor: pointer; font-weight: bold; font-size: 0.9rem;">🎲 DM Tools</summary>
+
+      <div style="display: flex; flex-direction: column; gap: 0.5rem; margin-top: 0.5rem; font-size: 0.85rem;">
+        <!-- Measurement Ruler -->
+        <button id="btnRulerMode">📏 Measure Distance</button>
+        <div class="hint" id="rulerHint" style="display:none;">Click two points to measure</div>
+
+        <!-- Text Annotations -->
+        <button id="btnAddAnnotation">📝 Add Note</button>
+        <button id="btnClearAnnotations">✕ Clear All Notes</button>
+
+        <!-- Traps -->
+        <h4 style="margin-top: 1rem;">Traps</h4>
+        <select id="trapTypeSelect">
+          <option value="bear">🪤 Bear Trap</option>
+          <option value="pit">🕳️ Pit Trap</option>
+          <option value="dart">🎯 Dart Trap</option>
+          <option value="poison">☠️ Poison Gas</option>
+          <option value="spike">⚔️ Spike Trap</option>
+          <option value="fire">🔥 Fire Trap</option>
+          <option value="magic">✨ Magical Trap</option>
+        </select>
+        <button id="btnPlaceTrap">Place Trap</button>
+        <button id="btnClearTraps">✕ Clear All Traps</button>
+
+        <!-- Monsters/Encounters -->
+        <h4 style="margin-top: 1rem;">Monsters</h4>
+        <select id="encounterTypeSelect">
+          <option value="humanoid">🧍 Humanoid</option>
+          <option value="beast">🐻 Beast</option>
+          <option value="undead">💀 Undead</option>
+          <option value="dragon">🐉 Dragon</option>
+          <option value="fiend">😈 Fiend</option>
+          <option value="aberration">👁️ Aberration</option>
+        </select>
+        <button id="btnPlaceEncounter">Place Monster</button>
+        <button id="btnClearEncounters">✕ Clear All Monsters</button>
+
+        <!-- DM Notes Layer -->
+        <h4 style="margin-top: 1rem;">DM Notes</h4>
+        <label>
+          <input type="checkbox" id="chkShowDmNotes" checked> Show DM Notes
+        </label>
+        <button id="btnAddDmNote">Add Secret Note</button>
+        <button id="btnClearDmNotes">✕ Clear DM Notes</button>
+      </div>
+    </details>
   </section>
 
   <!-- RIGHT: ROOM LIST -->
@@ -253,6 +303,9 @@
           <label>
             <input type="checkbox" id="exportShowGrid"> Show grid overlay
           </label>
+          <label>
+            <input type="checkbox" id="exportIncludeDmNotes"> Include DM Notes (for DM map)
+          </label>
         </div>
       </div>
 
@@ -271,6 +324,68 @@
     <div class="modal-footer">
       <button id="btnExecuteExport" class="btn-large primary">📥 Download PNG</button>
       <button id="btnCancelExport" class="btn-large">Cancel</button>
+    </div>
+  </div>
+</div>
+
+<!-- TRAP DETAILS MODAL -->
+<div id="trapModal" class="modal">
+  <div class="modal-content">
+    <div class="modal-header">
+      <h2>🪤 Trap Details</h2>
+      <button class="modal-close" id="btnCloseTrap">×</button>
+    </div>
+    <div style="padding: 1rem;">
+      <label>Detection DC: <input type="number" id="trapDetectionDC" value="15" min="1" max="30"></label><br>
+      <label>Disarm DC: <input type="number" id="trapDisarmDC" value="13" min="1" max="30"></label><br>
+      <label>Save Type:
+        <select id="trapSaveType">
+          <option>Dexterity</option>
+          <option>Constitution</option>
+          <option>Wisdom</option>
+        </select>
+      </label><br>
+      <label>Damage: <input type="text" id="trapDamage" placeholder="2d10 piercing"></label><br>
+      <label>Description:<br>
+        <textarea id="trapDescription" rows="3" style="width: 100%;"></textarea>
+      </label>
+    </div>
+    <div class="modal-footer">
+      <button id="btnSaveTrap" class="btn-large primary">Save Trap</button>
+      <button id="btnCancelTrap" class="btn-large">Cancel</button>
+    </div>
+  </div>
+</div>
+
+<!-- ENCOUNTER DETAILS MODAL -->
+<div id="encounterModal" class="modal">
+  <div class="modal-content">
+    <div class="modal-header">
+      <h2>👹 Monster Details</h2>
+      <button class="modal-close" id="btnCloseEncounter">×</button>
+    </div>
+    <div style="padding: 1rem;">
+      <label>Name/Type: <input type="text" id="encounterName" placeholder="Goblin"></label><br>
+      <label>Count: <input type="number" id="encounterCount" value="1" min="1" max="20"></label><br>
+      <label>AC: <input type="number" id="encounterAC" value="13" min="1" max="30"></label><br>
+      <label>HP (each): <input type="text" id="encounterHP" placeholder="7"></label><br>
+      <label>Difficulty:
+        <select id="encounterDifficulty">
+          <option value="easy">Easy (Green)</option>
+          <option value="medium">Medium (Yellow)</option>
+          <option value="hard">Hard (Red)</option>
+        </select>
+      </label><br>
+      <label>Behavior:<br>
+        <textarea id="encounterBehavior" rows="2" placeholder="Patrol, alert on 5+" style="width: 100%;"></textarea>
+      </label><br>
+      <label>Notes:<br>
+        <textarea id="encounterNotes" rows="2" placeholder="Additional notes" style="width: 100%;"></textarea>
+      </label>
+    </div>
+    <div class="modal-footer">
+      <button id="btnSaveEncounter" class="btn-large primary">Save Monster</button>
+      <button id="btnCancelEncounter" class="btn-large">Cancel</button>
     </div>
   </div>
 </div>

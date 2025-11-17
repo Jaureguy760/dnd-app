@@ -8,9 +8,12 @@ import {
   exportJsonBtn, sizeSelect, densityRange, densityValue, themeSelect, algorithmSelect,
   templateSelect, loadTemplateBtn, clearStorageBtn, zoomInBtn, zoomOutBtn, zoomResetBtn,
   undoBtn, redoBtn, renumberBtn, renderStyleSelect, stylePreview, TEMPLATES,
+  rulerMode, rulerStart, rulerEnd, encounters, annotations, dmNotes, showDmNotes,
   setRooms, setSelectedRoomId, setPlacingMarker, setBackgroundImg, setDraggingRoom,
   setSymbols, setSelectedSymbol, setPlacingSymbolType, setEffectsEnabled, setTitleBlockData,
-  setUndoStack, setRedoStack, setMouseDownPos, setHasDragged, setRenderStyle
+  setUndoStack, setRedoStack, setMouseDownPos, setHasDragged, setRenderStyle,
+  setRulerMode, setRulerStart, setRulerEnd, setEncounters, setAnnotations,
+  traps, setTraps, setDmNotes, setShowDmNotes
 } from './state.js';
 
 import { render } from './renderer.js';
@@ -25,6 +28,24 @@ import { generateCoffeeStains } from './effects.js';
 
 // Initialize exporter
 const exporter = new DungeonExporter();
+
+// --- ENCOUNTER PLACEMENT STATE ---
+let placingEncounter = false;
+let currentEncounterType = 'humanoid';
+let pendingEncounterPosition = null;
+
+// --- TRAP PLACEMENT STATE ---
+let placingTrap = false;
+let currentTrapType = 'bear';
+let pendingTrapPosition = null;
+
+// --- ANNOTATION PLACEMENT STATE ---
+let placingAnnotation = false;
+let annotationText = '';
+
+// --- DM NOTES STATE ---
+let placingDmNote = false;
+let pendingDmNoteText = '';
 
 // --- ROOM LIST UI ---
 export function rebuildRoomList() {
@@ -247,6 +268,144 @@ export function handleCanvasClick(x, y) {
   const gx = Math.floor(x / GRID_SIZE);
   const gy = Math.floor(y / GRID_SIZE);
 
+  // If placing DM note
+  if (placingDmNote) {
+    const newNote = {
+      id: Date.now() + Math.random(),
+      x: gx,
+      y: gy,
+      text: pendingDmNoteText,
+      noteType: 'secret'
+    };
+
+    setDmNotes([...dmNotes, newNote]);
+    saveState();
+    saveToLocalStorage();
+    render();
+
+    placingDmNote = false;
+    pendingDmNoteText = '';
+    statusText.textContent = '';
+    return;
+  }
+
+  // Check if clicked on DM note (only when visible)
+  if (showDmNotes) {
+    const clickedNote = dmNotes.find(note => {
+      const noteX = note.x * GRID_SIZE;
+      const noteY = note.y * GRID_SIZE;
+      const fontSize = 12;
+      const textWidth = ctx.measureText(note.text).width || 50;
+      return x >= noteX - 4 && x <= noteX + textWidth + 4 &&
+             y >= noteY - fontSize - 4 && y <= noteY + 4;
+    });
+
+    if (clickedNote) {
+      const action = confirm('Edit DM note? (Cancel to delete)');
+      if (action) {
+        const newText = prompt('Edit DM note:', clickedNote.text);
+        if (newText) {
+          clickedNote.text = newText;
+          setDmNotes([...dmNotes]);
+          saveState();
+          saveToLocalStorage();
+          render();
+        }
+      } else {
+        setDmNotes(dmNotes.filter(n => n.id !== clickedNote.id));
+        saveState();
+        saveToLocalStorage();
+        render();
+      }
+      return;
+    }
+  }
+
+  // If ruler mode is active, handle ruler clicks
+  if (rulerMode) {
+    if (!rulerStart) {
+      setRulerStart({x: gx, y: gy});
+    } else if (!rulerEnd) {
+      setRulerEnd({x: gx, y: gy});
+      // Show distance in status
+      const dx = Math.abs(gx - rulerStart.x);
+      const dy = Math.abs(gy - rulerStart.y);
+      const distance = Math.sqrt(dx * dx + dy * dy) * 5;
+      statusText.textContent = `Distance: ${Math.round(distance)}ft`;
+      setTimeout(() => { statusText.textContent = ''; }, 3000);
+      // Reset for next measurement
+      setRulerStart(null);
+      setRulerEnd(null);
+    }
+    render();
+    return; // Don't process other clicks
+  }
+
+  // If placing annotation
+  if (placingAnnotation) {
+    const newAnnotation = {
+      id: Date.now() + Math.random(),
+      x: gx,
+      y: gy,
+      text: annotationText,
+      fontSize: 12,
+      color: '#000'
+    };
+    setAnnotations([...annotations, newAnnotation]);
+    saveState();
+    saveToLocalStorage();
+
+    placingAnnotation = false;
+    annotationText = '';
+    statusText.textContent = '';
+    render();
+    return;
+  }
+
+  // Check if clicked on annotation
+  const clickedAnnotation = annotations.find(ann => {
+    const annX = ann.x * GRID_SIZE;
+    const annY = ann.y * GRID_SIZE;
+    const fontSize = ann.fontSize || 12;
+    const textWidth = ctx.measureText(ann.text).width || 50;
+    return x >= annX - 4 && x <= annX + textWidth + 4 &&
+           y >= annY - fontSize - 4 && y <= annY + 4;
+  });
+
+  if (clickedAnnotation) {
+    const action = confirm('Edit annotation? (Cancel to delete)');
+    if (action) {
+      const newText = prompt('Edit annotation:', clickedAnnotation.text);
+      if (newText) {
+        clickedAnnotation.text = newText;
+        setAnnotations([...annotations]);
+        saveState();
+        saveToLocalStorage();
+        render();
+      }
+    } else {
+      setAnnotations(annotations.filter(a => a.id !== clickedAnnotation.id));
+      saveState();
+      saveToLocalStorage();
+      render();
+    }
+    return;
+  }
+
+  // If placing encounter
+  if (placingEncounter) {
+    const gx = Math.floor(x / GRID_SIZE);
+    const gy = Math.floor(y / GRID_SIZE);
+    
+    pendingEncounterPosition = {x: gx, y: gy};
+    placingEncounter = false;
+    
+    // Show encounter details modal
+    document.getElementById('encounterModal').style.display = 'block';
+    statusText.textContent = '';
+    return;
+  }
+
   // Symbol placement mode
   if (placingSymbolType) {
     saveState();
@@ -276,6 +435,26 @@ export function handleCanvasClick(x, y) {
     // Deselect room, select symbol
     setSelectedRoomId(null);
     setSelectedSymbol(newSymbol);
+
+  // Check if clicked on encounter
+  const clickedEncounter = encounters.find(enc => {
+    const encX = enc.x * GRID_SIZE + GRID_SIZE / 2;
+    const encY = enc.y * GRID_SIZE + GRID_SIZE / 2;
+    const dist = Math.sqrt((x - encX) ** 2 + (y - encY) ** 2);
+    return dist < GRID_SIZE * 0.5;
+  });
+
+  if (clickedEncounter) {
+    const info = `${clickedEncounter.count}x ${clickedEncounter.monsterType}\nAC: ${clickedEncounter.ac}, HP: ${clickedEncounter.hp}\nBehavior: ${clickedEncounter.behavior || 'None'}\n\nDelete this encounter?`;
+    const action = confirm(info);
+    if (action) {
+      setEncounters(encounters.filter(e => e.id !== clickedEncounter.id));
+      saveState();
+      saveToLocalStorage();
+      render();
+    }
+    return;
+  }
     document.getElementById('btnDeleteSymbol').disabled = false;
 
     statusText.textContent = `Placed ${placingSymbolType}`;
@@ -287,6 +466,17 @@ export function handleCanvasClick(x, y) {
 
     return;
   }
+  // If placing trap
+  if (placingTrap) {
+    pendingTrapPosition = {x: gx, y: gy};
+    placingTrap = false;
+
+    // Show trap details modal
+    document.getElementById('trapModal').style.display = 'block';
+    statusText.textContent = '';
+    return;
+  }
+
 
   if (placingMarker) {
     saveState();
@@ -315,6 +505,25 @@ export function handleCanvasClick(x, y) {
     render();
     rebuildRoomList();
     saveToLocalStorage();
+    return;
+  }
+
+  // Check if clicked on trap
+  const clickedTrap = traps.find(trap => {
+    const trapX = trap.x * GRID_SIZE + GRID_SIZE / 2;
+    const trapY = trap.y * GRID_SIZE + GRID_SIZE / 2;
+    const dist = Math.sqrt((x - trapX) ** 2 + (y - trapY) ** 2);
+    return dist < GRID_SIZE * 0.5;
+  });
+
+  if (clickedTrap) {
+    const action = confirm(`Trap: ${clickedTrap.trapType}\nDC ${clickedTrap.detectionDC}\nDamage: ${clickedTrap.damage}\n\nDelete this trap?`);
+    if (action) {
+      setTraps(traps.filter(t => t.id !== clickedTrap.id));
+      saveState();
+      saveToLocalStorage();
+      render();
+    }
     return;
   }
 
@@ -363,14 +572,20 @@ export function updateExportPreview() {
 
   const oldCtx = window.ctx;
   const oldStyle = window.renderStyle;
+  const oldShowDmNotes = showDmNotes;
 
   window.ctx = previewCtx;
   window.renderStyle = document.querySelector('input[name="exportStyle"]:checked')?.value || 'dyson';
+
+  // Respect includeDmNotes checkbox in export preview
+  const includeDmNotes = document.getElementById('exportIncludeDmNotes')?.checked ?? false;
+  setShowDmNotes(includeDmNotes);
 
   render();
 
   window.ctx = oldCtx;
   window.renderStyle = oldStyle;
+  setShowDmNotes(oldShowDmNotes);
 
   previewCtx.restore();
 
@@ -403,11 +618,20 @@ function setupCanvasInteraction() {
   });
 
   canvas.addEventListener('mousemove', (event) => {
-    if (!draggingRoom) return;
-
     const rect = canvas.getBoundingClientRect();
     const x = event.clientX - rect.left;
     const y = event.clientY - rect.top;
+
+    // If ruler mode and have start point, show preview
+    if (rulerMode && rulerStart && !rulerEnd) {
+      const gx = Math.floor(x / GRID_SIZE);
+      const gy = Math.floor(y / GRID_SIZE);
+      setRulerEnd({x: gx, y: gy});
+      render();
+      return;
+    }
+
+    if (!draggingRoom) return;
 
     // Check if actually dragged (not just a tiny move)
     if (mouseDownPos && Math.abs(x - mouseDownPos.x) + Math.abs(y - mouseDownPos.y) > 5) {
@@ -460,6 +684,17 @@ function setupCanvasInteraction() {
 // --- KEYBOARD SHORTCUTS ---
 function setupKeyboardShortcuts() {
   document.addEventListener('keydown', (event) => {
+    // ESC key to cancel ruler mode
+    if (event.key === 'Escape' && rulerMode) {
+      setRulerMode(false);
+      setRulerStart(null);
+      setRulerEnd(null);
+      document.getElementById('btnRulerMode').textContent = '📏 Measure Distance';
+      document.getElementById('rulerHint').style.display = 'none';
+      render();
+      return;
+    }
+
     // Delete key to remove selected room OR selected symbol
     if ((event.key === 'Delete' || event.key === 'Backspace')) {
       // Don't trigger if typing in a text field
@@ -505,6 +740,34 @@ function setupButtonHandlers() {
   undoBtn.addEventListener('click', undo);
   redoBtn.addEventListener('click', redo);
   renumberBtn.addEventListener('click', renumberRooms);
+
+  // Place Encounter
+  document.getElementById('btnPlaceEncounter').addEventListener('click', () => {
+    const encounterType = document.getElementById('encounterTypeSelect').value;
+    currentEncounterType = encounterType;
+    placingEncounter = true;
+    statusText.textContent = `Click on map to place ${encounterType}`;
+  });
+
+  // Clear Encounters
+  document.getElementById('btnClearEncounters').addEventListener('click', () => {
+    if (!confirm('Clear all monsters?')) return;
+    setEncounters([]);
+    render();
+    saveToLocalStorage();
+  });
+
+  // Ruler Mode
+  document.getElementById('btnRulerMode').addEventListener('click', () => {
+    setRulerMode(!rulerMode);
+    document.getElementById('btnRulerMode').textContent = rulerMode ? '📏 Ruler Active' : '📏 Measure Distance';
+    document.getElementById('rulerHint').style.display = rulerMode ? 'block' : 'none';
+    if (!rulerMode) {
+      setRulerStart(null);
+      setRulerEnd(null);
+    }
+    render();
+  });
 }
 
 // --- FILE INPUT HANDLERS ---
@@ -588,6 +851,15 @@ function setupFileInputHandlers() {
           document.getElementById('dmNameInput').value = titleBlockData.dmName;
         }
 
+        // Load encounters
+        if (data.encounters) setEncounters(data.encounters);
+
+        // Phase 5: Load annotations, traps, DM notes
+        if (data.annotations) setAnnotations(data.annotations);
+        if (data.traps) setTraps(data.traps);
+        if (data.dmNotes) setDmNotes(data.dmNotes);
+        if (typeof data.showDmNotes !== 'undefined') setShowDmNotes(data.showDmNotes);
+
         setSelectedRoomId(rooms[0]?.id ?? null);
         saveState();
         render();
@@ -633,6 +905,9 @@ function setupExportHandlers() {
   document.querySelectorAll('input[name="exportStyle"], input[name="exportLayout"], input[name="exportRes"]')
     .forEach(input => input.addEventListener('change', updateExportPreview));
 
+  // Update preview when DM notes checkbox changes
+  document.getElementById('exportIncludeDmNotes')?.addEventListener('change', updateExportPreview);
+
   // JSON Export
   exportJsonBtn.addEventListener('click', () => {
     // Warn if background image is loaded
@@ -668,7 +943,13 @@ function setupExportHandlers() {
       })),
       effectsEnabled: effectsEnabled,
       coffeeStains: coffeeStains,
-      titleBlockData: titleBlockData
+      titleBlockData: titleBlockData,
+      encounters: encounters,
+      // PHASE 5 additions:
+      annotations: annotations,
+      traps: traps,
+      dmNotes: dmNotes,
+      showDmNotes: showDmNotes
     };
     const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
     const url = URL.createObjectURL(blob);
@@ -853,6 +1134,167 @@ function setupEffectsHandlers() {
   });
 }
 
+// --- PHASE 5: ANNOTATION HANDLERS ---
+function setupAnnotationHandlers() {
+  // Add Annotation
+  document.getElementById('btnAddAnnotation').addEventListener('click', () => {
+    const text = prompt('Enter annotation text:');
+    if (!text) return;
+
+    statusText.textContent = 'Click on map to place annotation';
+    placingAnnotation = true;
+    annotationText = text;
+  });
+
+  // Clear Annotations
+  document.getElementById('btnClearAnnotations').addEventListener('click', () => {
+    if (!confirm('Clear all annotations?')) return;
+    setAnnotations([]);
+    render();
+    saveToLocalStorage();
+  });
+}
+
+// --- ENCOUNTER MODAL HANDLERS ---
+function setupEncounterHandlers() {
+  // Encounter Modal - Save
+  document.getElementById('btnSaveEncounter').addEventListener('click', () => {
+    if (!pendingEncounterPosition) return;
+
+    const newEncounter = {
+      id: Date.now() + Math.random(),
+      x: pendingEncounterPosition.x,
+      y: pendingEncounterPosition.y,
+      monsterType: document.getElementById('encounterName').value || currentEncounterType,
+      count: parseInt(document.getElementById('encounterCount').value) || 1,
+      ac: parseInt(document.getElementById('encounterAC').value) || 13,
+      hp: document.getElementById('encounterHP').value || '7',
+      difficulty: document.getElementById('encounterDifficulty').value || 'easy',
+      behavior: document.getElementById('encounterBehavior').value || '',
+      notes: document.getElementById('encounterNotes').value || ''
+    };
+
+    setEncounters([...encounters, newEncounter]);
+    saveState();
+    saveToLocalStorage();
+    render();
+
+    // Close modal and reset
+    document.getElementById('encounterModal').style.display = 'none';
+    pendingEncounterPosition = null;
+
+    // Clear form
+    document.getElementById('encounterName').value = '';
+    document.getElementById('encounterCount').value = 1;
+    document.getElementById('encounterAC').value = 13;
+    document.getElementById('encounterHP').value = '';
+    document.getElementById('encounterBehavior').value = '';
+    document.getElementById('encounterNotes').value = '';
+  });
+
+  // Encounter Modal - Cancel
+  document.getElementById('btnCancelEncounter').addEventListener('click', () => {
+    document.getElementById('encounterModal').style.display = 'none';
+    pendingEncounterPosition = null;
+  });
+
+  // Encounter Modal - Close X
+  document.getElementById('btnCloseEncounter').addEventListener('click', () => {
+    document.getElementById('encounterModal').style.display = 'none';
+    pendingEncounterPosition = null;
+  });
+}
+
+// --- DM NOTES EVENT HANDLERS ---
+function setupDmNotesHandlers() {
+  // Toggle DM Notes visibility
+  document.getElementById('chkShowDmNotes').addEventListener('change', (e) => {
+    setShowDmNotes(e.target.checked);
+    render();
+  });
+
+  // Add DM Note
+  document.getElementById('btnAddDmNote').addEventListener('click', () => {
+    const text = prompt('Enter secret DM note:');
+    if (!text) return;
+
+    statusText.textContent = 'Click on map to place secret note';
+    placingDmNote = true;
+    pendingDmNoteText = text;
+  });
+
+  // Clear DM Notes
+  document.getElementById('btnClearDmNotes').addEventListener('click', () => {
+    if (!confirm('Clear all DM notes?')) return;
+    setDmNotes([]);
+    render();
+    saveToLocalStorage();
+  });
+}
+
+
+// --- TRAP HANDLERS ---
+function setupTrapHandlers() {
+  // Place Trap
+  document.getElementById('btnPlaceTrap').addEventListener('click', () => {
+    const trapType = document.getElementById('trapTypeSelect').value;
+    currentTrapType = trapType;
+    placingTrap = true;
+    statusText.textContent = `Click on map to place ${trapType} trap`;
+  });
+
+  // Clear Traps
+  document.getElementById('btnClearTraps').addEventListener('click', () => {
+    if (!confirm('Clear all traps?')) return;
+    setTraps([]);
+    render();
+    saveToLocalStorage();
+  });
+
+  // Trap Modal - Save
+  document.getElementById('btnSaveTrap').addEventListener('click', () => {
+    if (!pendingTrapPosition) return;
+
+    const newTrap = {
+      id: Date.now() + Math.random(),
+      x: pendingTrapPosition.x,
+      y: pendingTrapPosition.y,
+      trapType: currentTrapType,
+      detectionDC: parseInt(document.getElementById('trapDetectionDC').value) || 15,
+      disarmDC: parseInt(document.getElementById('trapDisarmDC').value) || 13,
+      saveType: document.getElementById('trapSaveType').value || 'Dexterity',
+      damage: document.getElementById('trapDamage').value || '',
+      description: document.getElementById('trapDescription').value || ''
+    };
+
+    setTraps([...traps, newTrap]);
+    saveState();
+    saveToLocalStorage();
+    render();
+
+    // Close modal and reset
+    document.getElementById('trapModal').style.display = 'none';
+    pendingTrapPosition = null;
+
+    // Clear form
+    document.getElementById('trapDetectionDC').value = 15;
+    document.getElementById('trapDisarmDC').value = 13;
+    document.getElementById('trapDamage').value = '';
+    document.getElementById('trapDescription').value = '';
+  });
+
+  // Trap Modal - Cancel
+  document.getElementById('btnCancelTrap').addEventListener('click', () => {
+    document.getElementById('trapModal').style.display = 'none';
+    pendingTrapPosition = null;
+  });
+
+  // Trap Modal - Close X
+  document.getElementById('btnCloseTrap').addEventListener('click', () => {
+    document.getElementById('trapModal').style.display = 'none';
+    pendingTrapPosition = null;
+  });
+}
 // --- MAIN INITIALIZATION FUNCTION ---
 export function setupEventHandlers() {
   setupCanvasInteraction();
@@ -866,4 +1308,8 @@ export function setupEventHandlers() {
   setupDensitySlider();
   setupSymbolHandlers();
   setupEffectsHandlers();
+  setupAnnotationHandlers();
+  setupTrapHandlers();
+  setupDmNotesHandlers();
+  setupEncounterHandlers();
 }

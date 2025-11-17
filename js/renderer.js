@@ -1,4 +1,4 @@
-import { canvas, ctx, GRID_SIZE, GRID_COLS, GRID_ROWS, rooms, selectedRoomId, backgroundImg, renderStyle } from './state.js';
+import { canvas, ctx, GRID_SIZE, GRID_COLS, GRID_ROWS, rooms, selectedRoomId, backgroundImg, renderStyle, annotations, rulerMode, rulerStart, rulerEnd, traps, encounters, dmNotes, showDmNotes } from './state.js';
 import { renderSymbols } from './symbols.js';
 import { renderCoffeeStains, drawTitleBlock, getCompassPosition, drawCompassRose, drawAgeSpots } from './effects.js';
 import { getRoomColor } from './main.js';
@@ -385,6 +385,13 @@ export function render() {
   // Render symbols (Phase 2)
   renderSymbols();
 
+  // Phase 5: DM Tools
+  drawTraps();
+  drawEncounters();
+  drawAnnotations();
+  drawDmNotes();
+  drawRuler();
+
   // Phase 3: Coffee stains (over map)
   renderCoffeeStains();
 
@@ -395,5 +402,205 @@ export function render() {
   const compassPos = getCompassPosition();
   drawCompassRose(compassPos.x, compassPos.y);
 
+  ctx.restore();
+}
+
+// --- PHASE 5: DM TOOLS RENDERING ---
+
+export function drawRuler() {
+  if (!rulerMode || !rulerStart) return;
+
+  ctx.save();
+  ctx.strokeStyle = '#4a9eff';
+  ctx.lineWidth = 2;
+  ctx.setLineDash([5, 5]);
+
+  const startX = rulerStart.x * GRID_SIZE + GRID_SIZE / 2;
+  const startY = rulerStart.y * GRID_SIZE + GRID_SIZE / 2;
+
+  if (rulerEnd) {
+    const endX = rulerEnd.x * GRID_SIZE + GRID_SIZE / 2;
+    const endY = rulerEnd.y * GRID_SIZE + GRID_SIZE / 2;
+
+    // Draw line
+    ctx.beginPath();
+    ctx.moveTo(startX, startY);
+    ctx.lineTo(endX, endY);
+    ctx.stroke();
+
+    // Calculate distance
+    const dx = Math.abs(rulerEnd.x - rulerStart.x);
+    const dy = Math.abs(rulerEnd.y - rulerStart.y);
+    const distance = Math.sqrt(dx * dx + dy * dy) * 5; // 5ft per square
+
+    // Draw label
+    const midX = (startX + endX) / 2;
+    const midY = (startY + endY) / 2;
+    ctx.fillStyle = '#fff';
+    ctx.fillRect(midX - 30, midY - 12, 60, 24);
+    ctx.fillStyle = '#000';
+    ctx.font = 'bold 14px sans-serif';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText(`${Math.round(distance)}ft`, midX, midY);
+  }
+
+  ctx.restore();
+}
+
+export function drawAnnotations() {
+  if (!annotations || annotations.length === 0) return;
+
+  ctx.save();
+  annotations.forEach(ann => {
+    const x = ann.x * GRID_SIZE;
+    const y = ann.y * GRID_SIZE;
+
+    // Background box
+    ctx.fillStyle = 'rgba(255, 255, 255, 0.9)';
+    ctx.strokeStyle = '#333';
+    ctx.lineWidth = 1;
+    const padding = 4;
+    const fontSize = ann.fontSize || 12;
+    ctx.font = `${fontSize}px sans-serif`;
+    const textWidth = ctx.measureText(ann.text).width;
+    ctx.fillRect(x - padding, y - fontSize - padding, textWidth + padding * 2, fontSize + padding * 2);
+    ctx.strokeRect(x - padding, y - fontSize - padding, textWidth + padding * 2, fontSize + padding * 2);
+
+    // Text
+    ctx.fillStyle = ann.color || '#000';
+    ctx.textAlign = 'left';
+    ctx.textBaseline = 'top';
+    ctx.fillText(ann.text, x, y - fontSize);
+  });
+  ctx.restore();
+}
+
+export function drawTraps() {
+  if (!traps || traps.length === 0) return;
+
+  ctx.save();
+  traps.forEach(trap => {
+    const x = trap.x * GRID_SIZE + GRID_SIZE / 2;
+    const y = trap.y * GRID_SIZE + GRID_SIZE / 2;
+    const size = GRID_SIZE * 0.4;
+
+    ctx.strokeStyle = '#ff6600';
+    ctx.fillStyle = 'rgba(255, 102, 0, 0.3)';
+    ctx.lineWidth = 2;
+
+    // Draw icon based on trap type
+    ctx.beginPath();
+    if (trap.trapType === 'bear') {
+      // Serrated circle
+      for (let i = 0; i < 12; i++) {
+        const angle = (i / 12) * Math.PI * 2;
+        const r = i % 2 === 0 ? size : size * 0.7;
+        const px = x + Math.cos(angle) * r;
+        const py = y + Math.sin(angle) * r;
+        if (i === 0) ctx.moveTo(px, py);
+        else ctx.lineTo(px, py);
+      }
+      ctx.closePath();
+    } else if (trap.trapType === 'pit') {
+      // Black circle
+      ctx.arc(x, y, size, 0, Math.PI * 2);
+      ctx.fillStyle = '#000';
+    } else if (trap.trapType === 'dart') {
+      // Arrow
+      ctx.moveTo(x - size, y);
+      ctx.lineTo(x + size, y);
+      ctx.moveTo(x + size - 5, y - 5);
+      ctx.lineTo(x + size, y);
+      ctx.lineTo(x + size - 5, y + 5);
+    } else if (trap.trapType === 'poison') {
+      // Skull
+      ctx.arc(x, y - 3, size * 0.6, 0, Math.PI * 2);
+      ctx.rect(x - size * 0.4, y + 3, size * 0.8, size * 0.5);
+    } else if (trap.trapType === 'spike') {
+      // Spikes
+      for (let i = 0; i < 5; i++) {
+        ctx.moveTo(x - size + i * size / 2, y + size);
+        ctx.lineTo(x - size + i * size / 2 + size / 4, y - size);
+      }
+    } else if (trap.trapType === 'fire') {
+      // Flame
+      ctx.moveTo(x, y + size);
+      ctx.quadraticCurveTo(x - size, y, x, y - size);
+      ctx.quadraticCurveTo(x + size, y, x, y + size);
+    } else {
+      // Default: triangle with !
+      ctx.moveTo(x, y - size);
+      ctx.lineTo(x - size, y + size);
+      ctx.lineTo(x + size, y + size);
+      ctx.closePath();
+    }
+    ctx.fill();
+    ctx.stroke();
+  });
+  ctx.restore();
+}
+
+export function drawEncounters() {
+  if (!encounters || encounters.length === 0) return;
+
+  ctx.save();
+  encounters.forEach((enc, idx) => {
+    const x = enc.x * GRID_SIZE + GRID_SIZE / 2;
+    const y = enc.y * GRID_SIZE + GRID_SIZE / 2;
+    const size = GRID_SIZE * 0.4;
+
+    // Color by difficulty
+    let color = '#4CAF50'; // Easy (green)
+    if (enc.difficulty === 'medium') color = '#FFC107'; // Medium (yellow)
+    if (enc.difficulty === 'hard') color = '#F44336'; // Hard (red)
+
+    // Draw token circle
+    ctx.fillStyle = color;
+    ctx.strokeStyle = '#000';
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.arc(x, y, size, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.stroke();
+
+    // Draw count/number
+    ctx.fillStyle = '#fff';
+    ctx.font = 'bold 16px sans-serif';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText(enc.count || '1', x, y);
+  });
+  ctx.restore();
+}
+
+export function drawDmNotes() {
+  if (!dmNotes || dmNotes.length === 0 || !showDmNotes) return;
+
+  ctx.save();
+  dmNotes.forEach(note => {
+    const x = note.x * GRID_SIZE;
+    const y = note.y * GRID_SIZE;
+
+    // Dashed red border
+    ctx.strokeStyle = '#ff4444';
+    ctx.fillStyle = 'rgba(255, 200, 200, 0.9)';
+    ctx.lineWidth = 2;
+    ctx.setLineDash([3, 3]);
+
+    const padding = 4;
+    const fontSize = 12;
+    ctx.font = `${fontSize}px sans-serif`;
+    const textWidth = ctx.measureText(note.text).width;
+
+    ctx.fillRect(x - padding, y - fontSize - padding, textWidth + padding * 2, fontSize + padding * 2);
+    ctx.strokeRect(x - padding, y - fontSize - padding, textWidth + padding * 2, fontSize + padding * 2);
+
+    // Text in red
+    ctx.fillStyle = '#cc0000';
+    ctx.textAlign = 'left';
+    ctx.textBaseline = 'top';
+    ctx.fillText(note.text, x, y - fontSize);
+  });
   ctx.restore();
 }

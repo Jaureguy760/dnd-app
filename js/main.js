@@ -2,8 +2,10 @@ import {
   rooms, selectedRoomId, undoStack, redoStack, MAX_UNDO, statusText, undoBtn, redoBtn,
   sizeSelect, densityRange, densityValue, themeSelect, algorithmSelect, renderStyle,
   symbols, effectsEnabled, coffeeStains, titleBlockData, canvas, zoomLevel, zoomLabel,
+  dmNotes, showDmNotes, annotations, encounters, traps,
   setRooms, setSelectedRoomId, setUndoStack, setRedoStack, setRenderStyle, setSymbols,
-  setEffectsEnabled, setCoffeeStains, setTitleBlockData, setZoomLevel, renderStyleSelect
+  setEffectsEnabled, setCoffeeStains, setTitleBlockData, setZoomLevel, renderStyleSelect,
+  setDmNotes, setShowDmNotes, setAnnotations, setEncounters, setTraps
 } from './state.js';
 import { render } from './renderer.js';
 import { rebuildRoomList, setupEventHandlers } from './ui.js';
@@ -128,6 +130,11 @@ export function saveToLocalStorage() {
     effectsEnabled: effectsEnabled,
     coffeeStains: coffeeStains,
     titleBlockData: titleBlockData,
+    dmNotes: dmNotes,
+    showDmNotes: showDmNotes,
+    annotations: annotations,
+    encounters: encounters,
+    traps: traps,
     timestamp: Date.now()
   };
   localStorage.setItem('dungeonMaker_autoSave', JSON.stringify(data));
@@ -163,6 +170,12 @@ export function loadFromLocalStorage() {
         document.getElementById('dungeonNameInput').value = titleBlockData.dungeonName;
         document.getElementById('dmNameInput').value = titleBlockData.dmName;
       }
+
+      if (data.dmNotes) setDmNotes(data.dmNotes);
+      if (typeof data.showDmNotes !== 'undefined') setShowDmNotes(data.showDmNotes);
+      if (data.annotations) setAnnotations(data.annotations);
+      if (data.traps) setTraps(data.traps);
+      if (data.encounters) setEncounters(data.encounters);
 
       setSelectedRoomId(rooms[0]?.id ?? null);
       render();

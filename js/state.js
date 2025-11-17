@@ -76,6 +76,16 @@ export const MAX_UNDO = 50;
 export let mouseDownPos = null;
 export let hasDragged = false;
 
+// --- PHASE 5: DM ESSENTIALS ---
+export let annotations = [];          // Text notes on map
+export let rulerMode = false;          // Measurement tool active
+export let rulerStart = null;          // {x, y} grid coords
+export let rulerEnd = null;            // {x, y} grid coords
+export let traps = [];                 // {id, x, y, trapType, detectionDC, disarmDC, damage, description}
+export let encounters = [];            // {id, x, y, monsterType, count, ac, hp, behavior, notes, difficulty}
+export let dmNotes = [];               // {id, x, y, text, noteType}
+export let showDmNotes = true;         // Toggle DM notes visibility
+
 // State setters (to allow modification from other modules)
 export function setRooms(newRooms) { rooms = newRooms; }
 export function setSelectedRoomId(id) { selectedRoomId = id; }
@@ -95,6 +105,14 @@ export function setUndoStack(stack) { undoStack = stack; }
 export function setRedoStack(stack) { redoStack = stack; }
 export function setMouseDownPos(pos) { mouseDownPos = pos; }
 export function setHasDragged(value) { hasDragged = value; }
+export function setAnnotations(val) { annotations = val; }
+export function setRulerMode(val) { rulerMode = val; }
+export function setRulerStart(val) { rulerStart = val; }
+export function setRulerEnd(val) { rulerEnd = val; }
+export function setTraps(val) { traps = val; }
+export function setEncounters(val) { encounters = val; }
+export function setDmNotes(val) { dmNotes = val; }
+export function setShowDmNotes(val) { showDmNotes = val; }
 
 // --- TEMPLATES ---
 export const TEMPLATES = {
