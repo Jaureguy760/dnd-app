@@ -1,0 +1,3169 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Dungeon Maker - Dyson Style</title>
+  <style>
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font-family: system-ui, sans-serif;
+      background: #111;
+      color: #eee;
+    }
+    header {
+      padding: 0.75rem 1rem;
+      background: #222;
+      border-bottom: 1px solid #333;
+      display: flex;
+      align-items: baseline;
+      justify-content: space-between;
+    }
+    header h1 {
+      margin: 0;
+      font-size: 1.1rem;
+      letter-spacing: 0.03em;
+    }
+    header small {
+      color: #aaa;
+      font-size: 0.75rem;
+    }
+    main.layout {
+      display: grid;
+      grid-template-columns: 2fr 1fr;
+      height: calc(100vh - 48px);
+    }
+    .left, .right {
+      padding: 0.75rem;
+      overflow: hidden;
+      display: flex;
+      flex-direction: column;
+      gap: 0.5rem;
+    }
+    .left {
+      border-right: 1px solid #333;
+    }
+    .canvas-container {
+      position: relative;
+      overflow: auto;
+      flex: 1;
+      background: #000;
+      border: 1px solid #444;
+      border-radius: 4px;
+    }
+    canvas {
+      display: block;
+      cursor: crosshair;
+    }
+    canvas.dragging {
+      cursor: move;
+    }
+    .toolbar, .options {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.5rem;
+      align-items: center;
+      font-size: 0.85rem;
+    }
+    button, select, input[type="range"], label.file-label {
+      font-size: 0.85rem;
+      background: #2a2a2a;
+      color: #eee;
+      border: 1px solid #444;
+      border-radius: 4px;
+      padding: 0.25rem 0.5rem;
+      cursor: pointer;
+    }
+    button:hover, label.file-label:hover {
+      background: #3a3a3a;
+    }
+    button.primary {
+      background: #345;
+      border-color: #567;
+    }
+    button.primary:hover {
+      background: #456;
+    }
+    button:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+    }
+    input[type="file"] {
+      display: none;
+    }
+    .right h2 {
+      margin: 0 0 0.25rem;
+      font-size: 1rem;
+    }
+    .right small {
+      color: #aaa;
+      font-size: 0.75rem;
+    }
+    #roomList {
+      list-style: decimal;
+      padding-left: 1.2rem;
+      margin: 0.5rem 0 0;
+      overflow-y: auto;
+      flex: 1;
+      border: 1px solid #333;
+      border-radius: 4px;
+      padding: 0.5rem;
+      background: #181818;
+    }
+    #roomList li {
+      margin-bottom: 0.5rem;
+      padding: 0.25rem;
+      border-radius: 4px;
+      cursor: pointer;
+      border: 1px solid transparent;
+    }
+    #roomList li.selected {
+      background: #273445;
+      border: 1px solid #4b7abf;
+    }
+    #roomList li.room-entrance { border-left: 3px solid #4a9eff; }
+    #roomList li.room-treasure { border-left: 3px solid #ffd700; }
+    #roomList li.room-boss { border-left: 3px solid #ff4444; }
+    #roomList li.room-trap { border-left: 3px solid #ff8800; }
+    #roomList textarea {
+      width: 100%;
+      min-height: 3rem;
+      margin-top: 0.25rem;
+      background: #111;
+      color: #eee;
+      border-radius: 4px;
+      border: 1px solid #444;
+      resize: vertical;
+      font-size: 0.8rem;
+      font-family: inherit;
+      padding: 0.25rem 0.35rem;
+    }
+    .room-controls {
+      display: flex;
+      gap: 0.25rem;
+      margin-top: 0.25rem;
+      align-items: center;
+    }
+    .room-type-selector {
+      flex: 1;
+      font-size: 0.75rem;
+    }
+    .delete-room-btn {
+      font-size: 0.7rem;
+      padding: 0.15rem 0.4rem;
+      background: #5a2a2a;
+      border-color: #844;
+    }
+    .delete-room-btn:hover {
+      background: #6a3a3a;
+    }
+    .hint {
+      font-size: 0.75rem;
+      color: #aaa;
+    }
+    .status {
+      font-size: 0.7rem;
+      color: #888;
+      font-style: italic;
+    }
+    .density-value {
+      font-weight: bold;
+      color: #4a9eff;
+      min-width: 1.5rem;
+      text-align: center;
+    }
+    .zoom-controls {
+      display: flex;
+      gap: 0.25rem;
+      align-items: center;
+    }
+    .style-preview {
+      font-size: 0.7rem;
+      color: #888;
+      font-style: italic;
+    }
+    .symbol-btn {
+      font-size: 0.75rem;
+      padding: 0.2rem 0.4rem;
+    }
+    .symbol-btn.active {
+      background: #456;
+      border-color: #89a;
+      box-shadow: 0 0 5px #89a;
+    }
+    .modal {
+      display: none;
+      position: fixed;
+      top: 0; left: 0; right: 0; bottom: 0;
+      background: rgba(0,0,0,0.85);
+      z-index: 1000;
+      overflow-y: auto;
+    }
+    .modal-content {
+      background: #222;
+      padding: 1.5rem;
+      max-width: 900px;
+      margin: 2rem auto;
+      border-radius: 8px;
+      border: 1px solid #444;
+    }
+    .modal-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 1rem;
+      padding-bottom: 0.75rem;
+      border-bottom: 1px solid #444;
+    }
+    .modal-header h2 {
+      margin: 0;
+      font-size: 1.3rem;
+    }
+    .modal-close {
+      font-size: 1.5rem;
+      background: none;
+      border: none;
+      color: #aaa;
+      cursor: pointer;
+      padding: 0;
+      width: 30px;
+      height: 30px;
+    }
+    .modal-close:hover {
+      color: #fff;
+    }
+    .export-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 1.5rem;
+    }
+    .export-section {
+      margin-bottom: 1rem;
+    }
+    .export-section h3 {
+      margin: 0 0 0.5rem;
+      font-size: 0.95rem;
+      color: #4a9eff;
+    }
+    .export-section label {
+      display: block;
+      margin-bottom: 0.4rem;
+      font-size: 0.85rem;
+      cursor: pointer;
+    }
+    .export-section label input {
+      margin-right: 0.5rem;
+    }
+    .style-desc {
+      display: block;
+      font-size: 0.75rem;
+      color: #888;
+      margin-left: 1.5rem;
+    }
+    .export-preview {
+      border: 1px solid #444;
+      border-radius: 4px;
+      padding: 0.75rem;
+      background: #1a1a1a;
+    }
+    .export-preview canvas {
+      width: 100%;
+      height: auto;
+      border: 1px solid #333;
+    }
+    .export-info {
+      font-size: 0.75rem;
+      color: #aaa;
+      margin-top: 0.5rem;
+      text-align: center;
+    }
+    .modal-footer {
+      display: flex;
+      gap: 0.75rem;
+      justify-content: flex-end;
+      margin-top: 1.5rem;
+      padding-top: 1rem;
+      border-top: 1px solid #444;
+    }
+    .btn-large {
+      padding: 0.5rem 1.5rem;
+      font-size: 0.95rem;
+    }
+  </style>
+</head>
+<body>
+<header>
+  <div>
+    <h1>Dungeon Maker - Dyson Style</h1>
+    <small>Hand-drawn D&D maps | Drag rooms | Delete key to remove | Ctrl+Z to undo</small>
+  </div>
+  <div class="status" id="statusText">Auto-saved</div>
+</header>
+
+<main class="layout">
+  <!-- LEFT: MAP -->
+  <section class="left">
+    <div class="canvas-container" id="canvasContainer">
+      <canvas id="mapCanvas" width="800" height="600"></canvas>
+    </div>
+
+    <div class="toolbar">
+      <button id="newDungeonBtn" class="primary">New Random Dungeon</button>
+
+      <label class="file-label">
+        Load Map Image
+        <input type="file" id="mapFileInput" accept="image/*">
+      </label>
+
+      <button id="placeMarkerBtn">Add Numbered Location</button>
+
+      <label class="file-label">
+        Import JSON
+        <input type="file" id="jsonFileInput" accept="application/json">
+      </label>
+
+      <button id="exportPngBtn">Export Map PNG</button>
+      <button id="exportJsonBtn">Export JSON</button>
+
+      <div class="zoom-controls">
+        <button id="zoomOutBtn">-</button>
+        <span id="zoomLabel">100%</span>
+        <button id="zoomInBtn">+</button>
+        <button id="zoomResetBtn">Reset</button>
+      </div>
+
+      <button id="undoBtn" disabled>↶ Undo</button>
+      <button id="redoBtn" disabled>↷ Redo</button>
+      <button id="renumberBtn">Renumber Rooms</button>
+    </div>
+
+    <div class="options">
+      <span>Render Style:</span>
+      <select id="renderStyleSelect">
+        <option value="modern">Modern Clean</option>
+        <option value="dyson" selected>Hand-Drawn (Dyson)</option>
+        <option value="vintage">TSR Vintage</option>
+      </select>
+      <span class="style-preview" id="stylePreview">✨ Sketchy lines + cross-hatching</span>
+
+      <span>Algorithm:</span>
+      <select id="algorithmSelect">
+        <option value="rooms">Classic Rooms</option>
+        <option value="bsp">BSP Dungeon</option>
+        <option value="caves">Cellular Caves</option>
+      </select>
+
+      <span>Size:</span>
+      <select id="sizeSelect">
+        <option value="small">Small</option>
+        <option value="medium" selected>Medium</option>
+        <option value="large">Large</option>
+      </select>
+
+      <span>Density:</span>
+      <input id="densityRange" type="range" min="1" max="10" value="5">
+      <span class="density-value" id="densityValue">5</span>
+
+      <span>Theme:</span>
+      <select id="themeSelect">
+        <option value="classic">Classic Dungeon</option>
+        <option value="undead">Undead Crypt</option>
+        <option value="cavern">Caverns</option>
+        <option value="arcane">Arcane Ruin</option>
+      </select>
+    </div>
+
+    <div class="options">
+      <span>Templates:</span>
+      <select id="templateSelect">
+        <option value="">-- Choose Template --</option>
+        <option value="starter">Starter Cave</option>
+        <option value="tower">Wizard's Tower</option>
+        <option value="crypt">Ancient Crypt</option>
+        <option value="mine">Abandoned Mine</option>
+        <option value="castle">Castle Ruins</option>
+      </select>
+      <button id="loadTemplateBtn">Load Template</button>
+      <button id="clearStorageBtn">Clear Auto-Save</button>
+    </div>
+
+    <div class="hint">
+      🎨 Dyson Mode: Hand-drawn lines + cross-hatched walls + organic shapes. Switch to Modern for clean digital look.
+    </div>
+
+    <!-- SYMBOL PALETTE (Phase 2) -->
+    <details style="margin-top: 0.5rem; background: #1a1a1a; padding: 0.5rem; border-radius: 4px; border: 1px solid #333;">
+      <summary style="cursor: pointer; font-weight: bold; font-size: 0.9rem;">🔨 Map Symbols</summary>
+
+      <div style="display: flex; flex-direction: column; gap: 0.5rem; margin-top: 0.5rem;">
+        <div style="font-size: 0.85rem; color: #aaa;">Doors:</div>
+        <div style="display: flex; flex-wrap: wrap; gap: 0.25rem;">
+          <button class="symbol-btn" data-symbol="door" data-subtype="normal">🚪 Door</button>
+          <button class="symbol-btn" data-symbol="secret_door" data-subtype="secret">🔒 Secret</button>
+          <button class="symbol-btn" data-symbol="locked_door" data-subtype="locked">🔑 Locked</button>
+          <button class="symbol-btn" data-symbol="portcullis" data-subtype="portcullis">⛩️ Portcullis</button>
+          <button id="btnAutoDetectDoors">🔍 Auto-Detect</button>
+        </div>
+
+        <div style="font-size: 0.85rem; color: #aaa; margin-top: 0.25rem;">Stairs:</div>
+        <div style="display: flex; flex-wrap: wrap; gap: 0.25rem;">
+          <button class="symbol-btn" data-symbol="stairs_up" data-subtype="normal">⬆️ Up</button>
+          <button class="symbol-btn" data-symbol="stairs_down" data-subtype="normal">⬇️ Down</button>
+          <button class="symbol-btn" data-symbol="stairs_spiral" data-subtype="spiral">🌀 Spiral</button>
+        </div>
+
+        <div style="font-size: 0.85rem; color: #aaa; margin-top: 0.25rem;">Features:</div>
+        <div style="display: flex; flex-wrap: wrap; gap: 0.25rem;">
+          <button class="symbol-btn" data-symbol="pillar" data-subtype="round">⚫ Pillar</button>
+          <button class="symbol-btn" data-symbol="chest" data-subtype="">📦 Chest</button>
+          <button class="symbol-btn" data-symbol="table" data-subtype="">🪑 Table</button>
+          <button class="symbol-btn" data-symbol="altar" data-subtype="">⛪ Altar</button>
+          <button class="symbol-btn" data-symbol="statue" data-subtype="">🗿 Statue</button>
+        </div>
+
+        <div style="display: flex; gap: 0.25rem; margin-top: 0.25rem;">
+          <button id="btnDeleteSymbol" disabled style="background: #5a2a2a; border-color: #844;">❌ Delete Selected</button>
+          <button id="btnClearSymbols">🗑️ Clear All</button>
+        </div>
+
+        <div id="symbolHint" style="font-size: 0.75rem; color: #888; font-style: italic;">
+          Click a symbol button, then click on the map to place it.
+        </div>
+      </div>
+    </details>
+
+    <!-- MAP EFFECTS (Phase 3) -->
+    <details style="margin-top: 0.5rem; background: #1a1a1a; padding: 0.5rem; border-radius: 4px; border: 1px solid #333;">
+      <summary style="cursor: pointer; font-weight: bold; font-size: 0.9rem;">🎨 Map Effects</summary>
+
+      <div style="display: flex; flex-direction: column; gap: 0.5rem; margin-top: 0.5rem; font-size: 0.85rem;">
+        <label style="display: flex; gap: 0.5rem; align-items: center;">
+          <input type="checkbox" id="chkTitleBlock" checked>
+          📜 Title Block
+        </label>
+        <div style="display: flex; flex-direction: column; gap: 0.25rem; margin-left: 1.5rem;">
+          <input type="text" id="dungeonNameInput" placeholder="Dungeon Name" value="The Lost Crypt" style="font-size: 0.8rem; padding: 0.25rem;">
+          <input type="text" id="dmNameInput" placeholder="DM Name" value="DM" style="font-size: 0.8rem; padding: 0.25rem;">
+        </div>
+
+        <label style="display: flex; gap: 0.5rem; align-items: center;">
+          <input type="checkbox" id="chkCompass" checked>
+          🧭 Compass Rose
+        </label>
+
+        <label style="display: flex; gap: 0.5rem; align-items: center;">
+          <input type="checkbox" id="chkCoffeeStains">
+          ☕ Coffee Stains
+        </label>
+
+        <label style="display: flex; gap: 0.5rem; align-items: center;">
+          <input type="checkbox" id="chkAgeSpots">
+          🟤 Age Spots
+        </label>
+
+        <button id="btnRefreshEffects" style="margin-top: 0.25rem;">🔄 Regenerate Effects</button>
+      </div>
+    </details>
+  </section>
+
+  <!-- RIGHT: ROOM LIST -->
+  <section class="right">
+    <h2>Numbered Locations</h2>
+    <small>Click a room on the map or in the list to edit its text.</small>
+    <ol id="roomList"></ol>
+  </section>
+</main>
+
+<!-- EXPORT MODAL (Phase 4) -->
+<div id="exportModal" class="modal">
+  <div class="modal-content">
+    <div class="modal-header">
+      <h2>📤 Export Dungeon</h2>
+      <button class="modal-close" id="btnCloseExport">×</button>
+    </div>
+
+    <div class="export-grid">
+      <!-- Left: Options -->
+      <div>
+        <div class="export-section">
+          <h3>🎨 Visual Style</h3>
+          <label>
+            <input type="radio" name="exportStyle" value="modern"> Modern Clean
+            <span class="style-desc">Crisp digital lines, solid colors</span>
+          </label>
+          <label>
+            <input type="radio" name="exportStyle" value="dyson" checked> Hand-Drawn (Dyson)
+            <span class="style-desc">Sketchy lines, cross-hatched walls</span>
+          </label>
+          <label>
+            <input type="radio" name="exportStyle" value="vintage"> TSR Vintage
+            <span class="style-desc">Classic blue grid style</span>
+          </label>
+        </div>
+
+        <div class="export-section">
+          <h3>📐 Layout</h3>
+          <label>
+            <input type="radio" name="exportLayout" value="map-only" checked> Map Only
+            <span class="style-desc">Just the dungeon map</span>
+          </label>
+          <label>
+            <input type="radio" name="exportLayout" value="map-key"> Map + Room Key
+            <span class="style-desc">Map on left, descriptions on right</span>
+          </label>
+        </div>
+
+        <div class="export-section">
+          <h3>🔍 Resolution</h3>
+          <label>
+            <input type="radio" name="exportRes" value="1" checked> Standard (800×600)
+            <span class="style-desc">Screen viewing, web sharing</span>
+          </label>
+          <label>
+            <input type="radio" name="exportRes" value="2"> High Quality (1600×1200)
+            <span class="style-desc">High-DPI screens, VTTs</span>
+          </label>
+          <label>
+            <input type="radio" name="exportRes" value="4"> Print Quality (3200×2400)
+            <span class="style-desc">Physical printing, large displays</span>
+          </label>
+        </div>
+
+        <div class="export-section">
+          <h3>⚙️ Options</h3>
+          <label>
+            <input type="checkbox" id="exportIncludeEffects" checked> Include visual effects
+          </label>
+          <label>
+            <input type="checkbox" id="exportShowGrid"> Show grid overlay
+          </label>
+        </div>
+      </div>
+
+      <!-- Right: Preview -->
+      <div>
+        <div class="export-section">
+          <h3>👁️ Preview</h3>
+        </div>
+        <div class="export-preview">
+          <canvas id="exportPreviewCanvas" width="400" height="300"></canvas>
+          <p class="export-info" id="exportInfo">800×600 @ 1x | ~120 KB</p>
+        </div>
+      </div>
+    </div>
+
+    <div class="modal-footer">
+      <button id="btnExecuteExport" class="btn-large primary">📥 Download PNG</button>
+      <button id="btnCancelExport" class="btn-large">Cancel</button>
+    </div>
+  </div>
+</div>
+
+<script>
+  // --- GLOBAL STATE ---
+  const canvas = document.getElementById('mapCanvas');
+  const ctx = canvas.getContext('2d');
+  const canvasContainer = document.getElementById('canvasContainer');
+
+  const roomListEl = document.getElementById('roomList');
+  const newDungeonBtn = document.getElementById('newDungeonBtn');
+  const mapFileInput = document.getElementById('mapFileInput');
+  const jsonFileInput = document.getElementById('jsonFileInput');
+  const placeMarkerBtn = document.getElementById('placeMarkerBtn');
+  const exportPngBtn = document.getElementById('exportPngBtn');
+  const exportJsonBtn = document.getElementById('exportJsonBtn');
+  const sizeSelect = document.getElementById('sizeSelect');
+  const densityRange = document.getElementById('densityRange');
+  const densityValue = document.getElementById('densityValue');
+  const themeSelect = document.getElementById('themeSelect');
+  const algorithmSelect = document.getElementById('algorithmSelect');
+  const templateSelect = document.getElementById('templateSelect');
+  const loadTemplateBtn = document.getElementById('loadTemplateBtn');
+  const clearStorageBtn = document.getElementById('clearStorageBtn');
+  const statusText = document.getElementById('statusText');
+  const zoomInBtn = document.getElementById('zoomInBtn');
+  const zoomOutBtn = document.getElementById('zoomOutBtn');
+  const zoomResetBtn = document.getElementById('zoomResetBtn');
+  const zoomLabel = document.getElementById('zoomLabel');
+  const undoBtn = document.getElementById('undoBtn');
+  const redoBtn = document.getElementById('redoBtn');
+  const renumberBtn = document.getElementById('renumberBtn');
+  const renderStyleSelect = document.getElementById('renderStyleSelect');
+  const stylePreview = document.getElementById('stylePreview');
+
+  const GRID_SIZE = 20;
+  const GRID_COLS = canvas.width / GRID_SIZE;
+  const GRID_ROWS = canvas.height / GRID_SIZE;
+
+  let rooms = [];
+  let selectedRoomId = null;
+  let placingMarker = false;
+  let backgroundImg = null;
+  let zoomLevel = 1.0;
+  let draggingRoom = null;
+  let dragOffset = { x: 0, y: 0 };
+  let renderStyle = 'dyson'; // 'modern', 'dyson', 'vintage'
+
+  // Symbol system (Phase 2)
+  let symbols = []; // {id, type, subtype, x, y, direction, roomId, properties}
+  let selectedSymbol = null;
+  let placingSymbolType = null;
+
+  // Effects system (Phase 3)
+  let effectsEnabled = {
+    parchmentTexture: false,
+    coffeeStains: false,
+    ageSpots: false,
+    titleBlock: true,
+    compass: true
+  };
+  let coffeeStains = [];
+  let titleBlockData = {
+    dungeonName: 'The Lost Crypt',
+    dmName: 'DM',
+    date: new Date().toLocaleDateString(),
+    level: 'Level 1'
+  };
+  let parchmentTextureCache = null;
+
+  // Undo/Redo system
+  let undoStack = [];
+  let redoStack = [];
+  const MAX_UNDO = 50;
+
+  // --- TEMPLATES ---
+  const TEMPLATES = {
+    starter: {
+      name: "Starter Cave",
+      rooms: [
+        {id: 1, x: 5, y: 5, w: 6, h: 5, type: "entrance", description: "Cave entrance. A narrow passage leads into darkness. You hear dripping water echoing from deep within."},
+        {id: 2, x: 12, y: 4, w: 5, h: 4, type: "normal", description: "Guard post. Two goblin sentries patrol this chamber. Crude weapons lean against the walls."},
+        {id: 3, x: 18, y: 6, w: 6, h: 6, type: "normal", description: "Sleeping quarters. Filthy bedrolls and scattered bones suggest this is where the goblins rest."},
+        {id: 4, x: 10, y: 11, w: 7, h: 5, type: "trap", description: "Trapped corridor. A tripwire stretches across the passage (DC 12 to spot). Triggers a rockfall (2d6 damage)."},
+        {id: 5, x: 20, y: 14, w: 8, h: 7, type: "treasure", description: "Treasure cache. A locked chest (DC 15) contains 200gp, a +1 dagger, and a scroll of Identify."},
+        {id: 6, x: 5, y: 14, w: 4, h: 5, type: "normal", description: "Food storage. Crates of stolen provisions and a barrel of questionable ale."},
+        {id: 7, x: 14, y: 18, w: 9, h: 7, type: "boss", description: "Chieftain's lair. The goblin boss sits on a makeshift throne, flanked by two wolf companions."}
+      ]
+    },
+    tower: {
+      name: "Wizard's Tower",
+      rooms: [
+        {id: 1, x: 17, y: 24, w: 6, h: 5, type: "entrance", description: "Ground floor entrance. Dusty floor shows recent footprints. Arcane symbols glow faintly on the walls."},
+        {id: 2, x: 16, y: 18, w: 8, h: 5, type: "normal", description: "Library (Floor 2). Shelves line the walls, filled with moldy tomes. A reading desk holds an open spellbook."},
+        {id: 3, x: 15, y: 12, w: 9, h: 5, type: "trap", description: "Laboratory (Floor 3). Bubbling potions and strange apparatus. A failed experiment has created a toxic gas (CON save DC 13)."},
+        {id: 4, x: 14, y: 6, w: 10, h: 5, type: "treasure", description: "Vault (Floor 4). Magical wards protect a chest containing a Wand of Magic Missiles and three spell scrolls."},
+        {id: 5, x: 16, y: 1, w: 7, h: 4, type: "boss", description: "Sanctum (Floor 5). The rogue wizard performs a ritual. Teleportation circle active. Final confrontation."}
+      ]
+    },
+    crypt: {
+      name: "Ancient Crypt",
+      rooms: [
+        {id: 1, x: 15, y: 2, w: 8, h: 5, type: "entrance", description: "Crypt entrance. Stone doors carved with warnings. A cold draft flows from within."},
+        {id: 2, x: 10, y: 8, w: 6, h: 6, type: "normal", description: "Hall of ancestors. Stone sarcophagi line the walls. Undisturbed for centuries."},
+        {id: 3, x: 17, y: 9, w: 6, h: 5, type: "normal", description: "Offering chamber. Ancient coins and rotted flowers surround a central altar."},
+        {id: 4, x: 24, y: 8, w: 5, h: 6, type: "trap", description: "Cursed passage. Those who pass must make a WIS save (DC 14) or be frightened for 1 minute."},
+        {id: 5, x: 5, y: 15, w: 7, h: 6, type: "normal", description: "Burial vault. 2d4 skeletons animate when anyone enters. Attacking from alcoves."},
+        {id: 6, x: 14, y: 16, w: 8, h: 7, type: "treasure", description: "Priest's tomb. A golden chalice (500gp) and ceremonial mace rest on the sarcophagus."},
+        {id: 7, x: 24, y: 15, w: 9, h: 8, type: "boss", description: "Tomb of the death knight. The ancient warrior rises from his throne. Fights to protect his eternal rest."}
+      ]
+    },
+    mine: {
+      name: "Abandoned Mine",
+      rooms: [
+        {id: 1, x: 3, y: 10, w: 7, h: 6, type: "entrance", description: "Mine entrance. Old cart tracks lead into the mountain. Support beams look unstable."},
+        {id: 2, x: 11, y: 9, w: 6, h: 8, type: "normal", description: "First shaft. Pickaxes and tools scattered about. Signs of a hasty evacuation."},
+        {id: 3, x: 18, y: 8, w: 7, h: 5, type: "trap", description: "Unstable tunnel. Weakened supports. STR check (DC 13) or trigger cave-in (3d6 damage)."},
+        {id: 4, x: 18, y: 14, w: 8, h: 7, type: "normal", description: "Storage cavern. Crates of supplies and mining equipment. A few uncut gems glitter in a corner."},
+        {id: 5, x: 11, y: 18, w: 6, h: 6, type: "normal", description: "Flooded section. Knee-deep water. Strange echoes suggest something lurks below."},
+        {id: 6, x: 4, y: 18, w: 6, h: 7, type: "treasure", description: "Rich vein. Exposed gold and mithril ore worth 800gp if properly extracted."},
+        {id: 7, x: 27, y: 16, w: 8, h: 9, type: "boss", description: "Deep cavern. The reason the miners fled: an umber hulk has made this its lair."}
+      ]
+    },
+    castle: {
+      name: "Castle Ruins",
+      rooms: [
+        {id: 1, x: 8, y: 22, w: 8, h: 6, type: "entrance", description: "Gatehouse. Portcullis rusted open. Defensive positions along the walls."},
+        {id: 2, x: 3, y: 15, w: 6, h: 6, type: "normal", description: "Guardroom. Weapon racks empty. A card game abandoned mid-play on a table."},
+        {id: 3, x: 10, y: 15, w: 7, h: 6, type: "normal", description: "Courtyard. Overgrown with vines. A dry fountain stands in the center."},
+        {id: 4, x: 18, y: 16, w: 6, h: 5, type: "trap", description: "Armory. Trapped chest (DC 15). Poisoned needle (2d4 poison damage and poisoned condition)."},
+        {id: 5, x: 6, y: 8, w: 8, h: 6, type: "normal", description: "Great hall. Long tables and a raised dais. Tattered banners hang from the ceiling."},
+        {id: 6, x: 15, y: 9, w: 7, h: 6, type: "treasure", description: "Lord's chamber. Hidden compartment (Investigation DC 14) contains the family signet ring and 300gp."},
+        {id: 7, x: 23, y: 8, w: 8, h: 7, type: "normal", description: "Chapel. Defaced religious symbols. An unholy presence lingers here."},
+        {id: 8, x: 20, y: 2, w: 9, h: 5, type: "boss", description: "Throne room. The vampire lord who claimed this castle awaits in the shadows."}
+      ]
+    }
+  };
+
+  // --- UNDO/REDO SYSTEM ---
+  function saveState() {
+    const state = {
+      rooms: JSON.parse(JSON.stringify(rooms)),
+      selectedRoomId: selectedRoomId
+    };
+    undoStack.push(state);
+    if (undoStack.length > MAX_UNDO) undoStack.shift();
+    redoStack = [];
+    updateUndoRedoButtons();
+  }
+
+  function undo() {
+    if (undoStack.length === 0) return;
+    const currentState = {
+      rooms: JSON.parse(JSON.stringify(rooms)),
+      selectedRoomId: selectedRoomId
+    };
+    redoStack.push(currentState);
+    const prevState = undoStack.pop();
+    rooms = prevState.rooms;
+    selectedRoomId = prevState.selectedRoomId;
+    render();
+    rebuildRoomList();
+    updateUndoRedoButtons();
+    saveToLocalStorage();
+  }
+
+  function redo() {
+    if (redoStack.length === 0) return;
+    const currentState = {
+      rooms: JSON.parse(JSON.stringify(rooms)),
+      selectedRoomId: selectedRoomId
+    };
+    undoStack.push(currentState);
+    const nextState = redoStack.pop();
+    rooms = nextState.rooms;
+    selectedRoomId = nextState.selectedRoomId;
+    render();
+    rebuildRoomList();
+    updateUndoRedoButtons();
+    saveToLocalStorage();
+  }
+
+  function updateUndoRedoButtons() {
+    undoBtn.disabled = undoStack.length === 0;
+    redoBtn.disabled = redoStack.length === 0;
+  }
+
+  // --- UTILS ---
+  function randInt(min, max) {
+    return Math.floor(Math.random() * (max - min + 1)) + min;
+  }
+
+  function getThemePrompt(theme) {
+    switch (theme) {
+      case 'undead': return 'Undead crypt: bones, sarcophagi, necromantic energies.';
+      case 'cavern': return 'Natural caverns: stalactites, underground lakes, strange fungi.';
+      case 'arcane': return 'Arcane ruin: magical traps, glyphs, summoning circles.';
+      default: return 'Classic dungeon: stone corridors, doors, traps, treasure.';
+    }
+  }
+
+  function getRoomColor(type) {
+    switch(type) {
+      case 'entrance': return '#4a9eff';
+      case 'treasure': return '#ffd700';
+      case 'boss': return '#ff4444';
+      case 'trap': return '#ff8800';
+      default: return '#aaa';
+    }
+  }
+
+  function checkRoomOverlap(newRoom, existingRooms, excludeId = null) {
+    for (const r of existingRooms) {
+      if (excludeId !== null && r.id === excludeId) continue;
+      if (newRoom.x < r.x + r.w && newRoom.x + newRoom.w > r.x &&
+          newRoom.y < r.y + r.h && newRoom.y + newRoom.h > r.y) {
+        return r;
+      }
+    }
+    return null;
+  }
+
+  function renumberRooms() {
+    saveState();
+    rooms.forEach((room, idx) => {
+      room.id = idx + 1;
+    });
+    selectedRoomId = rooms[0]?.id ?? null;
+    render();
+    rebuildRoomList();
+    saveToLocalStorage();
+    statusText.textContent = 'Rooms renumbered';
+    setTimeout(() => { statusText.textContent = ''; }, 2000);
+  }
+
+  // --- HAND-DRAWN LINE RENDERING (DYSON STYLE) ---
+
+  function drawHandDrawnLine(x1, y1, x2, y2, roughness = 1.5) {
+    // Create organic, wobbly line using bezier curves
+    const dx = x2 - x1;
+    const dy = y2 - y1;
+    const length = Math.sqrt(dx * dx + dy * dy);
+    const segments = Math.max(3, Math.floor(length / 15));
+
+    ctx.beginPath();
+    ctx.moveTo(x1, y1);
+
+    for (let i = 1; i <= segments; i++) {
+      const t = i / segments;
+      const x = x1 + dx * t;
+      const y = y1 + dy * t;
+
+      // Add perpendicular wobble
+      const wobbleX = (Math.random() - 0.5) * roughness;
+      const wobbleY = (Math.random() - 0.5) * roughness;
+
+      // Control points for bezier curve
+      const cpx = x + wobbleX;
+      const cpy = y + wobbleY;
+
+      if (i === segments) {
+        ctx.lineTo(x2, y2);
+      } else {
+        ctx.quadraticCurveTo(cpx, cpy, x, y);
+      }
+    }
+
+    ctx.stroke();
+  }
+
+  function drawHandDrawnRect(x, y, w, h, roughness = 1.5) {
+    // Draw each side with slight wobble
+    drawHandDrawnLine(x, y, x + w, y, roughness);
+    drawHandDrawnLine(x + w, y, x + w, y + h, roughness);
+    drawHandDrawnLine(x + w, y + h, x, y + h, roughness);
+    drawHandDrawnLine(x, y + h, x, y, roughness);
+  }
+
+  function fillCrossHatch(x, y, w, h, angle = 45, spacing = 8) {
+    // Fill area with diagonal hatching lines
+    ctx.save();
+    ctx.beginPath();
+    ctx.rect(x, y, w, h);
+    ctx.clip();
+
+    const angleRad = angle * Math.PI / 180;
+    const maxDim = Math.max(w, h) * 2;
+
+    ctx.strokeStyle = '#000';
+    ctx.lineWidth = 0.5;
+
+    for (let i = -maxDim; i < maxDim; i += spacing) {
+      const x1 = x + i;
+      const y1 = y;
+      const x2 = x + i + maxDim * Math.cos(angleRad);
+      const y2 = y + maxDim * Math.sin(angleRad);
+
+      ctx.beginPath();
+      ctx.moveTo(x1, y1);
+      ctx.lineTo(x2, y2);
+      ctx.stroke();
+    }
+
+    ctx.restore();
+  }
+
+  function getWallRegions() {
+    // Create grid to mark rooms and corridors
+    const grid = Array(GRID_ROWS).fill(0).map(() => Array(GRID_COLS).fill(true));
+
+    // Mark rooms as non-wall
+    rooms.forEach(room => {
+      for (let gy = room.y; gy < room.y + room.h; gy++) {
+        for (let gx = room.x; gx < room.x + room.w; gx++) {
+          if (gy >= 0 && gy < GRID_ROWS && gx >= 0 && gx < GRID_COLS) {
+            grid[gy][gx] = false;
+          }
+        }
+      }
+    });
+
+    // Mark corridor paths as non-wall (simple flood along connections)
+    const connections = getClosestRooms();
+    connections.forEach(([r1, r2]) => {
+      const x1 = Math.floor(r1.x + r1.w / 2);
+      const y1 = Math.floor(r1.y + r1.h / 2);
+      const x2 = Math.floor(r2.x + r2.w / 2);
+      const y2 = Math.floor(r2.y + r2.h / 2);
+
+      // Carve horizontal then vertical corridor
+      const minX = Math.min(x1, x2);
+      const maxX = Math.max(x1, x2);
+      const minY = Math.min(y1, y2);
+      const maxY = Math.max(y1, y2);
+
+      // Horizontal corridor (width 1-2 cells)
+      for (let gx = minX; gx <= maxX; gx++) {
+        if (y1 >= 0 && y1 < GRID_ROWS && gx >= 0 && gx < GRID_COLS) {
+          grid[y1][gx] = false;
+          if (y1 + 1 < GRID_ROWS) grid[y1 + 1][gx] = false;
+        }
+      }
+
+      // Vertical corridor
+      for (let gy = minY; gy <= maxY; gy++) {
+        if (gy >= 0 && gy < GRID_ROWS && x2 >= 0 && x2 < GRID_COLS) {
+          grid[gy][x2] = false;
+          if (x2 + 1 < GRID_COLS) grid[gy][x2 + 1] = false;
+        }
+      }
+    });
+
+    return grid;
+  }
+
+  // --- SYMBOL RENDERING FUNCTIONS (PHASE 2) ---
+
+  function drawArrow(x1, y1, x2, y2, size = 5) {
+    // Draw arrow from (x1,y1) to (x2,y2)
+    const angle = Math.atan2(y2 - y1, x2 - x1);
+
+    ctx.beginPath();
+    ctx.moveTo(x1, y1);
+    ctx.lineTo(x2, y2);
+    ctx.stroke();
+
+    // Arrowhead
+    ctx.beginPath();
+    ctx.moveTo(x2, y2);
+    ctx.lineTo(
+      x2 - size * Math.cos(angle - Math.PI / 6),
+      y2 - size * Math.sin(angle - Math.PI / 6)
+    );
+    ctx.moveTo(x2, y2);
+    ctx.lineTo(
+      x2 - size * Math.cos(angle + Math.PI / 6),
+      y2 - size * Math.sin(angle + Math.PI / 6)
+    );
+    ctx.stroke();
+  }
+
+  function drawDoor(symbol) {
+    const px = symbol.x * GRID_SIZE;
+    const py = symbol.y * GRID_SIZE;
+    const isVertical = (symbol.direction === 'east' || symbol.direction === 'west');
+
+    ctx.strokeStyle = '#000';
+    ctx.fillStyle = '#654321'; // Wood brown
+    ctx.lineWidth = 2;
+
+    if (symbol.subtype === 'secret') {
+      // Secret door - dashed outline with 'S'
+      ctx.save();
+      ctx.setLineDash([3, 3]);
+      ctx.strokeStyle = '#888';
+      ctx.lineWidth = 1;
+      ctx.strokeRect(px + 2, py + 2, GRID_SIZE - 4, GRID_SIZE - 4);
+      ctx.setLineDash([]);
+      ctx.restore();
+
+      ctx.font = '10px serif';
+      ctx.fillStyle = '#666';
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillText('S', px + GRID_SIZE/2, py + GRID_SIZE/2);
+
+    } else if (symbol.subtype === 'portcullis') {
+      // Portcullis - grid of bars
+      const bars = 5;
+      ctx.strokeStyle = '#444';
+      ctx.lineWidth = 1.5;
+
+      if (isVertical) {
+        for (let i = 0; i <= bars; i++) {
+          const x = px + (i / bars) * GRID_SIZE;
+          ctx.beginPath();
+          ctx.moveTo(x, py);
+          ctx.lineTo(x, py + GRID_SIZE);
+          ctx.stroke();
+        }
+      } else {
+        for (let i = 0; i <= bars; i++) {
+          const y = py + (i / bars) * GRID_SIZE;
+          ctx.beginPath();
+          ctx.moveTo(px, y);
+          ctx.lineTo(px + GRID_SIZE, y);
+          ctx.stroke();
+        }
+      }
+
+    } else {
+      // Normal/locked door - rectangle across opening
+      if (isVertical) {
+        ctx.fillRect(px - 1, py + GRID_SIZE * 0.3, 2, GRID_SIZE * 0.4);
+        ctx.strokeRect(px - 1, py + GRID_SIZE * 0.3, 2, GRID_SIZE * 0.4);
+      } else {
+        ctx.fillRect(px + GRID_SIZE * 0.3, py - 1, GRID_SIZE * 0.4, 2);
+        ctx.strokeRect(px + GRID_SIZE * 0.3, py - 1, GRID_SIZE * 0.4, 2);
+      }
+
+      // Lock symbol for locked doors
+      if (symbol.subtype === 'locked') {
+        ctx.fillStyle = '#000';
+        ctx.beginPath();
+        ctx.arc(px + GRID_SIZE/2, py + GRID_SIZE/2, 2, 0, Math.PI * 2);
+        ctx.fill();
+      }
+    }
+  }
+
+  function drawStairs(symbol) {
+    const px = symbol.x * GRID_SIZE;
+    const py = symbol.y * GRID_SIZE;
+
+    ctx.strokeStyle = '#000';
+    ctx.lineWidth = 1;
+
+    if (symbol.subtype === 'spiral') {
+      // Spiral stairs
+      const centerX = px + GRID_SIZE/2;
+      const centerY = py + GRID_SIZE/2;
+      const maxRadius = GRID_SIZE * 0.35;
+
+      ctx.beginPath();
+      for (let angle = 0; angle < Math.PI * 4; angle += 0.15) {
+        const radius = (angle / (Math.PI * 4)) * maxRadius;
+        const x = centerX + Math.cos(angle) * radius;
+        const y = centerY + Math.sin(angle) * radius;
+        if (angle === 0) ctx.moveTo(x, y);
+        else ctx.lineTo(x, y);
+      }
+      ctx.stroke();
+
+      // Direction arrow
+      const arrowY = symbol.direction === 'up' ? centerY - 8 : centerY + 8;
+      drawArrow(centerX, centerY, centerX, arrowY, 4);
+
+    } else {
+      // Regular stairs - parallel lines
+      const stepCount = 6;
+      const stepSpacing = GRID_SIZE / stepCount;
+
+      for (let i = 0; i < stepCount; i++) {
+        const offset = i * stepSpacing;
+        ctx.beginPath();
+        ctx.moveTo(px + 2, py + offset);
+        ctx.lineTo(px + GRID_SIZE - 2, py + offset);
+        ctx.stroke();
+      }
+
+      // Direction indicator
+      const arrowY = symbol.direction === 'up' ? py + GRID_SIZE * 0.2 : py + GRID_SIZE * 0.8;
+      const targetY = symbol.direction === 'up' ? py + 2 : py + GRID_SIZE - 2;
+      ctx.strokeStyle = '#000';
+      ctx.fillStyle = '#000';
+      drawArrow(px + GRID_SIZE/2, arrowY, px + GRID_SIZE/2, targetY, 4);
+    }
+  }
+
+  function drawPillar(symbol) {
+    const px = symbol.x * GRID_SIZE + GRID_SIZE/2;
+    const py = symbol.y * GRID_SIZE + GRID_SIZE/2;
+    const radius = GRID_SIZE * 0.3;
+
+    ctx.fillStyle = '#666';
+    ctx.strokeStyle = '#000';
+    ctx.lineWidth = 1.5;
+
+    if (symbol.subtype === 'square') {
+      // Square pillar
+      ctx.fillRect(px - radius, py - radius, radius * 2, radius * 2);
+      ctx.strokeRect(px - radius, py - radius, radius * 2, radius * 2);
+    } else {
+      // Round pillar (default)
+      ctx.beginPath();
+      const segments = 12;
+      for (let i = 0; i <= segments; i++) {
+        const angle = (i / segments) * Math.PI * 2;
+        const wobble = 0.5;
+        const r = radius + (Math.random() - 0.5) * wobble;
+        const x = px + Math.cos(angle) * r;
+        const y = py + Math.sin(angle) * r;
+        if (i === 0) ctx.moveTo(x, y);
+        else ctx.lineTo(x, y);
+      }
+      ctx.closePath();
+      ctx.fill();
+      ctx.stroke();
+    }
+  }
+
+  function drawFurniture(symbol) {
+    const px = symbol.x * GRID_SIZE;
+    const py = symbol.y * GRID_SIZE;
+
+    ctx.strokeStyle = '#000';
+    ctx.fillStyle = '#8B4513'; // Saddle brown
+    ctx.lineWidth = 1;
+
+    switch(symbol.type) {
+      case 'chest':
+        const chestW = GRID_SIZE * 0.6;
+        const chestH = GRID_SIZE * 0.4;
+        const chestX = px + (GRID_SIZE - chestW) / 2;
+        const chestY = py + (GRID_SIZE - chestH) / 2;
+
+        ctx.fillRect(chestX, chestY, chestW, chestH);
+        ctx.strokeRect(chestX, chestY, chestW, chestH);
+
+        // Lid line
+        ctx.beginPath();
+        ctx.moveTo(chestX, chestY + chestH * 0.4);
+        ctx.lineTo(chestX + chestW, chestY + chestH * 0.4);
+        ctx.stroke();
+
+        // Lock
+        ctx.fillStyle = '#000';
+        ctx.beginPath();
+        ctx.arc(chestX + chestW/2, chestY + chestH * 0.6, 2, 0, Math.PI * 2);
+        ctx.fill();
+        break;
+
+      case 'table':
+        const tableW = GRID_SIZE * 0.7;
+        const tableH = GRID_SIZE * 0.5;
+        ctx.fillRect(px + (GRID_SIZE - tableW)/2, py + (GRID_SIZE - tableH)/2, tableW, tableH);
+        ctx.strokeRect(px + (GRID_SIZE - tableW)/2, py + (GRID_SIZE - tableH)/2, tableW, tableH);
+        break;
+
+      case 'altar':
+        const altarW = GRID_SIZE * 0.7;
+        const altarH = GRID_SIZE * 0.6;
+        const altarX = px + (GRID_SIZE - altarW) / 2;
+        const altarY = py + (GRID_SIZE - altarH) / 2;
+
+        // Base (wider)
+        ctx.fillRect(altarX - 3, altarY + altarH * 0.7, altarW + 6, altarH * 0.3);
+        ctx.strokeRect(altarX - 3, altarY + altarH * 0.7, altarW + 6, altarH * 0.3);
+
+        // Top
+        ctx.fillRect(altarX, altarY, altarW, altarH * 0.7);
+        ctx.strokeRect(altarX, altarY, altarW, altarH * 0.7);
+        break;
+
+      case 'statue':
+        const statueR = GRID_SIZE * 0.2;
+        const statueX = px + GRID_SIZE/2;
+        const statueY = py + GRID_SIZE/2;
+
+        // Base
+        ctx.fillRect(statueX - statueR * 1.5, statueY + statueR, statueR * 3, statueR);
+        ctx.strokeRect(statueX - statueR * 1.5, statueY + statueR, statueR * 3, statueR);
+
+        // Column
+        ctx.fillRect(statueX - statueR, statueY - statueR * 2, statueR * 2, statueR * 3);
+        ctx.strokeRect(statueX - statueR, statueY - statueR * 2, statueR * 2, statueR * 3);
+        break;
+    }
+  }
+
+  function renderSymbols() {
+    symbols.forEach(symbol => {
+      ctx.save();
+
+      // Render based on symbol type
+      if (symbol.type === 'door' || symbol.type === 'secret_door' ||
+          symbol.type === 'locked_door' || symbol.type === 'portcullis') {
+        drawDoor(symbol);
+      } else if (symbol.type === 'stairs_up' || symbol.type === 'stairs_down' ||
+                 symbol.type === 'stairs_spiral') {
+        drawStairs(symbol);
+      } else if (symbol.type === 'pillar') {
+        drawPillar(symbol);
+      } else if (symbol.type === 'chest' || symbol.type === 'table' ||
+                 symbol.type === 'altar' || symbol.type === 'statue') {
+        drawFurniture(symbol);
+      }
+
+      // Highlight if selected
+      if (selectedSymbol && selectedSymbol.id === symbol.id) {
+        ctx.strokeStyle = '#00ff00';
+        ctx.lineWidth = 2;
+        ctx.setLineDash([4, 4]);
+        ctx.strokeRect(symbol.x * GRID_SIZE - 2, symbol.y * GRID_SIZE - 2,
+                       GRID_SIZE + 4, GRID_SIZE + 4);
+        ctx.setLineDash([]);
+      }
+
+      ctx.restore();
+    });
+  }
+
+  function isCorridorAt(gx, gy) {
+    if (gx < 0 || gx >= GRID_COLS || gy < 0 || gy >= GRID_ROWS) return false;
+
+    const wallGrid = getWallRegions();
+    const isWall = wallGrid[gy][gx];
+    const isRoom = rooms.some(r =>
+      gx >= r.x && gx < r.x + r.w && gy >= r.y && gy < r.y + r.h
+    );
+
+    return !isWall && !isRoom;
+  }
+
+  function doorExistsAt(x, y) {
+    return symbols.some(s =>
+      (s.type === 'door' || s.type === 'secret_door' ||
+       s.type === 'locked_door' || s.type === 'portcullis') &&
+      s.x === x && s.y === y
+    );
+  }
+
+  function autoDetectDoors() {
+    const newDoors = [];
+
+    rooms.forEach(room => {
+      // Check north wall
+      for (let x = room.x; x < room.x + room.w; x++) {
+        if (room.y > 0 && isCorridorAt(x, room.y - 1)) {
+          if (!doorExistsAt(x, room.y)) {
+            newDoors.push({
+              id: Date.now() + Math.random(),
+              type: 'door',
+              subtype: 'normal',
+              x: x,
+              y: room.y,
+              direction: 'north',
+              roomId: room.id
+            });
+          }
+        }
+      }
+
+      // Check south wall
+      for (let x = room.x; x < room.x + room.w; x++) {
+        if (room.y + room.h < GRID_ROWS && isCorridorAt(x, room.y + room.h)) {
+          if (!doorExistsAt(x, room.y + room.h - 1)) {
+            newDoors.push({
+              id: Date.now() + Math.random(),
+              type: 'door',
+              subtype: 'normal',
+              x: x,
+              y: room.y + room.h - 1,
+              direction: 'south',
+              roomId: room.id
+            });
+          }
+        }
+      }
+
+      // Check east wall
+      for (let y = room.y; y < room.y + room.h; y++) {
+        if (room.x + room.w < GRID_COLS && isCorridorAt(room.x + room.w, y)) {
+          if (!doorExistsAt(room.x + room.w - 1, y)) {
+            newDoors.push({
+              id: Date.now() + Math.random(),
+              type: 'door',
+              subtype: 'normal',
+              x: room.x + room.w - 1,
+              y: y,
+              direction: 'east',
+              roomId: room.id
+            });
+          }
+        }
+      }
+
+      // Check west wall
+      for (let y = room.y; y < room.y + room.h; y++) {
+        if (room.x > 0 && isCorridorAt(room.x - 1, y)) {
+          if (!doorExistsAt(room.x, y)) {
+            newDoors.push({
+              id: Date.now() + Math.random(),
+              type: 'door',
+              subtype: 'normal',
+              x: room.x,
+              y: y,
+              direction: 'west',
+              roomId: room.id
+            });
+          }
+        }
+      }
+    });
+
+    symbols.push(...newDoors);
+    saveState();
+    render();
+
+    statusText.textContent = `Auto-detected ${newDoors.length} doors`;
+    setTimeout(() => { statusText.textContent = ''; }, 3000);
+
+    return newDoors.length;
+  }
+
+  function findSymbolAt(gx, gy) {
+    return symbols.find(s => s.x === gx && s.y === gy);
+  }
+
+  function deleteSymbol(symbolId) {
+    symbols = symbols.filter(s => s.id !== symbolId);
+    if (selectedSymbol && selectedSymbol.id === symbolId) {
+      selectedSymbol = null;
+    }
+    saveState();
+    render();
+  }
+
+  // --- PHASE 3: MAP EFFECTS RENDERING ---
+
+  // Coffee Stain System
+  function generateCoffeeStains(count = 3) {
+    coffeeStains = [];
+
+    for (let i = 0; i < count; i++) {
+      coffeeStains.push({
+        x: 80 + Math.random() * (canvas.width - 160),
+        y: 80 + Math.random() * (canvas.height - 160),
+        radius: 15 + Math.random() * 35,
+        opacity: 0.1 + Math.random() * 0.15,
+        rings: 1 + Math.floor(Math.random() * 3)
+      });
+    }
+  }
+
+  function drawCoffeeStain(stain) {
+    const {x, y, radius, opacity, rings} = stain;
+
+    // Main stain body with radial gradient
+    const mainGradient = ctx.createRadialGradient(x, y, 0, x, y, radius);
+    mainGradient.addColorStop(0, `rgba(101, 67, 33, ${opacity * 0.4})`);
+    mainGradient.addColorStop(0.6, `rgba(101, 67, 33, ${opacity})`);
+    mainGradient.addColorStop(1, 'rgba(101, 67, 33, 0)');
+
+    ctx.fillStyle = mainGradient;
+    ctx.beginPath();
+    ctx.arc(x, y, radius, 0, Math.PI * 2);
+    ctx.fill();
+
+    // Add darker rings at edges
+    for (let ring = 0; ring < rings; ring++) {
+      const ringRadius = radius * (0.85 + ring * 0.05);
+      const ringWidth = radius * 0.1;
+
+      const ringGradient = ctx.createRadialGradient(
+        x, y, ringRadius - ringWidth,
+        x, y, ringRadius + ringWidth
+      );
+      ringGradient.addColorStop(0, 'rgba(101, 67, 33, 0)');
+      ringGradient.addColorStop(0.5, `rgba(80, 50, 20, ${opacity * 1.5})`);
+      ringGradient.addColorStop(1, 'rgba(101, 67, 33, 0)');
+
+      ctx.fillStyle = ringGradient;
+      ctx.beginPath();
+      ctx.arc(x, y, ringRadius, 0, Math.PI * 2);
+      ctx.fill();
+    }
+
+    // Occasional drip effect
+    if (Math.random() < 0.3) {
+      const dripAngle = Math.random() * Math.PI * 2;
+      const dripLength = radius * (0.5 + Math.random() * 0.5);
+      const dripX = x + Math.cos(dripAngle) * radius;
+      const dripY = y + Math.sin(dripAngle) * radius;
+
+      const dripGradient = ctx.createLinearGradient(
+        dripX, dripY,
+        dripX + Math.cos(dripAngle + Math.PI/2) * dripLength,
+        dripY + Math.sin(dripAngle + Math.PI/2) * dripLength
+      );
+      dripGradient.addColorStop(0, `rgba(101, 67, 33, ${opacity * 0.8})`);
+      dripGradient.addColorStop(1, 'rgba(101, 67, 33, 0)');
+
+      ctx.fillStyle = dripGradient;
+      ctx.fillRect(dripX, dripY, 3, dripLength);
+    }
+  }
+
+  function renderCoffeeStains() {
+    coffeeStains.forEach(stain => drawCoffeeStain(stain));
+  }
+
+  // Title Block System
+  function drawCornerFlourish(x, y, corner) {
+    ctx.strokeStyle = '#000';
+    ctx.lineWidth = 1;
+
+    const size = 8;
+    ctx.beginPath();
+
+    switch(corner) {
+      case 'top-left':
+        ctx.moveTo(x, y + size);
+        ctx.lineTo(x, y);
+        ctx.lineTo(x + size, y);
+        break;
+      case 'top-right':
+        ctx.moveTo(x - size, y);
+        ctx.lineTo(x, y);
+        ctx.lineTo(x, y + size);
+        break;
+      case 'bottom-left':
+        ctx.moveTo(x, y - size);
+        ctx.lineTo(x, y);
+        ctx.lineTo(x + size, y);
+        break;
+      case 'bottom-right':
+        ctx.moveTo(x - size, y);
+        ctx.lineTo(x, y);
+        ctx.lineTo(x, y - size);
+        break;
+    }
+
+    ctx.stroke();
+  }
+
+  function drawTitleBlock() {
+    if (!effectsEnabled.titleBlock) return;
+
+    const blockW = 220;
+    const blockH = 150;
+    const margin = 20;
+
+    // Position: top-right by default
+    const blockX = canvas.width - blockW - margin;
+    const blockY = margin;
+
+    // Decorative border
+    ctx.strokeStyle = '#000';
+    ctx.fillStyle = 'rgba(250, 248, 240, 0.9)';
+    ctx.lineWidth = 2;
+
+    // Outer border
+    if (renderStyle === 'dyson' || renderStyle === 'vintage') {
+      drawHandDrawnRect(blockX, blockY, blockW, blockH, 1);
+    } else {
+      ctx.strokeRect(blockX, blockY, blockW, blockH);
+    }
+    ctx.fillRect(blockX, blockY, blockW, blockH);
+    ctx.stroke();
+
+    // Inner border
+    ctx.lineWidth = 1;
+    if (renderStyle === 'dyson' || renderStyle === 'vintage') {
+      drawHandDrawnRect(blockX + 8, blockY + 8, blockW - 16, blockH - 16, 0.5);
+    } else {
+      ctx.strokeRect(blockX + 8, blockY + 8, blockW - 16, blockH - 16);
+    }
+
+    // Corner flourishes
+    drawCornerFlourish(blockX + 5, blockY + 5, 'top-left');
+    drawCornerFlourish(blockX + blockW - 5, blockY + 5, 'top-right');
+    drawCornerFlourish(blockX + 5, blockY + blockH - 5, 'bottom-left');
+    drawCornerFlourish(blockX + blockW - 5, blockY + blockH - 5, 'bottom-right');
+
+    // Text content
+    ctx.fillStyle = '#000';
+    let textY = blockY + 30;
+    const textX = blockX + 15;
+
+    // Dungeon name (larger, bold)
+    ctx.font = 'bold 18px Georgia, serif';
+    ctx.textAlign = 'left';
+    ctx.textBaseline = 'top';
+    ctx.fillText(titleBlockData.dungeonName, textX, textY);
+    textY += 28;
+
+    // Divider line
+    ctx.strokeStyle = '#000';
+    ctx.lineWidth = 1;
+    if (renderStyle === 'dyson' || renderStyle === 'vintage') {
+      drawHandDrawnLine(blockX + 15, textY - 10, blockX + blockW - 15, textY - 10, 0.5);
+    } else {
+      ctx.beginPath();
+      ctx.moveTo(blockX + 15, textY - 10);
+      ctx.lineTo(blockX + blockW - 15, textY - 10);
+      ctx.stroke();
+    }
+    textY += 5;
+
+    // Details (smaller font)
+    ctx.font = '13px Georgia, serif';
+    ctx.fillText(`Level: ${titleBlockData.level}`, textX, textY);
+    textY += 20;
+    ctx.fillText(`DM: ${titleBlockData.dmName}`, textX, textY);
+    textY += 20;
+    ctx.fillText(`Date: ${titleBlockData.date}`, textX, textY);
+  }
+
+  // Compass Rose System
+  function getCompassPosition() {
+    // Default: bottom-left corner
+    return {
+      x: 60,
+      y: canvas.height - 60
+    };
+  }
+
+  function drawCompassRose(x, y, size = 50) {
+    if (!effectsEnabled.compass) return;
+
+    ctx.strokeStyle = '#000';
+    ctx.fillStyle = '#000';
+    ctx.lineWidth = 1.5;
+
+    // North (filled arrow)
+    ctx.beginPath();
+    ctx.moveTo(x, y - size);
+    ctx.lineTo(x - size * 0.15, y);
+    ctx.lineTo(x, y - size * 0.2);
+    ctx.lineTo(x + size * 0.15, y);
+    ctx.closePath();
+    ctx.fill();
+    ctx.stroke();
+
+    // South (outline arrow)
+    ctx.beginPath();
+    ctx.moveTo(x, y + size);
+    ctx.lineTo(x - size * 0.15, y);
+    ctx.lineTo(x, y + size * 0.2);
+    ctx.lineTo(x + size * 0.15, y);
+    ctx.closePath();
+    ctx.stroke();
+
+    // East (filled)
+    ctx.beginPath();
+    ctx.moveTo(x + size, y);
+    ctx.lineTo(x, y - size * 0.15);
+    ctx.lineTo(x + size * 0.2, y);
+    ctx.lineTo(x, y + size * 0.15);
+    ctx.closePath();
+    ctx.fill();
+    ctx.stroke();
+
+    // West (outline)
+    ctx.beginPath();
+    ctx.moveTo(x - size, y);
+    ctx.lineTo(x, y - size * 0.15);
+    ctx.lineTo(x - size * 0.2, y);
+    ctx.lineTo(x, y + size * 0.15);
+    ctx.closePath();
+    ctx.stroke();
+
+    // Diagonal cross (NE, SE, SW, NW) - smaller
+    const diagSize = size * 0.6;
+    ctx.lineWidth = 1;
+
+    ctx.beginPath();
+    ctx.moveTo(x, y);
+    ctx.lineTo(x + diagSize * 0.7, y - diagSize * 0.7);
+    ctx.stroke();
+
+    ctx.beginPath();
+    ctx.moveTo(x, y);
+    ctx.lineTo(x + diagSize * 0.7, y + diagSize * 0.7);
+    ctx.stroke();
+
+    ctx.beginPath();
+    ctx.moveTo(x, y);
+    ctx.lineTo(x - diagSize * 0.7, y + diagSize * 0.7);
+    ctx.stroke();
+
+    ctx.beginPath();
+    ctx.moveTo(x, y);
+    ctx.lineTo(x - diagSize * 0.7, y - diagSize * 0.7);
+    ctx.stroke();
+
+    // Center circle
+    ctx.fillStyle = '#000';
+    ctx.beginPath();
+    ctx.arc(x, y, size * 0.08, 0, Math.PI * 2);
+    ctx.fill();
+
+    // Cardinal letters
+    ctx.font = 'bold 14px Georgia, serif';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+
+    ctx.fillText('N', x, y - size - 12);
+    ctx.fillText('S', x, y + size + 12);
+    ctx.fillText('E', x + size + 12, y);
+    ctx.fillText('W', x - size - 12, y);
+  }
+
+  // Age Spots (Foxing) Effect
+  function drawAgeSpots(count = 20) {
+    if (!effectsEnabled.ageSpots) return;
+
+    ctx.fillStyle = 'rgba(139, 90, 43, 0.2)';
+
+    for (let i = 0; i < count; i++) {
+      const x = Math.random() * canvas.width;
+      const y = Math.random() * canvas.height;
+      const radius = 1 + Math.random() * 3;
+
+      ctx.beginPath();
+      ctx.arc(x, y, radius, 0, Math.PI * 2);
+      ctx.fill();
+    }
+  }
+
+  // --- PHASE 4: EXPORT SYSTEM ---
+
+  class DungeonExporter {
+    constructor() {
+      this.options = {
+        style: 'dyson',
+        layout: 'map-only',
+        resolution: 1,
+        includeEffects: true,
+        showGrid: false
+      };
+    }
+
+    gatherOptions() {
+      this.options.style = document.querySelector('input[name="exportStyle"]:checked')?.value || 'dyson';
+      this.options.layout = document.querySelector('input[name="exportLayout"]:checked')?.value || 'map-only';
+      this.options.resolution = parseInt(document.querySelector('input[name="exportRes"]:checked')?.value || '1');
+      this.options.includeEffects = document.getElementById('exportIncludeEffects')?.checked ?? true;
+      this.options.showGrid = document.getElementById('exportShowGrid')?.checked ?? false;
+    }
+
+    createExportCanvas() {
+      const canvas = document.createElement('canvas');
+      const scale = this.options.resolution;
+
+      if (this.options.layout === 'map-only') {
+        canvas.width = 800 * scale;
+        canvas.height = 600 * scale;
+      } else if (this.options.layout === 'map-key') {
+        canvas.width = 1700 * scale;
+        canvas.height = 1100 * scale;
+      }
+
+      return canvas;
+    }
+
+    async renderMapOnly(exportCanvas) {
+      const exportCtx = exportCanvas.getContext('2d');
+      const scale = this.options.resolution;
+
+      exportCtx.scale(scale, scale);
+
+      // Save current state
+      const oldCtx = window.ctx;
+      const oldStyle = window.renderStyle;
+      const oldEffects = {...window.effectsEnabled};
+
+      // Set export context
+      window.ctx = exportCtx;
+      window.renderStyle = this.options.style;
+
+      if (!this.options.includeEffects) {
+        window.effectsEnabled = {
+          parchmentTexture: false,
+          coffeeStains: false,
+          ageSpots: false,
+          titleBlock: false,
+          compass: false
+        };
+      }
+
+      // Render full map
+      render();
+
+      // Add grid overlay if requested
+      if (this.options.showGrid) {
+        exportCtx.strokeStyle = 'rgba(0, 0, 0, 0.2)';
+        exportCtx.lineWidth = 0.5;
+
+        for (let x = 0; x <= 800; x += GRID_SIZE) {
+          exportCtx.beginPath();
+          exportCtx.moveTo(x, 0);
+          exportCtx.lineTo(x, 600);
+          exportCtx.stroke();
+        }
+
+        for (let y = 0; y <= 600; y += GRID_SIZE) {
+          exportCtx.beginPath();
+          exportCtx.moveTo(0, y);
+          exportCtx.lineTo(800, y);
+          exportCtx.stroke();
+        }
+      }
+
+      // Restore state
+      window.ctx = oldCtx;
+      window.renderStyle = oldStyle;
+      window.effectsEnabled = oldEffects;
+
+      exportCtx.setTransform(1, 0, 0, 1, 0, 0);
+    }
+
+    async renderMapAndKey(exportCanvas) {
+      const exportCtx = exportCanvas.getContext('2d');
+      const scale = this.options.resolution;
+
+      exportCtx.scale(scale, scale);
+
+      // Background
+      exportCtx.fillStyle = '#ffffff';
+      exportCtx.fillRect(0, 0, 1700, 1100);
+
+      // Left 60%: Map
+      const mapWidth = 1700 * 0.58;
+      const mapHeight = 1100;
+      const mapScale = Math.min(
+        (mapWidth - 40) / 800,
+        (mapHeight - 40) / 600
+      );
+
+      const mapX = 20;
+      const mapY = (mapHeight - 600 * mapScale) / 2;
+
+      exportCtx.save();
+      exportCtx.translate(mapX, mapY);
+      exportCtx.scale(mapScale, mapScale);
+
+      // Render map
+      const oldCtx = window.ctx;
+      const oldStyle = window.renderStyle;
+      const oldEffects = {...window.effectsEnabled};
+
+      window.ctx = exportCtx;
+      window.renderStyle = this.options.style;
+
+      if (!this.options.includeEffects) {
+        window.effectsEnabled = {
+          parchmentTexture: false,
+          coffeeStains: false,
+          ageSpots: false,
+          titleBlock: false,
+          compass: false
+        };
+      }
+
+      render();
+
+      window.ctx = oldCtx;
+      window.renderStyle = oldStyle;
+      window.effectsEnabled = oldEffects;
+
+      exportCtx.restore();
+
+      // Right 40%: Room key
+      const keyX = mapWidth + 20;
+      const keyY = 40;
+      const keyWidth = 1700 - keyX - 20;
+
+      this.renderRoomKey(exportCtx, keyX, keyY, keyWidth);
+
+      exportCtx.setTransform(1, 0, 0, 1, 0, 0);
+    }
+
+    renderRoomKey(ctx, x, y, maxWidth) {
+      ctx.fillStyle = '#000';
+      ctx.font = 'bold 20px Georgia, serif';
+      ctx.fillText('Room Key', x, y);
+
+      let currentY = y + 30;
+      ctx.font = '14px Georgia, serif';
+      const lineHeight = 20;
+
+      rooms.forEach(room => {
+        // Room header
+        ctx.font = 'bold 14px Georgia, serif';
+        const header = `${room.id}. ${room.type.toUpperCase()}`;
+        ctx.fillText(header, x, currentY);
+        currentY += lineHeight;
+
+        // Description
+        if (room.description) {
+          ctx.font = '13px Georgia, serif';
+          const wrapped = this.wrapText(ctx, room.description, maxWidth - 20);
+          wrapped.forEach(line => {
+            ctx.fillText(line, x + 15, currentY);
+            currentY += lineHeight - 2;
+          });
+        }
+
+        currentY += 10; // Spacing
+      });
+    }
+
+    wrapText(ctx, text, maxWidth) {
+      const words = text.split(' ');
+      const lines = [];
+      let currentLine = '';
+
+      words.forEach(word => {
+        const testLine = currentLine + (currentLine ? ' ' : '') + word;
+        const metrics = ctx.measureText(testLine);
+
+        if (metrics.width > maxWidth && currentLine) {
+          lines.push(currentLine);
+          currentLine = word;
+        } else {
+          currentLine = testLine;
+        }
+      });
+
+      if (currentLine) lines.push(currentLine);
+      return lines;
+    }
+
+    async export() {
+      this.gatherOptions();
+      const exportCanvas = this.createExportCanvas();
+
+      // Render based on layout
+      if (this.options.layout === 'map-only') {
+        await this.renderMapOnly(exportCanvas);
+      } else if (this.options.layout === 'map-key') {
+        await this.renderMapAndKey(exportCanvas);
+      }
+
+      this.downloadPNG(exportCanvas);
+    }
+
+    downloadPNG(exportCanvas) {
+      exportCanvas.toBlob(blob => {
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+
+        const timestamp = new Date().toISOString().slice(0, 10);
+        const name = titleBlockData.dungeonName.replace(/[^a-z0-9]/gi, '_').toLowerCase();
+        a.download = `${name}_${this.options.layout}_${timestamp}.png`;
+
+        a.click();
+        URL.revokeObjectURL(url);
+      }, 'image/png', 0.95);
+    }
+  }
+
+  // Initialize exporter
+  const exporter = new DungeonExporter();
+
+  // --- DUNGEON GENERATION ALGORITHMS ---
+
+  // Classic room-based generation
+  function generateRoomsDungeon() {
+    const size = sizeSelect.value;
+    const density = parseInt(densityRange.value, 10);
+
+    let roomCount;
+    let minSize, maxSize;
+
+    if (size === 'small') {
+      roomCount = 5 + density;
+      minSize = 3; maxSize = 6;
+    } else if (size === 'large') {
+      roomCount = 12 + density;
+      minSize = 4; maxSize = 8;
+    } else {
+      roomCount = 8 + density;
+      minSize = 3; maxSize = 7;
+    }
+
+    const newRooms = [];
+    let id = 1;
+
+    while (newRooms.length < roomCount && id < roomCount + 20) {
+      const w = randInt(minSize, maxSize);
+      const h = randInt(minSize, maxSize);
+      const x = randInt(1, GRID_COLS - w - 1);
+      const y = randInt(1, GRID_ROWS - h - 1);
+
+      let overlaps = false;
+      for (const r of newRooms) {
+        if (x < r.x + r.w + 1 && x + w + 1 > r.x &&
+            y < r.y + r.h + 1 && y + h + 1 > r.y) {
+          overlaps = true;
+          break;
+        }
+      }
+      if (overlaps) continue;
+
+      newRooms.push({
+        id: id,
+        x, y, w, h,
+        type: 'normal',
+        description: '',
+      });
+      id++;
+    }
+
+    // Mark special rooms
+    if (newRooms.length > 0) {
+      newRooms[0].type = 'entrance';
+      if (newRooms.length > 2) {
+        newRooms[newRooms.length - 1].type = 'boss';
+      }
+      if (newRooms.length > 4) {
+        newRooms[Math.floor(newRooms.length / 2)].type = 'treasure';
+      }
+      if (newRooms.length > 6) {
+        newRooms[Math.floor(newRooms.length / 3)].type = 'trap';
+      }
+    }
+
+    rooms = newRooms;
+    selectedRoomId = rooms[0]?.id ?? null;
+    autoFillDescriptions();
+  }
+
+  // BSP (Binary Space Partitioning) algorithm
+  function generateBSPDungeon() {
+    const size = sizeSelect.value;
+    const density = parseInt(densityRange.value, 10);
+
+    let minRoomSize = size === 'small' ? 4 : size === 'large' ? 6 : 5;
+    let splits = size === 'small' ? 3 : size === 'large' ? 5 : 4;
+    splits += Math.floor(density / 3);
+
+    class BSPNode {
+      constructor(x, y, w, h) {
+        this.x = x; this.y = y; this.w = w; this.h = h;
+        this.left = null; this.right = null;
+        this.room = null;
+      }
+
+      split(depth) {
+        if (depth === 0) return;
+
+        const horizontal = Math.random() > 0.5;
+
+        if (horizontal) {
+          if (this.h < minRoomSize * 2) return;
+          const splitPos = randInt(minRoomSize, this.h - minRoomSize);
+          this.left = new BSPNode(this.x, this.y, this.w, splitPos);
+          this.right = new BSPNode(this.x, this.y + splitPos, this.w, this.h - splitPos);
+        } else {
+          if (this.w < minRoomSize * 2) return;
+          const splitPos = randInt(minRoomSize, this.w - minRoomSize);
+          this.left = new BSPNode(this.x, this.y, splitPos, this.h);
+          this.right = new BSPNode(this.x + splitPos, this.y, this.w - splitPos, this.h);
+        }
+
+        if (this.left) this.left.split(depth - 1);
+        if (this.right) this.right.split(depth - 1);
+      }
+
+      createRoom() {
+        if (this.left || this.right) {
+          if (this.left) this.left.createRoom();
+          if (this.right) this.right.createRoom();
+        } else {
+          const roomW = randInt(Math.floor(this.w * 0.5), Math.max(Math.floor(this.w * 0.9), Math.floor(this.w * 0.5) + 1));
+          const roomH = randInt(Math.floor(this.h * 0.5), Math.max(Math.floor(this.h * 0.9), Math.floor(this.h * 0.5) + 1));
+          const roomX = this.x + randInt(0, this.w - roomW);
+          const roomY = this.y + randInt(0, this.h - roomH);
+          this.room = { x: roomX, y: roomY, w: roomW, h: roomH };
+        }
+      }
+
+      getRooms() {
+        if (this.room) return [this.room];
+        const rooms = [];
+        if (this.left) rooms.push(...this.left.getRooms());
+        if (this.right) rooms.push(...this.right.getRooms());
+        return rooms;
+      }
+    }
+
+    const root = new BSPNode(1, 1, GRID_COLS - 2, GRID_ROWS - 2);
+    root.split(splits);
+    root.createRoom();
+
+    const bspRooms = root.getRooms();
+    rooms = bspRooms.map((r, i) => ({
+      id: i + 1,
+      x: r.x,
+      y: r.y,
+      w: r.w,
+      h: r.h,
+      type: 'normal',
+      description: ''
+    }));
+
+    // Mark special rooms
+    if (rooms.length > 0) {
+      rooms[0].type = 'entrance';
+      if (rooms.length > 2) {
+        rooms[rooms.length - 1].type = 'boss';
+      }
+      if (rooms.length > 4) {
+        rooms[Math.floor(rooms.length / 2)].type = 'treasure';
+      }
+      if (rooms.length > 6) {
+        rooms[Math.floor(rooms.length / 3)].type = 'trap';
+      }
+    }
+
+    selectedRoomId = rooms[0]?.id ?? null;
+    autoFillDescriptions();
+  }
+
+  // Cellular Automata cave generation
+  function generateCavesDungeon() {
+    const density = parseInt(densityRange.value, 10);
+    const fillProbability = 0.45 - (density * 0.02);
+
+    // Create grid
+    let grid = Array(GRID_ROWS).fill(0).map(() => Array(GRID_COLS).fill(0));
+
+    // Random fill
+    for (let y = 1; y < GRID_ROWS - 1; y++) {
+      for (let x = 1; x < GRID_COLS - 1; x++) {
+        grid[y][x] = Math.random() < fillProbability ? 1 : 0;
+      }
+    }
+
+    // Cellular automata iterations
+    for (let iter = 0; iter < 4; iter++) {
+      const newGrid = grid.map(row => [...row]);
+      for (let y = 1; y < GRID_ROWS - 1; y++) {
+        for (let x = 1; x < GRID_COLS - 1; x++) {
+          let neighbors = 0;
+          for (let dy = -1; dy <= 1; dy++) {
+            for (let dx = -1; dx <= 1; dx++) {
+              if (dx === 0 && dy === 0) continue;
+              neighbors += grid[y + dy][x + dx];
+            }
+          }
+          newGrid[y][x] = neighbors >= 5 ? 1 : 0;
+        }
+      }
+      grid = newGrid;
+    }
+
+    // Convert to rooms (find open areas)
+    const visited = Array(GRID_ROWS).fill(0).map(() => Array(GRID_COLS).fill(false));
+    const foundRooms = [];
+    let roomId = 1;
+
+    function floodFill(startX, startY) {
+      const cells = [];
+      const queue = [[startX, startY]];
+      visited[startY][startX] = true;
+
+      while (queue.length > 0) {
+        const [x, y] = queue.shift();
+        cells.push([x, y]);
+
+        for (const [dx, dy] of [[-1,0], [1,0], [0,-1], [0,1]]) {
+          const nx = x + dx, ny = y + dy;
+          if (nx >= 0 && nx < GRID_COLS && ny >= 0 && ny < GRID_ROWS &&
+              !visited[ny][nx] && grid[ny][nx] === 0) {
+            visited[ny][nx] = true;
+            queue.push([nx, ny]);
+          }
+        }
+      }
+      return cells;
+    }
+
+    for (let y = 1; y < GRID_ROWS - 1; y++) {
+      for (let x = 1; x < GRID_COLS - 1; x++) {
+        if (grid[y][x] === 0 && !visited[y][x]) {
+          const cells = floodFill(x, y);
+          if (cells.length > 15) {
+            const xs = cells.map(c => c[0]);
+            const ys = cells.map(c => c[1]);
+            const minX = Math.min(...xs);
+            const maxX = Math.max(...xs);
+            const minY = Math.min(...ys);
+            const maxY = Math.max(...ys);
+
+            foundRooms.push({
+              id: roomId++,
+              x: minX,
+              y: minY,
+              w: maxX - minX + 1,
+              h: maxY - minY + 1,
+              type: 'normal',
+              description: ''
+            });
+          }
+        }
+      }
+    }
+
+    rooms = foundRooms.slice(0, 15);
+
+    if (rooms.length > 0) {
+      rooms[0].type = 'entrance';
+      if (rooms.length > 2) {
+        rooms[rooms.length - 1].type = 'boss';
+      }
+      if (rooms.length > 4) {
+        rooms[Math.floor(rooms.length / 2)].type = 'treasure';
+      }
+    }
+
+    selectedRoomId = rooms[0]?.id ?? null;
+    autoFillDescriptions();
+  }
+
+  function generateDungeon() {
+    saveState();
+    const algorithm = algorithmSelect.value;
+
+    switch(algorithm) {
+      case 'bsp':
+        generateBSPDungeon();
+        break;
+      case 'caves':
+        generateCavesDungeon();
+        break;
+      default:
+        generateRoomsDungeon();
+    }
+
+    render();
+    rebuildRoomList();
+    saveToLocalStorage();
+  }
+
+  function autoFillDescriptions() {
+    const themeText = getThemePrompt(themeSelect.value);
+    rooms.forEach((room, idx) => {
+      if (!room.description) {
+        if (room.type === 'entrance') {
+          room.description = `Entrance (${room.id}). Players arrive here. Describe how they enter the dungeon and any immediate threats.`;
+        } else if (room.type === 'boss') {
+          room.description = `Boss chamber (${room.id}). The final challenge awaits. A formidable opponent guards this area.`;
+        } else if (room.type === 'treasure') {
+          room.description = `Treasure room (${room.id}). Valuable items hidden here. Perhaps guarded or trapped.`;
+        } else if (room.type === 'trap') {
+          room.description = `Trapped area (${room.id}). Danger lurks here. Describe the trap and its trigger mechanism.`;
+        } else {
+          room.description = `Area ${room.id}. ${themeText} This room has a notable feature or encounter tailored by the DM.`;
+        }
+      }
+    });
+  }
+
+  // --- SMARTER CORRIDOR GENERATION ---
+  function getClosestRooms() {
+    if (rooms.length === 0) return [];
+
+    // Use minimum spanning tree approach for better corridors
+    const connections = [];
+    const connected = new Set([rooms[0].id]);
+    const unconnected = new Set(rooms.slice(1).map(r => r.id));
+
+    while (unconnected.size > 0) {
+      let minDist = Infinity;
+      let bestPair = null;
+
+      for (const connId of connected) {
+        const connRoom = rooms.find(r => r.id === connId);
+        for (const unconId of unconnected) {
+          const unconRoom = rooms.find(r => r.id === unconId);
+          const cx1 = connRoom.x + connRoom.w / 2;
+          const cy1 = connRoom.y + connRoom.h / 2;
+          const cx2 = unconRoom.x + unconRoom.w / 2;
+          const cy2 = unconRoom.y + unconRoom.h / 2;
+          const dist = Math.sqrt((cx2 - cx1) ** 2 + (cy2 - cy1) ** 2);
+
+          if (dist < minDist) {
+            minDist = dist;
+            bestPair = [connRoom, unconRoom];
+          }
+        }
+      }
+
+      if (bestPair) {
+        connections.push(bestPair);
+        connected.add(bestPair[1].id);
+        unconnected.delete(bestPair[1].id);
+      } else {
+        break;
+      }
+    }
+
+    return connections;
+  }
+
+  function createLCorridor(x1, y1, x2, y2) {
+    const paths = [];
+
+    if (Math.random() > 0.5) {
+      // Horizontal first, then vertical
+      paths.push({ x1: x1, y1: y1, x2: x2, y2: y1 });
+      paths.push({ x1: x2, y1: y1, x2: x2, y2: y2 });
+    } else {
+      // Vertical first, then horizontal
+      paths.push({ x1: x1, y1: y1, x2: x1, y2: y2 });
+      paths.push({ x1: x1, y1: y2, x2: x2, y2: y2 });
+    }
+
+    return paths;
+  }
+
+  // --- RENDERING ---
+  function drawGrid() {
+    if (renderStyle === 'vintage') {
+      // TSR blue grid style
+      ctx.strokeStyle = '#6495ED';
+      ctx.lineWidth = 0.5;
+    } else if (renderStyle === 'dyson') {
+      // Very subtle grid for Dyson style
+      ctx.strokeStyle = '#1a1a1a';
+      ctx.lineWidth = 0.3;
+    } else {
+      // Modern clean grid
+      ctx.strokeStyle = '#222';
+      ctx.lineWidth = 1;
+    }
+
+    for (let x = 0; x <= canvas.width; x += GRID_SIZE) {
+      ctx.beginPath();
+      ctx.moveTo(x, 0);
+      ctx.lineTo(x, canvas.height);
+      ctx.stroke();
+    }
+    for (let y = 0; y <= canvas.height; y += GRID_SIZE) {
+      ctx.beginPath();
+      ctx.moveTo(0, y);
+      ctx.lineTo(canvas.width, y);
+      ctx.stroke();
+    }
+  }
+
+  function drawRoomsModern() {
+    // Original clean digital style
+    ctx.strokeStyle = '#555';
+    ctx.lineWidth = 2;
+
+    const connections = getClosestRooms();
+    connections.forEach(([r1, r2]) => {
+      const x1 = (r1.x + r1.w / 2) * GRID_SIZE;
+      const y1 = (r1.y + r1.h / 2) * GRID_SIZE;
+      const x2 = (r2.x + r2.w / 2) * GRID_SIZE;
+      const y2 = (r2.y + r2.h / 2) * GRID_SIZE;
+
+      const corridors = createLCorridor(x1, y1, x2, y2);
+      corridors.forEach(c => {
+        ctx.beginPath();
+        ctx.moveTo(c.x1, c.y1);
+        ctx.lineTo(c.x2, c.y2);
+        ctx.stroke();
+      });
+    });
+
+    rooms.forEach(room => {
+      const isSelected = room.id === selectedRoomId;
+
+      ctx.lineWidth = isSelected ? 3 : 2;
+      ctx.strokeStyle = isSelected ? '#4b7abf' : getRoomColor(room.type);
+      ctx.fillStyle = '#222';
+
+      const x = room.x * GRID_SIZE;
+      const y = room.y * GRID_SIZE;
+      const w = room.w * GRID_SIZE;
+      const h = room.h * GRID_SIZE;
+
+      ctx.fillRect(x, y, w, h);
+      ctx.strokeRect(x, y, w, h);
+
+      // Room number
+      ctx.fillStyle = '#fff';
+      ctx.font = '16px system-ui';
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      const cx = x + w / 2;
+      const cy = y + h / 2;
+      ctx.fillText(String(room.id), cx, cy);
+
+      // Room type indicator
+      if (room.type !== 'normal') {
+        ctx.font = '10px system-ui';
+        ctx.fillStyle = getRoomColor(room.type);
+        ctx.fillText(room.type.toUpperCase(), cx, cy + 12);
+      }
+    });
+  }
+
+  function drawRoomsDyson() {
+    // Hand-drawn Dyson Logos style
+
+    // First: Draw cross-hatching on wall regions
+    const wallGrid = getWallRegions();
+
+    // Find contiguous wall regions and hatch them
+    ctx.strokeStyle = '#000';
+    ctx.lineWidth = 0.5;
+
+    for (let gy = 0; gy < GRID_ROWS; gy++) {
+      for (let gx = 0; gx < GRID_COLS; gx++) {
+        if (wallGrid[gy][gx]) {
+          const x = gx * GRID_SIZE;
+          const y = gy * GRID_SIZE;
+          fillCrossHatch(x, y, GRID_SIZE, GRID_SIZE, 45, 6);
+        }
+      }
+    }
+
+    // Second: Draw corridors with hand-drawn lines
+    ctx.strokeStyle = '#000';
+    ctx.lineWidth = 1.5;
+
+    const connections = getClosestRooms();
+    connections.forEach(([r1, r2]) => {
+      const x1 = (r1.x + r1.w / 2) * GRID_SIZE;
+      const y1 = (r1.y + r1.h / 2) * GRID_SIZE;
+      const x2 = (r2.x + r2.w / 2) * GRID_SIZE;
+      const y2 = (r2.y + r2.h / 2) * GRID_SIZE;
+
+      const corridors = createLCorridor(x1, y1, x2, y2);
+      corridors.forEach(c => {
+        drawHandDrawnLine(c.x1, c.y1, c.x2, c.y2, 2);
+      });
+    });
+
+    // Third: Draw rooms with hand-drawn organic shapes
+    rooms.forEach(room => {
+      const isSelected = room.id === selectedRoomId;
+
+      ctx.strokeStyle = isSelected ? '#4b7abf' : '#000';
+      ctx.lineWidth = isSelected ? 2.5 : 1.5;
+      ctx.fillStyle = renderStyle === 'vintage' ? '#fff' : '#f5f5dc'; // White or parchment
+
+      const x = room.x * GRID_SIZE;
+      const y = room.y * GRID_SIZE;
+      const w = room.w * GRID_SIZE;
+      const h = room.h * GRID_SIZE;
+
+      // Add slight organic distortion to corners
+      const wobble = 3;
+      const x1 = x + (Math.random() - 0.5) * wobble;
+      const y1 = y + (Math.random() - 0.5) * wobble;
+      const x2 = x + w + (Math.random() - 0.5) * wobble;
+      const y2 = y + h + (Math.random() - 0.5) * wobble;
+
+      // Fill room
+      ctx.fillRect(x, y, w, h);
+
+      // Draw hand-drawn outline
+      drawHandDrawnRect(x, y, w, h, 2);
+
+      // Room number
+      ctx.fillStyle = '#000';
+      ctx.font = 'bold 16px serif';
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      const cx = x + w / 2;
+      const cy = y + h / 2;
+      ctx.fillText(String(room.id), cx, cy);
+
+      // Room type indicator (small text below number)
+      if (room.type !== 'normal') {
+        ctx.font = '9px serif';
+        ctx.fillStyle = '#444';
+        ctx.fillText(room.type.toUpperCase(), cx, cy + 12);
+      }
+    });
+  }
+
+  function render() {
+    ctx.save();
+
+    // Background color based on style
+    if (renderStyle === 'vintage') {
+      ctx.fillStyle = '#e8f0ff'; // Light blue for TSR vintage
+    } else if (renderStyle === 'dyson') {
+      ctx.fillStyle = '#faf8f0'; // Parchment for Dyson
+    } else {
+      ctx.fillStyle = '#000'; // Black for modern
+    }
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+    // Phase 3: Age spots (behind everything)
+    drawAgeSpots(20);
+
+    if (backgroundImg) {
+      const scale = Math.min(
+        canvas.width / backgroundImg.width,
+        canvas.height / backgroundImg.height
+      );
+      const imgW = backgroundImg.width * scale;
+      const imgH = backgroundImg.height * scale;
+      const offsetX = (canvas.width - imgW) / 2;
+      const offsetY = (canvas.height - imgH) / 2;
+      ctx.drawImage(backgroundImg, offsetX, offsetY, imgW, imgH);
+    }
+
+    drawGrid();
+
+    // Choose rendering style
+    if (renderStyle === 'dyson' || renderStyle === 'vintage') {
+      drawRoomsDyson();
+    } else {
+      drawRoomsModern();
+    }
+
+    // Render symbols (Phase 2)
+    renderSymbols();
+
+    // Phase 3: Coffee stains (over map)
+    renderCoffeeStains();
+
+    // Phase 3: Title block
+    drawTitleBlock();
+
+    // Phase 3: Compass rose
+    const compassPos = getCompassPosition();
+    drawCompassRose(compassPos.x, compassPos.y);
+
+    ctx.restore();
+  }
+
+  // --- ROOM LIST UI ---
+  function rebuildRoomList() {
+    roomListEl.innerHTML = '';
+    rooms
+      .slice()
+      .sort((a, b) => a.id - b.id)
+      .forEach(room => {
+        const li = document.createElement('li');
+        li.dataset.id = room.id;
+        li.className = `room-${room.type}`;
+        if (room.id === selectedRoomId) li.classList.add('selected');
+
+        const title = document.createElement('div');
+        title.textContent = `Location ${room.id}`;
+        li.appendChild(title);
+
+        // Room controls (type selector + delete button)
+        const controls = document.createElement('div');
+        controls.className = 'room-controls';
+
+        const typeSelector = document.createElement('select');
+        typeSelector.className = 'room-type-selector';
+        ['normal', 'entrance', 'treasure', 'boss', 'trap'].forEach(type => {
+          const opt = document.createElement('option');
+          opt.value = type;
+          opt.textContent = type.charAt(0).toUpperCase() + type.slice(1);
+          if (room.type === type) opt.selected = true;
+          typeSelector.appendChild(opt);
+        });
+        typeSelector.addEventListener('change', (e) => {
+          saveState();
+          room.type = e.target.value;
+          render();
+          rebuildRoomList();
+          saveToLocalStorage();
+        });
+        controls.appendChild(typeSelector);
+
+        const deleteBtn = document.createElement('button');
+        deleteBtn.textContent = '✕ Delete';
+        deleteBtn.className = 'delete-room-btn';
+        deleteBtn.addEventListener('click', (e) => {
+          e.stopPropagation();
+          deleteRoom(room.id);
+        });
+        controls.appendChild(deleteBtn);
+
+        li.appendChild(controls);
+
+        const textarea = document.createElement('textarea');
+        textarea.value = room.description || '';
+        textarea.addEventListener('input', (e) => {
+          room.description = e.target.value;
+          saveToLocalStorage();
+        });
+        li.appendChild(textarea);
+
+        li.addEventListener('click', (e) => {
+          if (e.target === textarea || e.target === typeSelector || e.target === deleteBtn) return;
+          selectedRoomId = room.id;
+          render();
+          rebuildRoomList();
+        });
+
+        roomListEl.appendChild(li);
+      });
+  }
+
+  function deleteRoom(roomId) {
+    if (!confirm(`Delete Location ${roomId}? This cannot be undone.`)) return;
+    saveState();
+    rooms = rooms.filter(r => r.id !== roomId);
+    if (selectedRoomId === roomId) {
+      selectedRoomId = rooms[0]?.id ?? null;
+    }
+    render();
+    rebuildRoomList();
+    saveToLocalStorage();
+    statusText.textContent = `Location ${roomId} deleted`;
+    setTimeout(() => { statusText.textContent = ''; }, 2000);
+  }
+
+  // --- HIT TEST / INTERACTION ---
+  function roomAtCanvasPosition(px, py) {
+    const gx = px / GRID_SIZE;
+    const gy = py / GRID_SIZE;
+    for (const room of rooms) {
+      if (
+        gx >= room.x &&
+        gx <= room.x + room.w &&
+        gy >= room.y &&
+        gy <= room.y + room.h
+      ) return room;
+    }
+    return null;
+  }
+
+  // --- MOUSE INTERACTION (Drag + Click) ---
+  let mouseDownPos = null;
+  let hasDragged = false;
+
+  canvas.addEventListener('mousedown', (event) => {
+    const rect = canvas.getBoundingClientRect();
+    const x = event.clientX - rect.left;
+    const y = event.clientY - rect.top;
+
+    mouseDownPos = { x, y };
+    hasDragged = false;
+
+    const room = roomAtCanvasPosition(x, y);
+    if (room && !placingMarker) {
+      draggingRoom = room;
+      dragOffset.x = room.x - (x / GRID_SIZE);
+      dragOffset.y = room.y - (y / GRID_SIZE);
+      canvas.style.cursor = 'move';
+      canvas.classList.add('dragging');
+    }
+  });
+
+  canvas.addEventListener('mousemove', (event) => {
+    if (!draggingRoom) return;
+
+    const rect = canvas.getBoundingClientRect();
+    const x = event.clientX - rect.left;
+    const y = event.clientY - rect.top;
+
+    // Check if actually dragged (not just a tiny move)
+    if (mouseDownPos && Math.abs(x - mouseDownPos.x) + Math.abs(y - mouseDownPos.y) > 5) {
+      hasDragged = true;
+    }
+
+    const newX = Math.floor(x / GRID_SIZE + dragOffset.x);
+    const newY = Math.floor(y / GRID_SIZE + dragOffset.y);
+
+    // Bounds check
+    if (newX >= 0 && newX + draggingRoom.w <= GRID_COLS &&
+        newY >= 0 && newY + draggingRoom.h <= GRID_ROWS) {
+      draggingRoom.x = newX;
+      draggingRoom.y = newY;
+      render();
+    }
+  });
+
+  canvas.addEventListener('mouseup', (event) => {
+    if (draggingRoom && hasDragged) {
+      // Check for overlap after drag
+      const overlap = checkRoomOverlap(draggingRoom, rooms, draggingRoom.id);
+      if (overlap) {
+        statusText.textContent = `Warning: Overlaps with Location ${overlap.id}`;
+        setTimeout(() => { statusText.textContent = ''; }, 3000);
+      }
+      saveState();
+      saveToLocalStorage();
+    }
+
+    if (draggingRoom && !hasDragged) {
+      // It was a click, not a drag
+      const rect = canvas.getBoundingClientRect();
+      const x = event.clientX - rect.left;
+      const y = event.clientY - rect.top;
+      handleCanvasClick(x, y);
+    } else if (!draggingRoom) {
+      const rect = canvas.getBoundingClientRect();
+      const x = event.clientX - rect.left;
+      const y = event.clientY - rect.top;
+      handleCanvasClick(x, y);
+    }
+
+    draggingRoom = null;
+    canvas.style.cursor = 'crosshair';
+    canvas.classList.remove('dragging');
+  });
+
+  function handleCanvasClick(x, y) {
+    const gx = Math.floor(x / GRID_SIZE);
+    const gy = Math.floor(y / GRID_SIZE);
+
+    // Symbol placement mode
+    if (placingSymbolType) {
+      saveState();
+
+      // Determine direction based on symbol type
+      let direction = 'north';
+      let subtype = document.querySelector(`.symbol-btn[data-symbol="${placingSymbolType}"]`)?.dataset.subtype || 'normal';
+
+      if (placingSymbolType.includes('stairs')) {
+        direction = placingSymbolType.includes('up') ? 'up' : 'down';
+      }
+
+      const newSymbol = {
+        id: Date.now() + Math.random(),
+        type: placingSymbolType,
+        subtype: subtype,
+        x: gx,
+        y: gy,
+        direction: direction,
+        roomId: null
+      };
+
+      symbols.push(newSymbol);
+      render();
+      saveToLocalStorage();
+
+      // Deselect room, select symbol
+      selectedRoomId = null;
+      selectedSymbol = newSymbol;
+      document.getElementById('btnDeleteSymbol').disabled = false;
+
+      statusText.textContent = `Placed ${placingSymbolType}`;
+      setTimeout(() => { statusText.textContent = ''; }, 2000);
+
+      // Keep placing mode active (comment out to place one at a time)
+      // placingSymbolType = null;
+      // document.querySelectorAll('.symbol-btn').forEach(b => b.classList.remove('active'));
+
+      return;
+    }
+
+    if (placingMarker) {
+      saveState();
+      const id = rooms.length ? Math.max(...rooms.map(r => r.id)) + 1 : 1;
+      const newRoom = {
+        id,
+        x: Math.max(0, Math.min(gx - 1, GRID_COLS - 4)),
+        y: Math.max(0, Math.min(gy - 1, GRID_ROWS - 4)),
+        w: 3,
+        h: 3,
+        type: 'normal',
+        description: `Location ${id}. Describe what is here.`
+      };
+
+      // Check for overlap
+      const overlap = checkRoomOverlap(newRoom, rooms);
+      if (overlap) {
+        statusText.textContent = `Warning: New location overlaps with Location ${overlap.id}`;
+        setTimeout(() => { statusText.textContent = ''; }, 3000);
+      }
+
+      rooms.push(newRoom);
+      selectedRoomId = id;
+      placingMarker = false;
+      placeMarkerBtn.textContent = 'Add Numbered Location';
+      render();
+      rebuildRoomList();
+      saveToLocalStorage();
+      return;
+    }
+
+    // Check if clicking on a symbol
+    const clickedSymbol = findSymbolAt(gx, gy);
+    if (clickedSymbol) {
+      selectedSymbol = clickedSymbol;
+      selectedRoomId = null;
+      document.getElementById('btnDeleteSymbol').disabled = false;
+      render();
+      return;
+    }
+
+    // Check if clicking on a room
+    const room = roomAtCanvasPosition(x, y);
+    if (room) {
+      selectedRoomId = room.id;
+      selectedSymbol = null;
+      document.getElementById('btnDeleteSymbol').disabled = true;
+      render();
+      rebuildRoomList();
+    } else {
+      // Clicked empty space - deselect
+      selectedRoomId = null;
+      selectedSymbol = null;
+      document.getElementById('btnDeleteSymbol').disabled = true;
+      render();
+    }
+  }
+
+  // --- KEYBOARD SHORTCUTS ---
+  document.addEventListener('keydown', (event) => {
+    // Delete key to remove selected room OR selected symbol
+    if ((event.key === 'Delete' || event.key === 'Backspace')) {
+      // Don't trigger if typing in a text field
+      if (event.target.tagName === 'TEXTAREA' || event.target.tagName === 'INPUT') return;
+      event.preventDefault();
+
+      if (selectedSymbol !== null) {
+        deleteSymbol(selectedSymbol.id);
+      } else if (selectedRoomId !== null) {
+        deleteRoom(selectedRoomId);
+      }
+    }
+
+    // Ctrl+Z for undo
+    if (event.ctrlKey && event.key === 'z' && !event.shiftKey) {
+      event.preventDefault();
+      undo();
+    }
+
+    // Ctrl+Shift+Z or Ctrl+Y for redo
+    if ((event.ctrlKey && event.shiftKey && event.key === 'z') || (event.ctrlKey && event.key === 'y')) {
+      event.preventDefault();
+      redo();
+    }
+  });
+
+  // --- ZOOM CONTROLS ---
+  function setZoom(newZoom) {
+    zoomLevel = Math.max(0.5, Math.min(2.0, newZoom));
+    canvas.style.transform = `scale(${zoomLevel})`;
+    canvas.style.transformOrigin = 'top left';
+    zoomLabel.textContent = `${Math.round(zoomLevel * 100)}%`;
+  }
+
+  zoomInBtn.addEventListener('click', () => setZoom(zoomLevel + 0.1));
+  zoomOutBtn.addEventListener('click', () => setZoom(zoomLevel - 0.1));
+  zoomResetBtn.addEventListener('click', () => setZoom(1.0));
+
+  // --- RENDER STYLE SELECTION ---
+  renderStyleSelect.addEventListener('change', (e) => {
+    renderStyle = e.target.value;
+
+    // Update style preview text
+    switch(renderStyle) {
+      case 'dyson':
+        stylePreview.textContent = '✨ Sketchy lines + cross-hatching';
+        break;
+      case 'vintage':
+        stylePreview.textContent = '📘 TSR blue grid + hand-drawn';
+        break;
+      case 'modern':
+        stylePreview.textContent = '💻 Clean digital lines';
+        break;
+    }
+
+    render();
+    saveToLocalStorage();
+  });
+
+  // --- LOCAL STORAGE ---
+  function saveToLocalStorage() {
+    const data = {
+      size: sizeSelect.value,
+      density: densityRange.value,
+      theme: themeSelect.value,
+      algorithm: algorithmSelect.value,
+      renderStyle: renderStyle,
+      rooms: rooms,
+      symbols: symbols, // Phase 2: Save symbols
+      effectsEnabled: effectsEnabled, // Phase 3: Save effects toggles
+      coffeeStains: coffeeStains, // Phase 3: Save coffee stains
+      titleBlockData: titleBlockData, // Phase 3: Save title block data
+      timestamp: Date.now()
+    };
+    localStorage.setItem('dungeonMaker_autoSave', JSON.stringify(data));
+    statusText.textContent = 'Auto-saved';
+    setTimeout(() => { statusText.textContent = ''; }, 2000);
+  }
+
+  function loadFromLocalStorage() {
+    const saved = localStorage.getItem('dungeonMaker_autoSave');
+    if (saved) {
+      try {
+        const data = JSON.parse(saved);
+        sizeSelect.value = data.size || 'medium';
+        densityRange.value = data.density || 5;
+        densityValue.textContent = data.density || 5;
+        themeSelect.value = data.theme || 'classic';
+        algorithmSelect.value = data.algorithm || 'rooms';
+        renderStyle = data.renderStyle || 'dyson';
+        renderStyleSelect.value = renderStyle;
+        rooms = data.rooms || [];
+        symbols = data.symbols || []; // Phase 2: Load symbols
+
+        // Phase 3: Load effects data
+        if (data.effectsEnabled) {
+          effectsEnabled = data.effectsEnabled;
+          document.getElementById('chkTitleBlock').checked = effectsEnabled.titleBlock;
+          document.getElementById('chkCompass').checked = effectsEnabled.compass;
+          document.getElementById('chkCoffeeStains').checked = effectsEnabled.coffeeStains;
+          document.getElementById('chkAgeSpots').checked = effectsEnabled.ageSpots;
+        }
+        coffeeStains = data.coffeeStains || [];
+        if (data.titleBlockData) {
+          titleBlockData = data.titleBlockData;
+          document.getElementById('dungeonNameInput').value = titleBlockData.dungeonName;
+          document.getElementById('dmNameInput').value = titleBlockData.dmName;
+        }
+
+        selectedRoomId = rooms[0]?.id ?? null;
+        render();
+        rebuildRoomList();
+        statusText.textContent = 'Loaded from auto-save';
+        setTimeout(() => { statusText.textContent = ''; }, 3000);
+        return true;
+      } catch(e) {
+        console.error('Failed to load from localStorage', e);
+      }
+    }
+    return false;
+  }
+
+  // --- BUTTON HANDLERS ---
+  newDungeonBtn.addEventListener('click', () => {
+    backgroundImg = null;
+    generateDungeon();
+  });
+
+  placeMarkerBtn.addEventListener('click', () => {
+    placingMarker = !placingMarker;
+    placeMarkerBtn.textContent = placingMarker
+      ? 'Click on Map to Place'
+      : 'Add Numbered Location';
+  });
+
+  mapFileInput.addEventListener('change', (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = function(ev) {
+      const img = new Image();
+      img.onload = function() {
+        backgroundImg = img;
+        render();
+      };
+      img.src = ev.target.result;
+    };
+    reader.readAsDataURL(file);
+  });
+
+  // JSON Import - FIXED to handle both formats
+  jsonFileInput.addEventListener('change', (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = function(ev) {
+      try {
+        const data = JSON.parse(ev.target.result);
+        sizeSelect.value = data.size || 'medium';
+        densityRange.value = data.density || 5;
+        densityValue.textContent = data.density || 5;
+        themeSelect.value = data.theme || 'classic';
+        algorithmSelect.value = data.algorithm || 'rooms';
+        renderStyle = data.renderStyle || 'dyson';
+        renderStyleSelect.value = renderStyle;
+
+        // Handle both export formats (gridRect vs flat x,y,w,h)
+        rooms = (data.rooms || []).map(r => {
+          if (r.gridRect) {
+            // Old export format
+            return {
+              id: r.id,
+              x: r.gridRect.x,
+              y: r.gridRect.y,
+              w: r.gridRect.w,
+              h: r.gridRect.h,
+              type: r.type || 'normal',
+              description: r.description || ''
+            };
+          } else {
+            // New flat format
+            return {
+              id: r.id,
+              x: r.x,
+              y: r.y,
+              w: r.w,
+              h: r.h,
+              type: r.type || 'normal',
+              description: r.description || ''
+            };
+          }
+        });
+
+        // Phase 2: Load symbols from JSON
+        symbols = data.symbols || [];
+
+        // Phase 3: Load effects data from JSON
+        if (data.effectsEnabled) {
+          effectsEnabled = data.effectsEnabled;
+          document.getElementById('chkTitleBlock').checked = effectsEnabled.titleBlock;
+          document.getElementById('chkCompass').checked = effectsEnabled.compass;
+          document.getElementById('chkCoffeeStains').checked = effectsEnabled.coffeeStains;
+          document.getElementById('chkAgeSpots').checked = effectsEnabled.ageSpots;
+        }
+        coffeeStains = data.coffeeStains || [];
+        if (data.titleBlockData) {
+          titleBlockData = data.titleBlockData;
+          document.getElementById('dungeonNameInput').value = titleBlockData.dungeonName;
+          document.getElementById('dmNameInput').value = titleBlockData.dmName;
+        }
+
+        selectedRoomId = rooms[0]?.id ?? null;
+        saveState();
+        render();
+        rebuildRoomList();
+        saveToLocalStorage();
+        statusText.textContent = 'Imported from JSON';
+        setTimeout(() => { statusText.textContent = ''; }, 3000);
+      } catch(err) {
+        alert('Failed to import JSON: ' + err.message);
+      }
+    };
+    reader.readAsText(file);
+  });
+
+  // Phase 4: Export PNG - Show modal
+  exportPngBtn.addEventListener('click', () => {
+    document.getElementById('exportModal').style.display = 'block';
+    updateExportPreview();
+  });
+
+  // Export modal handlers
+  document.getElementById('btnExecuteExport').addEventListener('click', async () => {
+    document.getElementById('exportModal').style.display = 'none';
+
+    statusText.textContent = 'Exporting...';
+    await exporter.export();
+    statusText.textContent = 'Export complete!';
+    setTimeout(() => { statusText.textContent = ''; }, 3000);
+  });
+
+  document.getElementById('btnCancelExport').addEventListener('click', () => {
+    document.getElementById('exportModal').style.display = 'none';
+  });
+
+  document.getElementById('btnCloseExport').addEventListener('click', () => {
+    document.getElementById('exportModal').style.display = 'none';
+  });
+
+  // Live preview update
+  function updateExportPreview() {
+    const previewCanvas = document.getElementById('exportPreviewCanvas');
+    const previewCtx = previewCanvas.getContext('2d');
+
+    previewCtx.clearRect(0, 0, previewCanvas.width, previewCanvas.height);
+
+    const scale = Math.min(
+      previewCanvas.width / 800,
+      previewCanvas.height / 600
+    );
+
+    previewCtx.save();
+    previewCtx.scale(scale, scale);
+
+    const oldCtx = window.ctx;
+    const oldStyle = window.renderStyle;
+
+    window.ctx = previewCtx;
+    window.renderStyle = document.querySelector('input[name="exportStyle"]:checked')?.value || 'dyson';
+
+    render();
+
+    window.ctx = oldCtx;
+    window.renderStyle = oldStyle;
+
+    previewCtx.restore();
+
+    // Update info
+    const res = parseInt(document.querySelector('input[name="exportRes"]:checked')?.value || '1');
+    const w = 800 * res;
+    const h = 600 * res;
+    document.getElementById('exportInfo').textContent =
+      `${w}×${h} @ ${res}x | ~${Math.round(w * h * 4 / 1024)} KB`;
+  }
+
+  // Update preview on option change
+  document.querySelectorAll('input[name="exportStyle"], input[name="exportLayout"], input[name="exportRes"]')
+    .forEach(input => input.addEventListener('change', updateExportPreview));
+
+  exportJsonBtn.addEventListener('click', () => {
+    // Warn if background image is loaded
+    if (backgroundImg) {
+      if (!confirm('Warning: Custom background images are not saved in JSON export. Only room data will be exported. Continue?')) {
+        return;
+      }
+    }
+
+    const data = {
+      size: sizeSelect.value,
+      density: densityRange.value,
+      theme: themeSelect.value,
+      algorithm: algorithmSelect.value,
+      renderStyle: renderStyle,
+      rooms: rooms.map(r => ({
+        id: r.id,
+        x: r.x,
+        y: r.y,
+        w: r.w,
+        h: r.h,
+        type: r.type,
+        description: r.description
+      })),
+      symbols: symbols.map(s => ({  // Phase 2: Export symbols
+        id: s.id,
+        type: s.type,
+        subtype: s.subtype,
+        x: s.x,
+        y: s.y,
+        direction: s.direction,
+        roomId: s.roomId
+      })),
+      effectsEnabled: effectsEnabled, // Phase 3: Export effects
+      coffeeStains: coffeeStains,
+      titleBlockData: titleBlockData
+    };
+    const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'dungeon_data.json';
+    a.click();
+    URL.revokeObjectURL(url);
+  });
+
+  // Template loading
+  loadTemplateBtn.addEventListener('click', () => {
+    const templateName = templateSelect.value;
+    if (!templateName || !TEMPLATES[templateName]) {
+      alert('Please select a template');
+      return;
+    }
+
+    saveState();
+    const template = TEMPLATES[templateName];
+    rooms = JSON.parse(JSON.stringify(template.rooms)); // Deep clone
+    selectedRoomId = rooms[0]?.id ?? null;
+    backgroundImg = null;
+    render();
+    rebuildRoomList();
+    saveToLocalStorage();
+    statusText.textContent = `Loaded template: ${template.name}`;
+    setTimeout(() => { statusText.textContent = ''; }, 3000);
+  });
+
+  clearStorageBtn.addEventListener('click', () => {
+    if (confirm('Clear auto-saved data? This cannot be undone.')) {
+      localStorage.removeItem('dungeonMaker_autoSave');
+      undoStack = [];
+      redoStack = [];
+      updateUndoRedoButtons();
+      statusText.textContent = 'Auto-save cleared';
+      setTimeout(() => { statusText.textContent = ''; }, 3000);
+    }
+  });
+
+  undoBtn.addEventListener('click', undo);
+  redoBtn.addEventListener('click', redo);
+  renumberBtn.addEventListener('click', renumberRooms);
+
+  // Density slider update
+  densityRange.addEventListener('input', (e) => {
+    densityValue.textContent = e.target.value;
+  });
+
+  // --- SYMBOL PLACEMENT INTERACTION (PHASE 2) ---
+  document.querySelectorAll('.symbol-btn').forEach(btn => {
+    btn.addEventListener('click', (e) => {
+      // Toggle placing mode
+      if (placingSymbolType === e.target.dataset.symbol) {
+        // Cancel if clicking same button
+        placingSymbolType = null;
+        document.querySelectorAll('.symbol-btn').forEach(b => b.classList.remove('active'));
+        document.getElementById('symbolHint').textContent = 'Click a symbol button, then click on the map to place it.';
+        canvas.style.cursor = 'crosshair';
+      } else {
+        placingSymbolType = e.target.dataset.symbol;
+        placingMarker = false; // Cancel room placement
+        placeMarkerBtn.textContent = 'Add Numbered Location';
+
+        // Highlight active button
+        document.querySelectorAll('.symbol-btn').forEach(b => b.classList.remove('active'));
+        e.target.classList.add('active');
+
+        document.getElementById('symbolHint').textContent = `Click on map to place ${e.target.textContent}`;
+        canvas.style.cursor = 'crosshair';
+      }
+    });
+  });
+
+  document.getElementById('btnAutoDetectDoors').addEventListener('click', () => {
+    autoDetectDoors();
+  });
+
+  document.getElementById('btnDeleteSymbol').addEventListener('click', () => {
+    if (selectedSymbol) {
+      deleteSymbol(selectedSymbol.id);
+      document.getElementById('btnDeleteSymbol').disabled = true;
+    }
+  });
+
+  document.getElementById('btnClearSymbols').addEventListener('click', () => {
+    if (symbols.length === 0) {
+      alert('No symbols to clear');
+      return;
+    }
+    if (confirm(`Clear all ${symbols.length} symbols? This cannot be undone.`)) {
+      saveState();
+      symbols = [];
+      selectedSymbol = null;
+      document.getElementById('btnDeleteSymbol').disabled = true;
+      render();
+      saveToLocalStorage();
+      statusText.textContent = 'All symbols cleared';
+      setTimeout(() => { statusText.textContent = ''; }, 2000);
+    }
+  });
+
+  // --- PHASE 3 EVENT HANDLERS ---
+  document.getElementById('chkTitleBlock').addEventListener('change', (e) => {
+    effectsEnabled.titleBlock = e.target.checked;
+    render();
+    saveToLocalStorage();
+  });
+
+  document.getElementById('chkCompass').addEventListener('change', (e) => {
+    effectsEnabled.compass = e.target.checked;
+    render();
+    saveToLocalStorage();
+  });
+
+  document.getElementById('chkCoffeeStains').addEventListener('change', (e) => {
+    effectsEnabled.coffeeStains = e.target.checked;
+    if (e.target.checked && coffeeStains.length === 0) {
+      generateCoffeeStains(3);
+    }
+    render();
+    saveToLocalStorage();
+  });
+
+  document.getElementById('chkAgeSpots').addEventListener('change', (e) => {
+    effectsEnabled.ageSpots = e.target.checked;
+    render();
+    saveToLocalStorage();
+  });
+
+  document.getElementById('dungeonNameInput').addEventListener('input', (e) => {
+    titleBlockData.dungeonName = e.target.value;
+    render();
+  });
+
+  document.getElementById('dmNameInput').addEventListener('input', (e) => {
+    titleBlockData.dmName = e.target.value;
+    render();
+  });
+
+  document.getElementById('btnRefreshEffects').addEventListener('click', () => {
+    generateCoffeeStains(3);
+    render();
+    statusText.textContent = 'Effects regenerated';
+    setTimeout(() => { statusText.textContent = ''; }, 2000);
+  });
+
+  // --- INITIALIZATION ---
+  // Try to load from localStorage, otherwise generate initial dungeon
+  if (!loadFromLocalStorage()) {
+    generateDungeon();
+  }
+</script>
+</body>
+</html>
